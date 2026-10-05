@@ -1,2 +1,3 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+using Psarc2Tab.Cli;
+
+return new CliApplication().Run(args, Console.Out, Console.Error);

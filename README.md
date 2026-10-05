@@ -23,13 +23,28 @@ dotnet test Psarc2Tab.slnx
 
 ## Usage
 
-The intended command shape is:
+The CLI accepts:
 
 ```sh
-psarc2tab -in <input.psarc> -out <output.tab>
+psarc2tab --in <input.psarc> --out <output.tab>
+psarc2tab --help
+psarc2tab --version
 ```
 
-The CLI workflow is not implemented yet.
+`--in` and `--out` may be supplied in either order. The input must exist and
+be readable. The output directory must exist and be writable, and an existing
+output file is never overwritten. Conversion is not implemented yet; a valid
+conversion request currently reports that limitation and exits with code 5.
+
+### Exit codes
+
+| Code | Meaning |
+| ---: | --- |
+| 0 | Help or version displayed |
+| 2 | Invalid arguments |
+| 3 | Input file cannot be read |
+| 4 | Output destination cannot be written |
+| 5 | Conversion is not implemented |
 
 ## Known limitations
 

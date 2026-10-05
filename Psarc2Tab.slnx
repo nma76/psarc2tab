@@ -9,6 +9,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Psarc2Tab.Application.Tests/Psarc2Tab.Application.Tests.csproj" />
+    <Project Path="tests/Psarc2Tab.Cli.Tests/Psarc2Tab.Cli.Tests.csproj" />
     <Project Path="tests/Psarc2Tab.Domain.Tests/Psarc2Tab.Domain.Tests.csproj" />
     <Project Path="tests/Psarc2Tab.PSARC.Tests/Psarc2Tab.PSARC.Tests.csproj" />
     <Project Path="tests/Psarc2Tab.Rocksmith.Tests/Psarc2Tab.Rocksmith.Tests.csproj" />
