@@ -1,0 +1,24 @@
+# Build output
+**/bin/
+**/obj/
+[Oo]ut/
+[Ll]ogs/
+
+# .NET tooling
+.dotnet/
+*.user
+*.suo
+*.cache
+
+# IDE files
+.vs/
+.idea/
+*.sln.docstates
+
+# Test results
+TestResults/
+*.trx
+
+# OS files
+.DS_Store
+Thumbs.db

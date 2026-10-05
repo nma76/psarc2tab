@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Psarc2Tab.Application/Psarc2Tab.Application.csproj" />
+    <Project Path="src/Psarc2Tab.Cli/Psarc2Tab.Cli.csproj" />
+    <Project Path="src/Psarc2Tab.Domain/Psarc2Tab.Domain.csproj" />
+    <Project Path="src/Psarc2Tab.Formats.PSARC/Psarc2Tab.Formats.PSARC.csproj" />
+    <Project Path="src/Psarc2Tab.Formats.Rocksmith/Psarc2Tab.Formats.Rocksmith.csproj" />
+    <Project Path="src/Psarc2Tab.Tablature/Psarc2Tab.Tablature.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Psarc2Tab.Application.Tests/Psarc2Tab.Application.Tests.csproj" />
+    <Project Path="tests/Psarc2Tab.Domain.Tests/Psarc2Tab.Domain.Tests.csproj" />
+    <Project Path="tests/Psarc2Tab.PSARC.Tests/Psarc2Tab.PSARC.Tests.csproj" />
+    <Project Path="tests/Psarc2Tab.Rocksmith.Tests/Psarc2Tab.Rocksmith.Tests.csproj" />
+  </Folder>
+</Solution>

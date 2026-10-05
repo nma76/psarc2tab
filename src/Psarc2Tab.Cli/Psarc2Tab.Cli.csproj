@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Psarc2Tab.Application\Psarc2Tab.Application.csproj" />
+    <ProjectReference Include="..\Psarc2Tab.Formats.PSARC\Psarc2Tab.Formats.PSARC.csproj" />
+    <ProjectReference Include="..\Psarc2Tab.Formats.Rocksmith\Psarc2Tab.Formats.Rocksmith.csproj" />
+    <ProjectReference Include="..\Psarc2Tab.Tablature\Psarc2Tab.Tablature.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
