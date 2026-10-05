@@ -27,14 +27,16 @@ The CLI accepts:
 
 ```sh
 psarc2tab --in <input.psarc> --out <output.tab>
+psarc2tab -in <input.psarc> -out <output.tab>
 psarc2tab --help
 psarc2tab --version
 ```
 
-`--in` and `--out` may be supplied in either order. The input must exist and
-be readable. The output directory must exist and be writable, and an existing
-output file is never overwritten. Conversion is not implemented yet; a valid
-conversion request currently reports that limitation and exits with code 5.
+`--in`/`-in` and `--out`/`-out` may be supplied in either order. The input must
+exist and be readable. The output directory must exist and be writable, and an
+existing output file is never overwritten. Conversion is not implemented yet;
+a valid conversion request currently reports that limitation and exits with
+code 5.
 
 ### Exit codes
 

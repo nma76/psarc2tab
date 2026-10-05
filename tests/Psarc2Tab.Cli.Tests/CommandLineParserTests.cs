@@ -26,6 +26,16 @@ public sealed class CommandLineParserTests
         Assert.Equal("song.tab", result.OutputPath);
     }
 
+    [Fact]
+    public void Parse_SingleDashOptions_ReturnsPaths()
+    {
+        var result = _parser.Parse(["-in", "song.psarc", "-out", "song.tab"]);
+
+        Assert.Equal(CommandKind.Convert, result.Kind);
+        Assert.Equal("song.psarc", result.InputPath);
+        Assert.Equal("song.tab", result.OutputPath);
+    }
+
     [Theory]
     [InlineData("--in")]
     [InlineData("--out")]
@@ -51,7 +61,7 @@ public sealed class CommandLineParserTests
         var result = _parser.Parse(["--in", "one.psarc", "--in", "two.psarc", "--out", "song.tab"]);
 
         Assert.Equal(CommandKind.Invalid, result.Kind);
-        Assert.Contains("only be specified once", result.Error);
+        Assert.Contains("can only be specified once", result.Error);
     }
 
     [Fact]

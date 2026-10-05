@@ -10,7 +10,7 @@ public sealed class CliApplicationTests
         var output = Run("--help");
 
         Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
-        Assert.Contains("--in <path>", output.StandardOutput);
+        Assert.Contains("--in, -in <path>", output.StandardOutput);
         Assert.Contains("--version", output.StandardOutput);
         Assert.Empty(output.StandardError);
     }

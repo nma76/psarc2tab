@@ -33,7 +33,9 @@ public sealed class CommandLineParser
                     showVersion = true;
                     break;
                 case "--in":
+                case "-in":
                 case "--out":
+                case "-out":
                     if (index + 1 >= args.Count || args[index + 1].StartsWith("--", StringComparison.Ordinal))
                     {
                         return Invalid($"Option '{argument}' requires a path.");
@@ -45,11 +47,11 @@ public sealed class CommandLineParser
                         return Invalid($"Option '{argument}' requires a non-empty path.");
                     }
 
-                    if (argument == "--in")
+                    if (argument is "--in" or "-in")
                     {
                         if (inputPath is not null)
                         {
-                            return Invalid("Option '--in' can only be specified once.");
+                            return Invalid("The input option can only be specified once.");
                         }
 
                         inputPath = path;
@@ -58,7 +60,7 @@ public sealed class CommandLineParser
                     {
                         if (outputPath is not null)
                         {
-                            return Invalid("Option '--out' can only be specified once.");
+                            return Invalid("The output option can only be specified once.");
                         }
 
                         outputPath = path;

@@ -110,12 +110,13 @@ public sealed class CliApplication
 
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
+          psarc2tab -in <input.psarc> -out <output.tab>
           psarc2tab --help
           psarc2tab --version
 
         Options:
-          --in <path>   Input PSARC archive
-          --out <path>  Output tablature file (must not already exist)
+          --in, -in <path>   Input PSARC archive
+          --out, -out <path> Output tablature file (must not already exist)
           --help        Show this help
           --version     Show version information
 
