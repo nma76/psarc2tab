@@ -227,3 +227,19 @@ planned projects at once.
   branch named with the `bug/` prefix (for example, `bug/index-offset-check`).
 - Fix bugs found before a feature branch is merged directly on that feature
   branch.
+
+## TODO workflow
+
+- Read `TODO.txt` before starting implementation work. Use it to identify
+  the next unfinished task and keep work aligned with its dependencies.
+- Mark a task complete (`[x]`) only after its implementation and required
+  documentation are present and its relevant tests and build have actually
+  passed. Do not check off work based only on intent or partial support.
+- When implementation reveals a missing prerequisite, follow-up, or newly
+  discovered requirement, add it to `TODO.txt` with a clear description.
+- Keep `TODO.txt` ordered so that tasks can be implemented in sequence: list
+  prerequisites before dependent work, and reorder or split tasks when new
+  findings change those dependencies.
+- Keep tests and robustness work alongside each task. The robustness item in
+  `TODO.txt` tracks broader cross-cutting and regression coverage; it does not
+  replace tests required by individual tasks.

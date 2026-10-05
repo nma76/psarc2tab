@@ -1,11 +1,11 @@
-[X] 1. Projektgrund — Skapa solution, projekt, referenser, .gitignore och README. Verifiera att allt bygger.
-[X] 2. CLI och argument — Implementera -in och -out, hjälptext, validering och exitkoder. Själva konverteringen kan vara en stub.
-[ ] 3. PSARC-header — Läs headern och validera signatur, version, storlekar och metadata. Lägg till tester.
-[ ] 4. PSARC-index — Tolka filposter, offsets och blocktabell. Kunna lista arkivets innehåll.
-[ ] 5. Extraktion — Läs enskilda arkivposter och hantera komprimering. Testa mot kända filer.
-[ ] 6. Rocksmith-format — Identifiera relevanta filer och tolka manifest, låtdata och arrangemang.
-[ ] 7. Domänmodell — Skapa typade modeller för låtar, spår, stämning, noter, timing och tekniker.
-[ ] 8. Importpipeline — Konvertera Rocksmith-data till domänmodellen via tydliga gränssnitt.
-[ ] 9. Tabulaturgenerator — Generera grundläggande tabulatur från en fristående domänmodell, utan PSARC-beroende.
-[ ] 10. End-to-end — Koppla ihop import och export så att ett riktigt arkiv blir en .tab-fil.
-[ ] 11. Robusthet — Testa felaktiga arkiv, saknade data, kantfall, stora filer och regressionsfall.
+[x] 1. Projektgrund — Skapa solution, projekt, referenser, .gitignore och README. Verifiera att allt bygger.
+[x] 2. CLI och argument — Implementera -in och -out, hjälptext, validering och exitkoder. Själva konverteringen kan vara en stub.
+[ ] 3. PSARC-header — Läs headern och validera signatur, version, storlekar och metadata. Lägg till tester med syntetiska data.
+[ ] 4. PSARC-index — Tolka filposter, offsets och blocktabell. Kunna lista arkivets innehåll och testa gränser och felaktiga poster.
+[ ] 5. Extraktion — Läs enskilda arkivposter säkert och hantera verifierade komprimeringsvarianter. Testa mot syntetiska och kända filer.
+[ ] 6. Rocksmith-formatfakta — Identifiera relevanta arkivposter och verifiera manifest, låtdata, arrangemang, kodning och varianter. Dokumentera vad som är bekräftat respektive okänt.
+[ ] 7. Domänmodell — Utifrån verifierade formatfakta, definiera typade modeller för låtar, spår, stämning, noter, timing och tekniker som behövs för första stödda arrangemanget.
+[ ] 8. Tabulaturgenerator — Bestäm och dokumentera målformatet. Generera grundläggande tabulatur från en fristående domänmodell utan PSARC-beroende, med deterministiska tester.
+[ ] 9. Importpipeline — Läs den verifierade Rocksmith-datan och konvertera den till domänmodellen via tydliga gränssnitt. Testa importeraren utan full CLI-körning.
+[ ] 10. End-to-end — Koppla ihop PSARC, Rocksmith-import och tabulaturutdata så att ett verifierat arkiv kan bli en .tab-fil.
+[ ] 11. Robusthet och regressioner — Utöka täckningen för felaktiga arkiv, saknade data, kantfall, stora filer och regressionsfall från tidigare steg.
