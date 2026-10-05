@@ -107,6 +107,20 @@ readers, and tablature writers.
 -   Do not introduce speculative abstractions or unnecessary design
     patterns. Prefer a simple design that can evolve from evidence.
 
+## Platform compatibility
+
+-   Keep all application code and dependencies OS-agnostic and compatible
+    with every operating system supported by the targeted .NET runtime.
+-   Prefer cross-platform .NET APIs. Do not rely on operating-system-specific
+    libraries, shell commands, native binaries, P/Invoke, registry access, or
+    platform-specific services unless a requirement makes them necessary.
+-   Use APIs such as `Path`, `File`, and `Directory` for filesystem work.
+    Do not assume path separators, drive letters, case sensitivity, newline
+    conventions, or filesystem behavior that is specific to one platform.
+-   When platform-specific behavior is required, isolate it behind a clear
+    boundary, provide implementations for the supported platforms, and test
+    or document the supported behavior explicitly.
+
 ## Binary-format and reverse-engineering rules
 
 -   Treat input archives as untrusted data.
