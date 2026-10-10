@@ -1,4 +1,5 @@
 using System.Reflection;
+using Psarc2Tab.Formats.Rocksmith;
 
 namespace Psarc2Tab.Cli;
 
@@ -20,14 +21,22 @@ public sealed class CliApplication
     /// <summary>Exit code returned when conversion is not implemented.</summary>
     public const int ConversionUnavailableExitCode = 5;
 
+    /// <summary>Exit code returned when an arrangement number is not present in the archive.</summary>
+    public const int InvalidArrangementSelectionExitCode = 6;
+
     /// <summary>Parses command-line flags for this application.</summary>
     private readonly CommandLineParser _parser;
 
-    /// <summary>Creates a CLI application with the supplied parser or a default parser.</summary>
+    /// <summary>Reads arrangement listings for list and selection commands.</summary>
+    private readonly RocksmithArrangementCatalog _arrangementCatalog;
+
+    /// <summary>Creates a CLI application with supplied components or their defaults.</summary>
     /// <param name="parser">An optional parser for command-line flags.</param>
-    public CliApplication(CommandLineParser? parser = null)
+    /// <param name="arrangementCatalog">An optional archive arrangement catalog.</param>
+    public CliApplication(CommandLineParser? parser = null, RocksmithArrangementCatalog? arrangementCatalog = null)
     {
         _parser = parser ?? new CommandLineParser();
+        _arrangementCatalog = arrangementCatalog ?? new RocksmithArrangementCatalog();
     }
 
     /// <summary>Parses arguments, writes output or diagnostics, and returns the CLI exit code.</summary>
@@ -51,6 +60,8 @@ public sealed class CliApplication
             case CommandKind.Version:
                 standardOutput.WriteLine(GetVersion());
                 return SuccessExitCode;
+            case CommandKind.ListArrangements:
+                return ListArrangements(command, standardOutput, standardError);
             case CommandKind.Invalid:
                 standardError.WriteLine($"Error: {command.Error}");
                 standardError.WriteLine("Run 'psarc2tab --help' for usage.");
@@ -62,17 +73,51 @@ public sealed class CliApplication
         }
     }
 
+    /// <summary>Prints the numbered instrument arrangements in an input archive.</summary>
+    /// <param name="command">A parsed arrangement-list request.</param>
+    /// <param name="standardOutput">Writer for the arrangement listing.</param>
+    /// <param name="standardError">Writer for input diagnostics.</param>
+    /// <returns>The success or input-error exit code.</returns>
+    private int ListArrangements(ParsedCommand command, TextWriter standardOutput, TextWriter standardError)
+    {
+        try
+        {
+            using var archive = File.OpenRead(command.InputPath!);
+            foreach (var arrangement in _arrangementCatalog.List(archive))
+            {
+                standardOutput.WriteLine($"{arrangement.Number}. {arrangement.Instrument} — {arrangement.ArchivePath}");
+            }
+
+            return SuccessExitCode;
+        }
+        catch (Exception exception) when (IsInputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot list arrangements in '{command.InputPath}': {exception.Message}");
+            return InputErrorExitCode;
+        }
+    }
+
     /// <summary>Checks conversion paths and reports that conversion is not yet available.</summary>
     /// <param name="command">A parsed conversion request.</param>
     /// <param name="standardError">Writer for the conversion diagnostic.</param>
-    /// <returns>The input, output, or conversion-unavailable exit code.</returns>
-    private static int ValidateAndConvert(ParsedCommand command, TextWriter standardError)
+    /// <returns>The input, output, selection, or conversion-unavailable exit code.</returns>
+    private int ValidateAndConvert(ParsedCommand command, TextWriter standardError)
     {
         try
         {
             using var input = File.OpenRead(command.InputPath!);
+            if (command.ArrangementNumber is int arrangementNumber)
+            {
+                var arrangements = _arrangementCatalog.List(input);
+                if (arrangementNumber > arrangements.Count)
+                {
+                    standardError.WriteLine(
+                        $"Error: Arrangement {arrangementNumber} is not available. Run 'psarc2tab --in <input.psarc> --list' to see valid numbers.");
+                    return InvalidArrangementSelectionExitCode;
+                }
+            }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (Exception exception) when (IsInputFailure(exception))
         {
             standardError.WriteLine($"Error: Cannot read input file '{command.InputPath}': {exception.Message}");
             return InputErrorExitCode;
@@ -91,6 +136,13 @@ public sealed class CliApplication
         standardError.WriteLine("Error: PSARC to tablature conversion is not implemented yet.");
         return ConversionUnavailableExitCode;
     }
+
+    /// <summary>Identifies expected input and archive-format failures.</summary>
+    /// <param name="exception">The failure to classify.</param>
+    /// <returns><see langword="true"/> when the exception should be reported as an input error.</returns>
+    private static bool IsInputFailure(Exception exception) =>
+        exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or NotSupportedException or
+            System.Security.Cryptography.CryptographicException;
 
     /// <summary>Verifies that the output path is absent and its directory can create a file.</summary>
     /// <param name="outputPath">The requested output path.</param>
@@ -142,12 +194,16 @@ public sealed class CliApplication
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
           psarc2tab -in <input.psarc> -out <output.tab>
+          psarc2tab --in <input.psarc> --list
+          psarc2tab --in <input.psarc> --out <output.tab> --arrangement <number>
           psarc2tab --help
           psarc2tab --version
 
         Options:
           --in, -in <path>   Input PSARC archive
           --out, -out <path> Output tablature file (must not already exist)
+          --list             List numbered instrument arrangements in the archive
+          --arrangement <n>  Select the numbered arrangement to export
           --help        Show this help
           --version     Show version information
 
@@ -157,5 +213,6 @@ public sealed class CliApplication
           3  Input file cannot be read
           4  Output destination cannot be written
           5  Conversion is not implemented
+          6  Arrangement number is not available
         """;
 }
