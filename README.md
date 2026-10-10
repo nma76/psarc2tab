@@ -1,9 +1,9 @@
 # psarc2tab
 
 `psarc2tab` is a cross-platform .NET command-line application for converting
-Rocksmith-style PSARC song data into guitar tablature. The repository currently
-contains the initial project structure and early PSARC inspection support;
-conversion is not implemented.
+Rocksmith-style PSARC song data into guitar tablature. The repository contains
+PSARC extraction support and a format-independent Domain model. Rocksmith
+interpretation and tablature conversion are not implemented yet.
 
 ## Requirements
 
@@ -50,8 +50,10 @@ code 5.
 
 ## Known limitations
 
-- Full archive extraction, Rocksmith song interpretation, and tablature output
-  are not implemented.
+- Rocksmith song interpretation and tablature output are not implemented.
+- The Domain model represents songs, tracks, string tunings, timed notes and
+  chords, fretted positions, and a first set of note techniques. Timeline values
+  use `TimeSpan`; source time units and mapping rules remain unverified.
 - Current PSARC support covers header and index inspection plus extraction of
   one entry at a time for the observed PC and Mac archive layout.
 
