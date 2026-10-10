@@ -3,15 +3,28 @@ using System.Text;
 
 namespace Psarc2Tab.Formats.PSARC;
 
+/// <summary>Reads and validates supported PSARC archive headers.</summary>
 public static class PsarcHeaderReader
 {
+    /// <summary>The fixed PSARC header length in bytes.</summary>
     public const int HeaderSize = 32;
 
+    /// <summary>The supported PSARC version encoded as two big-endian 16-bit values.</summary>
     private const uint SupportedVersion = 0x0001_0004;
+
+    /// <summary>The supported TOC entry size in bytes.</summary>
     private const uint SupportedTocEntrySize = 30;
+
+    /// <summary>The supported uncompressed block size in bytes.</summary>
     private const uint SupportedBlockSize = 65_536;
+
+    /// <summary>The archive flag value observed in the supplied PC and Mac examples.</summary>
     private const uint SupportedArchiveFlags = 0x4;
+
+    /// <summary>The four-byte PSARC signature.</summary>
     private static ReadOnlySpan<byte> Signature => "PSAR"u8;
+
+    /// <summary>The supported four-byte compression method identifier.</summary>
     private static ReadOnlySpan<byte> SupportedCompressionMethod => "zlib"u8;
 
     /// <summary>
@@ -21,6 +34,7 @@ public static class PsarcHeaderReader
     /// </summary>
     /// <exception cref="InvalidDataException">The header is truncated or contains unsupported or inconsistent metadata.</exception>
     /// <exception cref="ArgumentException">The stream is not readable or seekable.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="stream"/> is null.</exception>
     public static PsarcHeader Read(Stream stream)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -114,5 +128,8 @@ public static class PsarcHeaderReader
             archiveFlags);
     }
 
+    /// <summary>Formats a packed PSARC version as dotted major and minor values.</summary>
+    /// <param name="value">The version encoded as two 16-bit values.</param>
+    /// <returns>The version in <c>major.minor</c> form.</returns>
     private static string FormatVersion(uint value) => $"{value >> 16}.{value & 0xffff}";
 }

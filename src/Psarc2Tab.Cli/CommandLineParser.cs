@@ -1,17 +1,35 @@
 namespace Psarc2Tab.Cli;
 
+/// <summary>Identifies the command selected by the parsed arguments.</summary>
 public enum CommandKind
 {
+    /// <summary>Requests a conversion using input and output paths.</summary>
     Convert,
+
+    /// <summary>Requests the usage text.</summary>
     Help,
+
+    /// <summary>Requests version information.</summary>
     Version,
+
+    /// <summary>Represents invalid or incomplete arguments.</summary>
     Invalid
 }
 
+/// <summary>Contains a parsed command and its associated values or diagnostic.</summary>
+/// <param name="Kind">The selected command kind.</param>
+/// <param name="InputPath">The input archive path, when conversion was requested.</param>
+/// <param name="OutputPath">The output tablature path, when conversion was requested.</param>
+/// <param name="Error">The reason parsing failed, when the command is invalid.</param>
 public sealed record ParsedCommand(CommandKind Kind, string? InputPath = null, string? OutputPath = null, string? Error = null);
 
+/// <summary>Parses supported command-line flags without performing file or conversion work.</summary>
 public sealed class CommandLineParser
 {
+    /// <summary>Parses the supplied flags into a command or an input error.</summary>
+    /// <param name="args">Command-line arguments, excluding the executable name.</param>
+    /// <returns>The parsed command and any values or diagnostic.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="args"/> is null.</exception>
     public ParsedCommand Parse(IReadOnlyList<string> args)
     {
         ArgumentNullException.ThrowIfNull(args);
@@ -95,5 +113,8 @@ public sealed class CommandLineParser
         return new ParsedCommand(CommandKind.Convert, inputPath, outputPath);
     }
 
+    /// <summary>Creates an invalid-command result with a concise diagnostic.</summary>
+    /// <param name="error">The reason the arguments are invalid.</param>
+    /// <returns>An invalid parsed command.</returns>
     private static ParsedCommand Invalid(string error) => new(CommandKind.Invalid, Error: error);
 }

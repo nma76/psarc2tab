@@ -2,10 +2,13 @@ using Psarc2Tab.Cli;
 
 namespace Psarc2Tab.Cli.Tests;
 
+/// <summary>Verifies command parsing for supported and invalid arguments.</summary>
 public sealed class CommandLineParserTests
 {
+    /// <summary>The parser used by each test case.</summary>
     private readonly CommandLineParser _parser = new();
 
+    /// <summary>Parses input and output options into a conversion command.</summary>
     [Fact]
     public void Parse_ConversionOptions_ReturnsPaths()
     {
@@ -16,6 +19,7 @@ public sealed class CommandLineParserTests
         Assert.Equal("song.tab", result.OutputPath);
     }
 
+    /// <summary>Accepts input and output options in either order.</summary>
     [Fact]
     public void Parse_ConversionOptionsInReverseOrder_ReturnsPaths()
     {
@@ -26,6 +30,7 @@ public sealed class CommandLineParserTests
         Assert.Equal("song.tab", result.OutputPath);
     }
 
+    /// <summary>Accepts the documented single-dash option aliases.</summary>
     [Fact]
     public void Parse_SingleDashOptions_ReturnsPaths()
     {
@@ -36,6 +41,8 @@ public sealed class CommandLineParserTests
         Assert.Equal("song.tab", result.OutputPath);
     }
 
+    /// <summary>Rejects conversion options without path values.</summary>
+    /// <param name="option">The option that has no following path.</param>
     [Theory]
     [InlineData("--in")]
     [InlineData("--out")]
@@ -47,6 +54,7 @@ public sealed class CommandLineParserTests
         Assert.Contains("requires a path", result.Error);
     }
 
+    /// <summary>Rejects a conversion request that omits its output option.</summary>
     [Fact]
     public void Parse_MissingRequiredOption_IsInvalid()
     {
@@ -55,6 +63,7 @@ public sealed class CommandLineParserTests
         Assert.Equal(CommandKind.Invalid, result.Kind);
     }
 
+    /// <summary>Rejects duplicate input options.</summary>
     [Fact]
     public void Parse_DuplicateOption_IsInvalid()
     {
@@ -64,6 +73,7 @@ public sealed class CommandLineParserTests
         Assert.Contains("can only be specified once", result.Error);
     }
 
+    /// <summary>Rejects options that are not supported.</summary>
     [Fact]
     public void Parse_UnknownOption_IsInvalid()
     {
@@ -73,6 +83,7 @@ public sealed class CommandLineParserTests
         Assert.Contains("Unknown option", result.Error);
     }
 
+    /// <summary>Rejects simultaneous help and version requests.</summary>
     [Fact]
     public void Parse_HelpAndVersionTogether_IsInvalid()
     {
