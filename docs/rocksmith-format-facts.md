@@ -21,6 +21,21 @@ do not establish support for every Rocksmith release or archive.
   metadata, tuning, phrases, beats, sections, events, and difficulty levels.
   Level data includes notes, chords, fret-hand mutes, anchors, and hand shapes.
   Note elements expose fields including `time`, `fret`, `string`, and `sustain`.
+- In the supplied Lead arrangement, note `time` and `sustain` values are
+  decimal seconds (for example, `time="7.024"` and `sustain="0.146"`). The
+  importer preserves them as `TimeSpan` values.
+- Instrument note `string` values use zero-based indices in the XML. The
+  importer maps them to the Domain model's one-based string numbers.
+- Arrangement tuning contains six `string0` through `string5` semitone offsets.
+  The importer applies these to standard guitar MIDI pitches
+  `[40, 45, 50, 55, 59, 64]`; Bass uses the same pitches one octave lower.
+- Chord events refer to root-level templates by `chordId`. The importer expands
+  nonnegative template frets into chord notes. XML chord events provide a start
+  time but no duration, so imported chord durations are zero rather than
+  inferred.
+- The importer selects the highest difficulty level and skips notes marked
+  `ignore`. These are explicit conversion policies, not claims about every
+  Rocksmith consumer's presentation of levels or ignored events.
 - Vocal arrangement XML uses a `vocals` root; show-light data uses a
   `showlights` root.
 - The bass, lead, rhythm, and show-light XML payloads are byte-identical between
@@ -33,14 +48,17 @@ do not establish support for every Rocksmith release or archive.
   shorter blocks are zlib streams. This allowed every entry in both examples
   to be extracted.
 
-## Still unknown
+## Import scope and remaining unknowns
 
 - The SNG payload structure and whether its contents are encrypted or
   transformed. Its observed prefix is not enough to interpret it.
-- The units and indexing rules for note time, string numbers, tuning values,
-  and other note fields.
-- How to map XML phrase iterations, difficulty levels, chord templates, and
-  techniques into the format-independent Domain model.
+- The interpretation of nonzero song `offset` values and whether additional
+  timing adjustments are needed for other chart variants. The first importer
+  accepts an absent or zero offset and rejects nonzero offsets.
+- How phrase iterations, sections, anchors, hand shapes, fret-hand mutes, and
+  every technique field should be represented in the Domain model. The first
+  importer handles note sustains, common note techniques, and chord templates;
+  it does not import those other structures.
 - Why the vocal XML differs between these platform variants and whether other
   versions use the same layout.
 - Whether these structures and compression behaviors apply to archives beyond

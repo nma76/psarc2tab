@@ -38,5 +38,11 @@ public enum NoteTechnique
     Slap = 1 << 9,
 
     /// <summary>The note is plucked.</summary>
-    Pluck = 1 << 10
+    Pluck = 1 << 10,
+
+    /// <summary>The note is played with tremolo picking.</summary>
+    Tremolo = 1 << 11,
+
+    /// <summary>The string is muted.</summary>
+    Muted = 1 << 12
 }

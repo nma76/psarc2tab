@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\Psarc2Tab.Application\Psarc2Tab.Application.csproj" />
     <ProjectReference Include="..\Psarc2Tab.Domain\Psarc2Tab.Domain.csproj" />
     <ProjectReference Include="..\Psarc2Tab.Formats.PSARC\Psarc2Tab.Formats.PSARC.csproj" />
   </ItemGroup>

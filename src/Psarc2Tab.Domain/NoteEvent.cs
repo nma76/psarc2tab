@@ -66,7 +66,8 @@ public sealed class NoteEvent
     {
         const NoteTechnique supported = NoteTechnique.HammerOn | NoteTechnique.PullOff | NoteTechnique.Bend |
             NoteTechnique.Slide | NoteTechnique.Vibrato | NoteTechnique.Harmonic | NoteTechnique.PalmMute |
-            NoteTechnique.Accent | NoteTechnique.Tap | NoteTechnique.Slap | NoteTechnique.Pluck;
+            NoteTechnique.Accent | NoteTechnique.Tap | NoteTechnique.Slap | NoteTechnique.Pluck |
+            NoteTechnique.Tremolo | NoteTechnique.Muted;
         if ((techniques & ~supported) != 0)
         {
             throw new ArgumentOutOfRangeException(nameof(techniques), techniques, "The note contains an unsupported technique flag.");
