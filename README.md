@@ -2,8 +2,9 @@
 
 `psarc2tab` is a cross-platform .NET command-line application for converting
 Rocksmith-style PSARC song data into guitar tablature. The repository contains
-PSARC extraction support and a format-independent Domain model. Rocksmith
-interpretation and tablature conversion are not implemented yet.
+PSARC extraction support, a format-independent Domain model, and a basic text
+tab generator. Rocksmith interpretation and end-to-end conversion are not
+implemented yet.
 
 ## Requirements
 
@@ -57,7 +58,10 @@ implemented.
 
 ## Known limitations
 
-- Rocksmith song interpretation and tablature output are not implemented.
+- Rocksmith song interpretation and end-to-end PSARC-to-tab conversion are not
+  implemented.
+- The tablature project can write a `.tab` document directly from a Domain song
+  and selected track.
 - The Domain model represents songs, tracks, string tunings, timed notes and
   chords, fretted positions, and a first set of note techniques. Timeline values
   use `TimeSpan`; source time units and mapping rules remain unverified.
@@ -94,3 +98,21 @@ and Mac archive.
 See [Rocksmith format facts](docs/rocksmith-format-facts.md) for confirmed
 observations from the supplied PC and Mac examples and details that remain
 unknown.
+
+## Tab file format v1
+
+The initial output format is a versioned, tab-separated event list. It is
+designed to preserve exact `TimeSpan` values without assuming a tempo, meter,
+or beat grid. A file begins with `# psarc2tab-tab/1`, followed by JSON-escaped
+song, artist, and track metadata, and the open-string MIDI pitches in
+string-number order. Event rows use these columns:
+
+```text
+position_ms  string  fret  duration_ms  event  techniques  chord_label
+```
+
+Times are decimal milliseconds with up to four fractional digits. String
+numbers are one-based in tuning order; fret zero means an open string. Chords
+are written as one row per fretted string with the shared position, duration,
+and label. Rows are sorted by position and string number. Lines end with LF for
+consistent output across operating systems.
