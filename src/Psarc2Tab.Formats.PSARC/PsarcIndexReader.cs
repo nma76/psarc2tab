@@ -112,7 +112,7 @@ public static class PsarcIndexReader
             entries[index] = new PsarcIndexEntry(record[..16], firstBlockIndex, uncompressedLength, dataOffset);
         }
 
-        return new PsarcArchiveIndex(entries, blockSizes);
+        return new PsarcArchiveIndex(entries, blockSizes, archiveStart);
     }
 
     /// <summary>Reads a five-byte unsigned integer in network byte order.</summary>

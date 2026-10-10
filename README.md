@@ -50,10 +50,10 @@ code 5.
 
 ## Known limitations
 
-- Archive entry extraction, Rocksmith song interpretation, and tablature
-  output are not implemented.
-- Current PSARC support is limited to header and index inspection for the
-  observed PC and Mac archive layout.
+- Full archive extraction, Rocksmith song interpretation, and tablature output
+  are not implemented.
+- Current PSARC support covers header and index inspection plus extraction of
+  one entry at a time for the observed PC and Mac archive layout.
 
 ## PSARC header and index inspection
 
@@ -70,3 +70,9 @@ Both supplied examples have 28 entries; the PC index has 128 block sizes and
 the Mac index has 129. These checks confirm index metadata only: archive files
 are not extracted, and the manifest has not yet been read to resolve path
 digests to filenames.
+
+The entry extractor handles raw blocks and zlib-compressed blocks. It processes
+one block at a time, validates each block against the declared uncompressed
+length, and writes to a caller-provided stream. The manifest entry was
+successfully extracted from both supplied examples; mapping manifest names to
+the TOC path digests remains future work.
