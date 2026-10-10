@@ -14,6 +14,8 @@ public sealed class CliApplicationTests
         Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
         Assert.Contains("--in, -in <path>", output.StandardOutput);
         Assert.Contains("--version", output.StandardOutput);
+        Assert.Contains("--list", output.StandardOutput);
+        Assert.Contains("--arrangement <n>", output.StandardOutput);
         Assert.Empty(output.StandardError);
     }
 
@@ -47,6 +49,33 @@ public sealed class CliApplicationTests
 
         Assert.Equal(CliApplication.InputErrorExitCode, output.ExitCode);
         Assert.Contains("Cannot read input file", output.StandardError);
+    }
+
+    /// <summary>Returns an input error when an arrangement listing archive is missing.</summary>
+    [Fact]
+    public void Run_ListWithMissingInput_ReturnsInputError()
+    {
+        using var directory = new TemporaryDirectory();
+        var output = Run("--in", Path.Combine(directory.Path, "missing.psarc"), "--list");
+
+        Assert.Equal(CliApplication.InputErrorExitCode, output.ExitCode);
+        Assert.Contains("Cannot list arrangements", output.StandardError);
+        Assert.Empty(output.StandardOutput);
+    }
+
+    /// <summary>Reports malformed archive data as an input error when listing arrangements.</summary>
+    [Fact]
+    public void Run_ListWithMalformedInput_ReturnsInputError()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "malformed.psarc");
+        File.WriteAllText(inputPath, "not a PSARC archive");
+
+        var output = Run("--in", inputPath, "--list");
+
+        Assert.Equal(CliApplication.InputErrorExitCode, output.ExitCode);
+        Assert.Contains("PSARC header is truncated", output.StandardError);
+        Assert.Empty(output.StandardOutput);
     }
 
     /// <summary>Rejects an existing output without modifying its contents.</summary>
