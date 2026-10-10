@@ -13,5 +13,6 @@
     <Project Path="tests/Psarc2Tab.Domain.Tests/Psarc2Tab.Domain.Tests.csproj" />
     <Project Path="tests/Psarc2Tab.PSARC.Tests/Psarc2Tab.PSARC.Tests.csproj" />
     <Project Path="tests/Psarc2Tab.Rocksmith.Tests/Psarc2Tab.Rocksmith.Tests.csproj" />
+    <Project Path="tests/Psarc2Tab.Tablature.Tests/Psarc2Tab.Tablature.Tests.csproj" />
   </Folder>
 </Solution>
