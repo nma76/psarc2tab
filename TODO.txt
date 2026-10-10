@@ -5,10 +5,10 @@
 [x] 5. Extraktion — Läs enskilda arkivposter säkert och hantera verifierade komprimeringsvarianter. Testa mot syntetiska data och extrahera manifestposten ur PC- och Mac-exemplen.
 [x] 6. Rocksmith-formatfakta — Identifiera relevanta arkivposter och verifiera manifest, arrangemang, kodning och PC/Mac-varianter. Dokumentera vad som bekräftats i exemplen och vad som ännu är okänt; SNG-innehållet återstår.
 [x] 7. Domänmodell — Utifrån verifierade formatfakta, definiera typade modeller för låtar, spår, stämning, noter, timing och tekniker som behövs för första stödda arrangemanget.
-[x] 8. Tabulaturgenerator — Bestäm och dokumentera målformatet. Generera grundläggande tabulatur från en fristående domänmodell utan PSARC-beroende, med deterministiska tester.
+[x] 8. Tabulaturgenerator — Generera klassisk sexlinjig ASCII-tabulatur enligt `exampledata/tab_example.txt` från domänmodellen, fristående från PSARC, med deterministiska tester.
 [x] 9. Importpipeline — Läs den verifierade Rocksmith-datan och konvertera den till domänmodellen via tydliga gränssnitt. Testa importeraren utan full CLI-körning.
 [x] 10. Arrangemangsval — Lista de stödda instrumentarrangemangen i arkivordning, låt CLI välja ett listat nummer och testa katalogen med ett arkiv som innehåller flera arrangemang. Exportkopplingen görs i steg 11.
-[x] 11. End-to-end — Koppla ihop PSARC, Rocksmith-import, arrangemangsval och tabulaturutdata så att ett verifierat arkiv kan bli en .tab-fil.
+[x] 11. End-to-end — Koppla ihop PSARC, Rocksmith-import, arrangemangsval och klassisk ASCII-tabulatur så att ett verifierat arkiv kan bli en .tab-fil.
 [ ] 12. Robusthet och regressioner — Utöka täckningen för felaktiga arkiv, saknade data, kantfall, stora filer och regressionsfall från tidigare steg.
 [x] 13. XML-dokumentation — Dokumentera alla C#-typer och medlemmar med korta engelska XML Code Comments och beskriv regeln i AGENTS.md.
 [ ] 14. Byggskript - Komplettera med GitHub pipeline som bygger ut artefakter för Windows, MacOS och Linux.

@@ -3,30 +3,30 @@ using Psarc2Tab.Tablature;
 
 namespace Psarc2Tab.Tablature.Tests;
 
-/// <summary>Verifies deterministic output in the version 1 text tab format.</summary>
+/// <summary>Verifies conventional six-line ASCII tablature output.</summary>
 public sealed class TablatureTextWriterTests
 {
-    /// <summary>Writes metadata, tuning, timed notes, and chord tones in stable order.</summary>
+    /// <summary>Writes six labeled strings with fret numbers aligned by time and string.</summary>
     [Fact]
-    public void Write_TrackWithNotesAndChord_ProducesDocumentedText()
+    public void Write_TrackWithNotesAndChord_ProducesClassicTabLayout()
     {
         var chord = new ChordEvent(
-            TimeSpan.FromTicks(1_252_500),
-            TimeSpan.FromTicks(2_505_000),
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromMilliseconds(250),
             [
                 new FrettedNote(new StringNumber(3), new FretNumber(5)),
                 new FrettedNote(new StringNumber(1), new FretNumber(3))
             ],
             "D major");
         var note = new NoteEvent(
-            TimeSpan.FromMilliseconds(250),
+            TimeSpan.FromMilliseconds(500),
             TimeSpan.FromMilliseconds(500),
             new StringNumber(2),
             new FretNumber(7),
             NoteTechnique.Bend | NoteTechnique.Vibrato);
         var openNote = new NoteEvent(
             TimeSpan.Zero,
-            TimeSpan.FromTicks(1_005_000),
+            TimeSpan.FromMilliseconds(500),
             new StringNumber(6),
             new FretNumber(0));
         var track = CreateTrack([note, openNote], [chord]);
@@ -37,26 +37,39 @@ public sealed class TablatureTextWriterTests
 
         Assert.Equal(string.Join('\n',
         [
-            "# psarc2tab-tab/1",
-            "song\t\"Test Song\"",
-            "artist\t\"Artist\"",
-            "track\t\"Lead\"",
-            "tuning_midi\t40,45,50,55,59,64",
-            "position_ms\tstring\tfret\tduration_ms\tevent\ttechniques\tchord_label",
-            "0\t6\t0\t100.5\tnote\tNone\t\"\"",
-            "125.25\t1\t3\t250.5\tchord\tNone\t\"D major\"",
-            "125.25\t3\t5\t250.5\tchord\tNone\t\"D major\"",
-            "250\t2\t7\t500\tnote\tBend|Vibrato\t\"\"",
+            "e|0------------|",
+            "B|-------------|",
+            "G|-------------|",
+            "D|------------5|",
+            "A|-----7b~-----|",
+            "E|------------3|",
             string.Empty
         ]), output.ToString());
     }
 
-    /// <summary>Escapes metadata values and produces identical output on repeated writes.</summary>
+    /// <summary>Formats slides and muted notes with common ASCII tab markers.</summary>
     [Fact]
-    public void Write_EscapedMetadata_IsDeterministic()
+    public void Write_SlideAndMutedNotes_UsesTabNotation()
+    {
+        var track = CreateTrack(
+        [
+            new NoteEvent(TimeSpan.Zero, TimeSpan.Zero, new StringNumber(1), new FretNumber(7), NoteTechnique.Slide),
+            new NoteEvent(TimeSpan.FromMilliseconds(125), TimeSpan.Zero, new StringNumber(1), new FretNumber(5), NoteTechnique.Muted)
+        ], []);
+        var song = new Song("Song", "Artist", [track]);
+        using var output = new StringWriter();
+
+        new TablatureTextWriter().Write(song, track, output);
+
+        Assert.Contains("E|su7-x|", output.ToString());
+    }
+
+    /// <summary>Produces identical output when the same song is written repeatedly.</summary>
+    [Fact]
+    public void Write_RepeatedCalls_AreDeterministic()
     {
         var track = CreateTrack([], []);
-        var song = new Song("Song\tTitle", "Artist\nName", [track]);
+        var song = new Song("Song", "Artist", [track]);
         var tabWriter = new TablatureTextWriter();
         using var firstOutput = new StringWriter();
         using var secondOutput = new StringWriter();
@@ -65,8 +78,7 @@ public sealed class TablatureTextWriterTests
         tabWriter.Write(song, track, secondOutput);
 
         Assert.Equal(firstOutput.ToString(), secondOutput.ToString());
-        Assert.Contains("song\t\"Song\\tTitle\"\n", firstOutput.ToString());
-        Assert.Contains("artist\t\"Artist\\nName\"\n", firstOutput.ToString());
+        Assert.StartsWith("e||\nB||\nG||", firstOutput.ToString());
     }
 
     /// <summary>Rejects a track that does not belong to the supplied song.</summary>

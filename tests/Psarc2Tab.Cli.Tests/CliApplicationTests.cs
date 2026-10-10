@@ -128,11 +128,7 @@ public sealed class CliApplicationTests
         Assert.Contains("Wrote tablature", output.StandardOutput);
         Assert.Empty(output.StandardError);
         var tab = File.ReadAllText(outputPath);
-        Assert.Contains("# psarc2tab-tab/1", tab);
-        Assert.Contains("song\t\"Test Bass\"", tab);
-        Assert.Contains("track\t\"Bass\"", tab);
-        Assert.Contains("tuning_midi\t28,33,38,43,47,52", tab);
-        Assert.Contains("1250\t1\t3\t500\tnote", tab);
+        Assert.Equal(string.Join('\n', ["e|-|", "B|-|", "G|-|", "D|-|", "A|-|", "E|3|", string.Empty]), tab);
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
 

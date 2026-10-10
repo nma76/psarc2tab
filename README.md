@@ -3,9 +3,9 @@
 `psarc2tab` is a cross-platform .NET command-line application for converting
 Rocksmith-style PSARC song data into guitar tablature. The repository contains
 PSARC extraction support, a Rocksmith arrangement XML importer, a
-format-independent Domain model, and a basic text tab generator. The CLI can
-convert a selected Lead, Bass, or Rhythm arrangement to the version 1 `.tab`
-format.
+format-independent Domain model, and a basic ASCII tab generator. The CLI can
+convert a selected Lead, Bass, or Rhythm arrangement to conventional six-line
+ASCII tablature in a `.tab` file.
 
 ## Requirements
 
@@ -102,20 +102,16 @@ See [Rocksmith format facts](docs/rocksmith-format-facts.md) for confirmed
 observations from the supplied PC and Mac examples and details that remain
 unknown.
 
-## Tab file format v1
+## ASCII tablature output
 
-The initial output format is a versioned, tab-separated event list. It is
-designed to preserve exact `TimeSpan` values without assuming a tempo, meter,
-or beat grid. A file begins with `# psarc2tab-tab/1`, followed by JSON-escaped
-song, artist, and track metadata, and the open-string MIDI pitches in
-string-number order. Event rows use these columns:
+Output uses the familiar six-line tablature layout, with the highest string on
+top and the lowest string on the bottom. String labels are derived from the
+track's open-string pitches; fret numbers and chord tones share aligned
+horizontal columns. Hammer-ons, pull-offs, bends, slides, vibrato, harmonics,
+muted notes, and other currently modeled techniques use compact ASCII markers.
 
-```text
-position_ms  string  fret  duration_ms  event  techniques  chord_label
-```
-
-Times are decimal milliseconds with up to four fractional digits. String
-numbers are one-based in tuning order; fret zero means an open string. Chords
-are written as one row per fretted string with the shared position, duration,
-and label. Rows are sorted by position and string number. Lines end with LF for
-consistent output across operating systems.
+Horizontal spacing is approximate: one column represents about 125 ms, with
+long gaps capped for readability. The current Domain model does not include
+measure boundaries, so row-ending `|` characters wrap the display and do not
+claim to represent verified musical bars. Song metadata is not embedded in the
+tab text. `exampledata/tab_example.txt` shows the target visual style.

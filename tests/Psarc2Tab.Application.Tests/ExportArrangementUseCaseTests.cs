@@ -19,9 +19,7 @@ public sealed class ExportArrangementUseCaseTests
 
         useCase.Execute(archive, 2, output);
 
-        Assert.Contains("# psarc2tab-tab/1", output.ToString());
-        Assert.Contains("song\t\"Test\"", output.ToString());
-        Assert.Contains("1000\t1\t3\t500\tnote", output.ToString());
+        Assert.Equal("e|3|\n", output.ToString());
     }
 
     /// <summary>Provides a fixed song for application orchestration tests.</summary>
