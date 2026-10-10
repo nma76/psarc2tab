@@ -128,7 +128,20 @@ public sealed class CliApplicationTests
         Assert.Contains("Wrote tablature", output.StandardOutput);
         Assert.Empty(output.StandardError);
         var tab = File.ReadAllText(outputPath);
-        Assert.Equal(string.Join('\n', ["e|-|", "B|-|", "G|-|", "D|-|", "A|-|", "E|3|", string.Empty]), tab);
+        Assert.Equal(string.Join('\n',
+        [
+            "Artist: Test Artist",
+            "Song: Test Bass",
+            "Tuning: E1 A1 D2 G2 B2 E3",
+            string.Empty,
+            "e|-|",
+            "B|-|",
+            "G|-|",
+            "D|-|",
+            "A|-|",
+            "E|3|",
+            string.Empty
+        ]), tab);
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
 

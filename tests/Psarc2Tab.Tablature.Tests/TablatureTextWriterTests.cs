@@ -37,6 +37,10 @@ public sealed class TablatureTextWriterTests
 
         Assert.Equal(string.Join('\n',
         [
+            "Artist: Artist",
+            "Song: Test Song",
+            "Tuning: E2 A2 D3 G3 B3 E4",
+            string.Empty,
             "e|0------------|",
             "B|-------------|",
             "G|-------------|",
@@ -78,7 +82,7 @@ public sealed class TablatureTextWriterTests
         tabWriter.Write(song, track, secondOutput);
 
         Assert.Equal(firstOutput.ToString(), secondOutput.ToString());
-        Assert.StartsWith("e||\nB||\nG||", firstOutput.ToString());
+        Assert.StartsWith("Artist: Artist\nSong: Song\nTuning: E2 A2 D3 G3 B3 E4\n\n", firstOutput.ToString());
     }
 
     /// <summary>Rejects a track that does not belong to the supplied song.</summary>

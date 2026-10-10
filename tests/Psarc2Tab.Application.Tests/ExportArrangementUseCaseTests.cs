@@ -19,7 +19,7 @@ public sealed class ExportArrangementUseCaseTests
 
         useCase.Execute(archive, 2, output);
 
-        Assert.Equal("e|3|\n", output.ToString());
+        Assert.Contains("Artist: Artist\nSong: Test\nTuning: E2\n\ne|3|\n", output.ToString());
     }
 
     /// <summary>Provides a fixed song for application orchestration tests.</summary>

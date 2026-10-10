@@ -27,6 +27,16 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
             throw new ArgumentException("The selected track does not belong to the supplied song.", nameof(track));
         }
 
+        writer.Write("Artist: ");
+        writer.Write(song.Artist);
+        writer.Write('\n');
+        writer.Write("Song: ");
+        writer.Write(song.Title);
+        writer.Write('\n');
+        writer.Write("Tuning: ");
+        writer.Write(FormatTuning(track.Tuning));
+        writer.Write("\n\n");
+
         var columns = CreateColumns(track);
         var rows = CreateRows(columns);
         var labels = Enumerable.Range(1, track.Tuning.StringCount)
@@ -164,6 +174,13 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
         var name = PitchNames[midiPitch % PitchNames.Length];
         return isHighestString && name.Length == 1 ? name.ToLowerInvariant() : name;
     }
+
+    /// <summary>Formats open-string pitches from the lowest string to the highest string.</summary>
+    /// <param name="tuning">The track tuning.</param>
+    /// <returns>Space-separated note names with MIDI octave numbers.</returns>
+    private static string FormatTuning(GuitarTuning tuning) => string.Join(' ',
+        tuning.OpenStringMidiPitches.Select(pitch =>
+            $"{PitchNames[pitch % PitchNames.Length]}{pitch / 12 - 1}"));
 
     /// <summary>Formats a fret and its supported playing techniques as common tab notation.</summary>
     /// <param name="fret">The fret number.</param>

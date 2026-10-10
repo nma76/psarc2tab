@@ -104,11 +104,14 @@ unknown.
 
 ## ASCII tablature output
 
-Output uses the familiar six-line tablature layout, with the highest string on
-top and the lowest string on the bottom. String labels are derived from the
-track's open-string pitches; fret numbers and chord tones share aligned
-horizontal columns. Hammer-ons, pull-offs, bends, slides, vibrato, harmonics,
-muted notes, and other currently modeled techniques use compact ASCII markers.
+Output starts with `Artist`, `Song`, and `Tuning` metadata lines. Tuning is
+listed from the lowest string to the highest, using note names with MIDI octave
+numbers. The tablature then uses the familiar six-line layout, with the highest
+string on top and the lowest string on the bottom. String labels are derived
+from the track's open-string pitches; fret numbers and chord tones share
+aligned horizontal columns. Hammer-ons, pull-offs, bends, slides, vibrato,
+harmonics, muted notes, and other currently modeled techniques use compact
+ASCII markers.
 
 Horizontal spacing is approximate: one column represents about 125 ms, with
 long gaps capped for readability. The current Domain model does not include
