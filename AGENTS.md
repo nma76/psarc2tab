@@ -241,6 +241,15 @@ planned projects at once.
   branch named with the `bug/` prefix (for example, `bug/index-offset-check`).
 - Fix bugs found before a feature branch is merged directly on that feature
   branch.
+- The user authorizes Codex to commit and merge completed work into `develop`
+  without asking again when the work is ready to be checked off in `TODO.txt`.
+- Keep feature and bug-fix work on its topic branch until the relevant TODO
+  item is complete, required documentation is updated, and relevant tests and
+  the solution build have actually passed. Mark the TODO item complete in the
+  topic branch, then commit and merge that branch into `develop`.
+- When the user explicitly requests a change directly on `develop`, make the
+  change and commit it there once it meets the same completion and verification
+  criteria.
 
 ## TODO workflow
 
