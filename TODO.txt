@@ -11,3 +11,4 @@
 [ ] 11. End-to-end — Koppla ihop PSARC, Rocksmith-import, arrangemangsval och tabulaturutdata så att ett verifierat arkiv kan bli en .tab-fil.
 [ ] 12. Robusthet och regressioner — Utöka täckningen för felaktiga arkiv, saknade data, kantfall, stora filer och regressionsfall från tidigare steg.
 [x] 13. XML-dokumentation — Dokumentera alla C#-typer och medlemmar med korta engelska XML Code Comments och beskriv regeln i AGENTS.md.
+[x] 14. Byggskript - Komplettera med GitHub pipeline som bygger ut artefakter för Windows, MacOS och Linux.
