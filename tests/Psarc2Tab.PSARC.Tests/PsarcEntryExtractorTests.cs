@@ -37,6 +37,22 @@ public sealed class PsarcEntryExtractorTests
         Assert.Equal(content, output.ToArray());
     }
 
+    /// <summary>Copies raw bytes when the block table records their stored length.</summary>
+    [Fact]
+    public void Extract_RawEntryWithNonzeroStoredSize_WritesOriginalBytes()
+    {
+        var content = "raw block"u8.ToArray();
+        var archive = CreateArchive(content, compress: false);
+        BinaryPrimitives.WriteUInt16BigEndian(archive.AsSpan(PsarcHeaderReader.HeaderSize + 30, 2), (ushort)content.Length);
+        using var archiveStream = new MemoryStream(archive);
+        var (header, index) = ReadIndex(archiveStream);
+        using var output = new MemoryStream();
+
+        PsarcEntryExtractor.Extract(archiveStream, header, index, 0, output);
+
+        Assert.Equal(content, output.ToArray());
+    }
+
     /// <summary>Returns an empty output for an entry whose declared length is zero.</summary>
     [Fact]
     public void Extract_EmptyEntry_WritesNoBytes()
@@ -55,7 +71,7 @@ public sealed class PsarcEntryExtractorTests
     [Fact]
     public void Extract_InvalidCompressedBlock_ThrowsInvalidDataException()
     {
-        var archive = CreateArchive("hello"u8.ToArray(), compress: true);
+        var archive = CreateArchive(Enumerable.Repeat((byte)'x', 1_000).ToArray(), compress: true);
         var tocSize = ReadUInt32(archive, 12);
         archive[tocSize] = 0;
         using var archiveStream = new MemoryStream(archive);
@@ -71,8 +87,8 @@ public sealed class PsarcEntryExtractorTests
     [Fact]
     public void Extract_DecompressedLengthExceedsEntryLength_ThrowsInvalidDataException()
     {
-        var archive = CreateArchive("hello"u8.ToArray(), compress: true);
-        WriteUInt40(archive, PsarcHeaderReader.HeaderSize + 20, 4);
+        var archive = CreateArchive(Enumerable.Repeat((byte)'x', 1_000).ToArray(), compress: true);
+        WriteUInt40(archive, PsarcHeaderReader.HeaderSize + 20, 999);
         using var archiveStream = new MemoryStream(archive);
         var (header, index) = ReadIndex(archiveStream);
         using var output = new MemoryStream();
@@ -86,7 +102,7 @@ public sealed class PsarcEntryExtractorTests
     [Fact]
     public void Extract_TruncatedBlock_ThrowsInvalidDataException()
     {
-        var archive = CreateArchive("hello"u8.ToArray(), compress: true);
+        var archive = CreateArchive(Enumerable.Repeat((byte)'x', 1_000).ToArray(), compress: true);
         Array.Resize(ref archive, archive.Length - 1);
         using var archiveStream = new MemoryStream(archive);
         var (header, index) = ReadIndex(archiveStream);
@@ -145,7 +161,7 @@ public sealed class PsarcEntryExtractorTests
             var length = Math.Min((int)blockSize, content.Length - offset);
             var block = content.AsSpan(offset, length).ToArray();
             var compressed = compress ? Compress(block) : Array.Empty<byte>();
-            blocks.Add(compress && compressed.Length <= ushort.MaxValue
+            blocks.Add(compress && compressed.Length < block.Length && compressed.Length <= ushort.MaxValue
                 ? (compressed, (ushort)compressed.Length)
                 : (block, (ushort)0));
         }
