@@ -2,21 +2,40 @@ using System.Reflection;
 
 namespace Psarc2Tab.Cli;
 
+/// <summary>Coordinates argument handling, CLI diagnostics, and conversion validation.</summary>
 public sealed class CliApplication
 {
+    /// <summary>Exit code returned after successfully displaying help or version information.</summary>
     public const int SuccessExitCode = 0;
+
+    /// <summary>Exit code returned when command-line arguments are invalid.</summary>
     public const int InvalidArgumentsExitCode = 2;
+
+    /// <summary>Exit code returned when the input archive cannot be read.</summary>
     public const int InputErrorExitCode = 3;
+
+    /// <summary>Exit code returned when the output destination cannot be written.</summary>
     public const int OutputErrorExitCode = 4;
+
+    /// <summary>Exit code returned when conversion is not implemented.</summary>
     public const int ConversionUnavailableExitCode = 5;
 
+    /// <summary>Parses command-line flags for this application.</summary>
     private readonly CommandLineParser _parser;
 
+    /// <summary>Creates a CLI application with the supplied parser or a default parser.</summary>
+    /// <param name="parser">An optional parser for command-line flags.</param>
     public CliApplication(CommandLineParser? parser = null)
     {
         _parser = parser ?? new CommandLineParser();
     }
 
+    /// <summary>Parses arguments, writes output or diagnostics, and returns the CLI exit code.</summary>
+    /// <param name="args">Arguments supplied to the CLI.</param>
+    /// <param name="standardOutput">Writer for normal output.</param>
+    /// <param name="standardError">Writer for diagnostics.</param>
+    /// <returns>A documented CLI exit code.</returns>
+    /// <exception cref="ArgumentNullException">An argument or writer is null.</exception>
     public int Run(string[] args, TextWriter standardOutput, TextWriter standardError)
     {
         ArgumentNullException.ThrowIfNull(args);
@@ -43,6 +62,10 @@ public sealed class CliApplication
         }
     }
 
+    /// <summary>Checks conversion paths and reports that conversion is not yet available.</summary>
+    /// <param name="command">A parsed conversion request.</param>
+    /// <param name="standardError">Writer for the conversion diagnostic.</param>
+    /// <returns>The input, output, or conversion-unavailable exit code.</returns>
     private static int ValidateAndConvert(ParsedCommand command, TextWriter standardError)
     {
         try
@@ -69,6 +92,11 @@ public sealed class CliApplication
         return ConversionUnavailableExitCode;
     }
 
+    /// <summary>Verifies that the output path is absent and its directory can create a file.</summary>
+    /// <param name="outputPath">The requested output path.</param>
+    /// <exception cref="IOException">The destination already exists or is a directory.</exception>
+    /// <exception cref="DirectoryNotFoundException">The destination directory does not exist.</exception>
+    /// <exception cref="UnauthorizedAccessException">The destination directory is not writable.</exception>
     private static void ValidateOutputDestination(string outputPath)
     {
         var fullPath = Path.GetFullPath(outputPath);
@@ -102,9 +130,12 @@ public sealed class CliApplication
         }
     }
 
+    /// <summary>Returns the version embedded in the CLI assembly.</summary>
+    /// <returns>A three-part version string, or <c>0.0.0</c> when unavailable.</returns>
     private static string GetVersion() =>
         Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
 
+    /// <summary>Displays the CLI usage, options, and exit codes.</summary>
     private const string HelpText = """
         psarc2tab - convert a Rocksmith PSARC archive to guitar tablature
 

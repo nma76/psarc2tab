@@ -107,6 +107,17 @@ readers, and tablature writers.
 -   Do not introduce speculative abstractions or unnecessary design
     patterns. Prefer a simple design that can evolve from evidence.
 
+## Code comments
+
+-   Write code comments in concise, clear English.
+-   Add XML documentation comments (`///`) to every declared type and member,
+    including private helpers and test methods. Document purpose, behavior, and
+    relevant constraints; add `<param>`, `<returns>`, and `<exception>` tags
+    where they clarify the contract.
+-   Keep comments short and useful. Do not repeat a name or narrate an
+    implementation that is already obvious. Explain non-obvious behavior at
+    the enclosing member rather than adding comments to routine statements.
+
 ## Platform compatibility
 
 -   Keep all application code and dependencies OS-agnostic and compatible

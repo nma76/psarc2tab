@@ -2,8 +2,10 @@ using Psarc2Tab.Cli;
 
 namespace Psarc2Tab.Cli.Tests;
 
+/// <summary>Verifies CLI output, exit codes, and filesystem validation.</summary>
 public sealed class CliApplicationTests
 {
+    /// <summary>Prints usage to standard output for the help flag.</summary>
     [Fact]
     public void Run_Help_PrintsUsageAndReturnsSuccess()
     {
@@ -15,6 +17,7 @@ public sealed class CliApplicationTests
         Assert.Empty(output.StandardError);
     }
 
+    /// <summary>Prints version information to standard output.</summary>
     [Fact]
     public void Run_Version_PrintsVersionAndReturnsSuccess()
     {
@@ -24,6 +27,7 @@ public sealed class CliApplicationTests
         Assert.False(string.IsNullOrWhiteSpace(output.StandardOutput));
     }
 
+    /// <summary>Reports missing required options to standard error.</summary>
     [Fact]
     public void Run_InvalidArguments_PrintsDiagnosticToStandardError()
     {
@@ -34,6 +38,7 @@ public sealed class CliApplicationTests
         Assert.Empty(output.StandardOutput);
     }
 
+    /// <summary>Returns an input error when the requested archive does not exist.</summary>
     [Fact]
     public void Run_MissingInput_ReturnsInputError()
     {
@@ -44,6 +49,7 @@ public sealed class CliApplicationTests
         Assert.Contains("Cannot read input file", output.StandardError);
     }
 
+    /// <summary>Rejects an existing output without modifying its contents.</summary>
     [Fact]
     public void Run_ExistingOutput_ReturnsOutputErrorWithoutOverwriting()
     {
@@ -59,6 +65,7 @@ public sealed class CliApplicationTests
         Assert.Equal("keep me", File.ReadAllText(outputPath));
     }
 
+    /// <summary>Rejects a directory used as the output file path.</summary>
     [Fact]
     public void Run_OutputPathIsDirectory_ReturnsOutputError()
     {
@@ -72,6 +79,7 @@ public sealed class CliApplicationTests
         Assert.Contains("destination path is a directory", output.StandardError);
     }
 
+    /// <summary>Reports unavailable conversion without creating an output file.</summary>
     [Fact]
     public void Run_ValidPaths_ReportsConversionUnavailableAndCreatesNoOutput()
     {
@@ -88,6 +96,9 @@ public sealed class CliApplicationTests
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
 
+    /// <summary>Runs the CLI with isolated standard output and error writers.</summary>
+    /// <param name="args">The command-line arguments to execute.</param>
+    /// <returns>The exit code and captured output streams.</returns>
     private static RunResult Run(params string[] args)
     {
         using var standardOutput = new StringWriter();
@@ -96,18 +107,26 @@ public sealed class CliApplicationTests
         return new RunResult(exitCode, standardOutput.ToString(), standardError.ToString());
     }
 
+    /// <summary>Stores the result of a CLI invocation.</summary>
+    /// <param name="ExitCode">The process exit code.</param>
+    /// <param name="StandardOutput">Captured normal output.</param>
+    /// <param name="StandardError">Captured diagnostics.</param>
     private sealed record RunResult(int ExitCode, string StandardOutput, string StandardError);
 
+    /// <summary>Creates and removes an isolated temporary directory for a test.</summary>
     private sealed class TemporaryDirectory : IDisposable
     {
+        /// <summary>Creates a uniquely named temporary directory.</summary>
         public TemporaryDirectory()
         {
             Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"psarc2tab-tests-{Guid.NewGuid():N}");
             Directory.CreateDirectory(Path);
         }
 
+        /// <summary>Gets the path of the temporary directory.</summary>
         public string Path { get; }
 
+        /// <summary>Deletes the temporary directory and its contents.</summary>
         public void Dispose() => Directory.Delete(Path, recursive: true);
     }
 }
