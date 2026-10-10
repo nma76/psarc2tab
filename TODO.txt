@@ -12,3 +12,4 @@
 [ ] 12. Robusthet och regressioner — Utöka täckningen för felaktiga arkiv, saknade data, kantfall, stora filer och regressionsfall från tidigare steg.
 [x] 13. XML-dokumentation — Dokumentera alla C#-typer och medlemmar med korta engelska XML Code Comments och beskriv regeln i AGENTS.md.
 [ ] 14. Byggskript - Komplettera med GitHub pipeline som bygger ut artefakter för Windows, MacOS och Linux.
+[ ] 15. Städning - rensa bort oanvända klasser så som Class1.cs och ev. annan kod/filer som inte används
