@@ -5,7 +5,7 @@ namespace Psarc2Tab.Formats.PSARC;
 /// <summary>Extracts individual PSARC entries into a caller-provided stream.</summary>
 public static class PsarcEntryExtractor
 {
-    /// <summary>Extracts one entry while limiting working memory to a single data block.</summary>
+    /// <summary>Extracts one entry, including raw blocks recorded with zero or full-size lengths.</summary>
     /// <param name="archiveStream">The readable and seekable PSARC stream.</param>
     /// <param name="header">The validated archive header.</param>
     /// <param name="index">The parsed index created from this archive stream.</param>
@@ -15,7 +15,7 @@ public static class PsarcEntryExtractor
     /// <exception cref="ArgumentException">A stream does not have the required capabilities or is the archive stream itself.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="entryIndex"/> is outside the index.</exception>
     /// <exception cref="InvalidDataException">An entry's block data is malformed, truncated, or inconsistent with its declared length.</exception>
-    /// <remarks>Bytes already written to <paramref name="destination"/> remain there if a later block fails.</remarks>
+    /// <remarks>Working memory is limited to one block. Bytes already written to <paramref name="destination"/> remain there if a later block fails.</remarks>
     public static void Extract(Stream archiveStream, PsarcHeader header, PsarcArchiveIndex index, int entryIndex, Stream destination)
     {
         ArgumentNullException.ThrowIfNull(archiveStream);
@@ -59,12 +59,17 @@ public static class PsarcEntryExtractor
             var blockTableIndex = checked((int)(entry.FirstBlockIndex + blockNumber));
             var uncompressedBlockLength = (int)Math.Min((ulong)header.BlockSize, remainingLength);
             var storedBlockLength = index.BlockSizes[blockTableIndex];
-            var absoluteOffset = GetAbsoluteOffset(index.ArchiveStart, relativeOffset, storedBlockLength == 0
-                ? (ulong)uncompressedBlockLength
-                : storedBlockLength, archiveStream.Length, entryIndex, blockNumber);
+            if (storedBlockLength > uncompressedBlockLength)
+            {
+                throw new InvalidDataException($"PSARC entry {entryIndex} block {blockNumber} is larger than its expected uncompressed length.");
+            }
+
+            var physicalBlockLength = storedBlockLength == 0 ? uncompressedBlockLength : storedBlockLength;
+            var absoluteOffset = GetAbsoluteOffset(index.ArchiveStart, relativeOffset, (ulong)physicalBlockLength,
+                archiveStream.Length, entryIndex, blockNumber);
 
             archiveStream.Position = absoluteOffset;
-            if (storedBlockLength == 0)
+            if (storedBlockLength == 0 || storedBlockLength == uncompressedBlockLength)
             {
                 var rawBlock = new byte[uncompressedBlockLength];
                 ReadBlock(archiveStream, rawBlock, entryIndex, blockNumber);
@@ -73,7 +78,7 @@ public static class PsarcEntryExtractor
             }
             else
             {
-                var compressedBlock = new byte[storedBlockLength];
+                var compressedBlock = new byte[physicalBlockLength];
                 ReadBlock(archiveStream, compressedBlock, entryIndex, blockNumber);
                 var uncompressedBlock = DecompressBlock(compressedBlock, uncompressedBlockLength, entryIndex, blockNumber);
                 destination.Write(uncompressedBlock);
