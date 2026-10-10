@@ -137,12 +137,12 @@ public sealed class PsarcHeaderReaderTests
     public void Read_UnsupportedArchiveFlags_ThrowsInvalidDataException()
     {
         var archive = CreateArchive(0x468);
-        WriteUInt32(archive, 28, 0);
+        WriteUInt32(archive, 28, 1);
         using var stream = new MemoryStream(archive);
 
         var exception = Assert.Throws<InvalidDataException>(() => PsarcHeaderReader.Read(stream));
 
-        Assert.Contains("archive flags 0x0", exception.Message);
+        Assert.Contains("archive flags 0x1", exception.Message);
     }
 
     /// <summary>Rejects TOC sizes too small to contain the declared entry table.</summary>

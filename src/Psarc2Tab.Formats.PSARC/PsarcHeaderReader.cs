@@ -18,8 +18,8 @@ public static class PsarcHeaderReader
     /// <summary>The supported uncompressed block size in bytes.</summary>
     private const uint SupportedBlockSize = 65_536;
 
-    /// <summary>The archive flag value observed in the supplied PC and Mac examples.</summary>
-    private const uint SupportedArchiveFlags = 0x4;
+    /// <summary>The archive flag value that marks an encrypted TOC.</summary>
+    private const uint EncryptedTocArchiveFlags = 0x4;
 
     /// <summary>The four-byte PSARC signature.</summary>
     private static ReadOnlySpan<byte> Signature => "PSAR"u8;
@@ -100,9 +100,9 @@ public static class PsarcHeaderReader
             throw new InvalidDataException($"Unsupported PSARC block size {blockSize}; supported size is {SupportedBlockSize} bytes.");
         }
 
-        if (archiveFlags != SupportedArchiveFlags)
+        if (archiveFlags is not (0 or EncryptedTocArchiveFlags))
         {
-            throw new InvalidDataException($"Unsupported PSARC archive flags 0x{archiveFlags:X}; supported value is 0x{SupportedArchiveFlags:X}.");
+            throw new InvalidDataException($"Unsupported PSARC archive flags 0x{archiveFlags:X}; supported values are 0x0 and 0x{EncryptedTocArchiveFlags:X}.");
         }
 
         var minimumTocSize = (ulong)HeaderSize + (ulong)fileCount * tocEntrySize;

@@ -2,8 +2,8 @@
 
 `psarc2tab` is a cross-platform .NET command-line application for converting
 Rocksmith-style PSARC song data into guitar tablature. The repository currently
-contains the initial project structure; conversion and format support have not
-yet been implemented.
+contains the initial project structure and early PSARC inspection support;
+conversion is not implemented.
 
 ## Requirements
 
@@ -50,16 +50,23 @@ code 5.
 
 ## Known limitations
 
-- PSARC parsing, Rocksmith song interpretation, and tablature output are not
-  implemented beyond the header reader described below.
-- No archive contents or Rocksmith variants have been confirmed as supported.
+- Archive entry extraction, Rocksmith song interpretation, and tablature
+  output are not implemented.
+- Current PSARC support is limited to header and index inspection for the
+  observed PC and Mac archive layout.
 
-## PSARC header validation
+## PSARC header and index inspection
 
 The header reader currently recognizes the common 32-byte header layout in
 the supplied PC and Mac example archives. Both report version 1.4, zlib
 compression, 30-byte TOC entries, 28 entries, 65,536-byte blocks, and raw
 archive flags `0x4`. Their TOC sizes differ: 1,128 bytes for PC and 1,130 bytes
-for Mac. The reader accepts and preserves only the observed flag value; it
-does not yet process flag-dependent TOC encryption. This validates only the
-header; it does not mean the TOC or archive contents are supported.
+for Mac. The header reader supports raw flags `0x0` and `0x4`. Flag `0x4` marks
+an encrypted TOC; the index reader decrypts it with AES-256 CFB and reads each
+30-byte record (path digest, first block index, 40-bit uncompressed length,
+and 40-bit archive-relative data offset) followed by 16-bit block sizes.
+The index reader validates record bounds and limits the TOC payload to 64 MiB.
+Both supplied examples have 28 entries; the PC index has 128 block sizes and
+the Mac index has 129. These checks confirm index metadata only: archive files
+are not extracted, and the manifest has not yet been read to resolve path
+digests to filenames.
