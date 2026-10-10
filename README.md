@@ -71,8 +71,13 @@ the Mac index has 129. These checks confirm index metadata only: archive files
 are not extracted, and the manifest has not yet been read to resolve path
 digests to filenames.
 
-The entry extractor handles raw blocks and zlib-compressed blocks. It processes
-one block at a time, validates each block against the declared uncompressed
-length, and writes to a caller-provided stream. The manifest entry was
-successfully extracted from both supplied examples; mapping manifest names to
-the TOC path digests remains future work.
+The entry extractor handles raw blocks (both zero-size markers and recorded
+sizes equal to the expected uncompressed block length) and zlib-compressed
+blocks. It processes one block at a time, validates each block against the
+declared uncompressed length, and writes to a caller-provided stream. The
+manifest entry was successfully extracted from both supplied examples; mapping
+manifest names to the TOC path digests in the application remains future work.
+
+See [Rocksmith format facts](docs/rocksmith-format-facts.md) for confirmed
+observations from the supplied PC and Mac examples and details that remain
+unknown.
