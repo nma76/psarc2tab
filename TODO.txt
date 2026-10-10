@@ -1,6 +1,6 @@
 [x] 1. Projektgrund — Skapa solution, projekt, referenser, .gitignore och README. Verifiera att allt bygger.
 [x] 2. CLI och argument — Implementera -in och -out, hjälptext, validering och exitkoder. Själva konverteringen kan vara en stub.
-[ ] 3. PSARC-header — Läs headern och validera signatur, version, storlekar och metadata. Lägg till tester med syntetiska data.
+[x] 3. PSARC-header — Läs headern och validera signatur, version, storlekar och metadata. Lägg till tester med syntetiska data.
 [ ] 4. PSARC-index — Tolka filposter, offsets och blocktabell. Kunna lista arkivets innehåll och testa gränser och felaktiga poster.
 [ ] 5. Extraktion — Läs enskilda arkivposter säkert och hantera verifierade komprimeringsvarianter. Testa mot syntetiska och kända filer.
 [ ] 6. Rocksmith-formatfakta — Identifiera relevanta arkivposter och verifiera manifest, låtdata, arrangemang, kodning och varianter. Dokumentera vad som är bekräftat respektive okänt.

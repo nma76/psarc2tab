@@ -51,5 +51,15 @@ code 5.
 ## Known limitations
 
 - PSARC parsing, Rocksmith song interpretation, and tablature output are not
-  implemented.
-- No PSARC or Rocksmith variants have been confirmed as supported.
+  implemented beyond the header reader described below.
+- No archive contents or Rocksmith variants have been confirmed as supported.
+
+## PSARC header validation
+
+The header reader currently recognizes the common 32-byte header layout in
+the supplied PC and Mac example archives. Both report version 1.4, zlib
+compression, 30-byte TOC entries, 28 entries, 65,536-byte blocks, and raw
+archive flags `0x4`. Their TOC sizes differ: 1,128 bytes for PC and 1,130 bytes
+for Mac. The reader accepts and preserves only the observed flag value; it
+does not yet process flag-dependent TOC encryption. This validates only the
+header; it does not mean the TOC or archive contents are supported.
