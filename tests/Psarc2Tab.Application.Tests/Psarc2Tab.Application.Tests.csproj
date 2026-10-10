@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Psarc2Tab.Application\Psarc2Tab.Application.csproj" />
+    <ProjectReference Include="..\..\src\Psarc2Tab.Domain\Psarc2Tab.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Psarc2Tab.Tablature\Psarc2Tab.Tablature.csproj" />
   </ItemGroup>
 
 </Project>

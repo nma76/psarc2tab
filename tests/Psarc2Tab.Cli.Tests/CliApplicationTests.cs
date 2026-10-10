@@ -1,3 +1,6 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
+using System.Text;
 using Psarc2Tab.Cli;
 
 namespace Psarc2Tab.Cli.Tests;
@@ -108,19 +111,60 @@ public sealed class CliApplicationTests
         Assert.Contains("destination path is a directory", output.StandardError);
     }
 
-    /// <summary>Reports unavailable conversion without creating an output file.</summary>
+    /// <summary>Imports and writes a selected arrangement from a PSARC archive.</summary>
     [Fact]
-    public void Run_ValidPaths_ReportsConversionUnavailableAndCreatesNoOutput()
+    public void Run_ValidArchive_WritesTabAndReturnsSuccess()
     {
         using var directory = new TemporaryDirectory();
         var inputPath = Path.Combine(directory.Path, "song.psarc");
         var outputPath = Path.Combine(directory.Path, "song.tab");
-        File.WriteAllText(inputPath, "input");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml)));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--arrangement", "2");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Contains("Wrote tablature", output.StandardOutput);
+        Assert.Empty(output.StandardError);
+        var tab = File.ReadAllText(outputPath);
+        Assert.Contains("# psarc2tab-tab/1", tab);
+        Assert.Contains("song\t\"Test Bass\"", tab);
+        Assert.Contains("track\t\"Bass\"", tab);
+        Assert.Contains("tuning_midi\t28,33,38,43,47,52", tab);
+        Assert.Contains("1250\t1\t3\t500\tnote", tab);
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Reports an unavailable arrangement and creates no output file.</summary>
+    [Fact]
+    public void Run_UnknownArrangement_ReturnsSelectionError()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "song.tab");
+        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--arrangement", "2");
+
+        Assert.Equal(CliApplication.InvalidArrangementSelectionExitCode, output.ExitCode);
+        Assert.Contains("Arrangement 2 is not available", output.StandardError);
+        Assert.False(File.Exists(outputPath));
+    }
+
+    /// <summary>Removes temporary output when an arrangement document is malformed.</summary>
+    [Fact]
+    public void Run_MalformedArrangement_DoesNotLeaveOutputOrTemporaryFile()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "song.tab");
+        File.WriteAllBytes(inputPath, CreateArchive("<song>"));
 
         var output = Run("--in", inputPath, "--out", outputPath);
 
-        Assert.Equal(CliApplication.ConversionUnavailableExitCode, output.ExitCode);
-        Assert.Contains("conversion is not implemented", output.StandardError);
+        Assert.Equal(CliApplication.InputErrorExitCode, output.ExitCode);
+        Assert.Contains("import arrangement from", output.StandardError);
         Assert.False(File.Exists(outputPath));
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
@@ -135,6 +179,86 @@ public sealed class CliApplicationTests
         var exitCode = new CliApplication().Run(args, standardOutput, standardError);
         return new RunResult(exitCode, standardOutput.ToString(), standardError.ToString());
     }
+
+    /// <summary>Builds a minimal PSARC archive with one arrangement XML entry.</summary>
+    /// <param name="arrangementXml">The XML payload stored in the archive.</param>
+    /// <returns>A valid raw-block PSARC archive.</returns>
+    private static byte[] CreateArchive(string arrangementXml)
+        => CreateArchive(("songs/arr/sample_lead.xml", arrangementXml));
+
+    /// <summary>Builds a minimal PSARC archive with arrangement XML entries.</summary>
+    /// <param name="arrangements">Archive paths and corresponding XML documents.</param>
+    /// <returns>A valid raw-block PSARC archive.</returns>
+    private static byte[] CreateArchive(params (string Path, string Xml)[] arrangements)
+    {
+        const int headerSize = 32;
+        const int entrySize = 30;
+        var manifest = Encoding.UTF8.GetBytes(string.Join('\n', arrangements.Select(item => item.Path)));
+        var contents = new[] { manifest }.Concat(arrangements.Select(item => Encoding.UTF8.GetBytes(item.Xml))).ToArray();
+        var tocSize = headerSize + contents.Length * (entrySize + sizeof(ushort));
+        var archive = new byte[tocSize + contents.Sum(content => content.Length)];
+
+        "PSAR"u8.CopyTo(archive);
+        BinaryPrimitives.WriteUInt32BigEndian(archive.AsSpan(4), 0x0001_0004);
+        "zlib"u8.CopyTo(archive.AsSpan(8));
+        BinaryPrimitives.WriteUInt32BigEndian(archive.AsSpan(12), (uint)tocSize);
+        BinaryPrimitives.WriteUInt32BigEndian(archive.AsSpan(16), entrySize);
+        BinaryPrimitives.WriteUInt32BigEndian(archive.AsSpan(20), (uint)contents.Length);
+        BinaryPrimitives.WriteUInt32BigEndian(archive.AsSpan(24), 65_536);
+
+        var blockTableOffset = headerSize + contents.Length * entrySize;
+        var dataOffset = tocSize;
+        for (var entryIndex = 0; entryIndex < contents.Length; entryIndex++)
+        {
+            var recordOffset = headerSize + entryIndex * entrySize;
+            if (entryIndex > 0)
+            {
+                MD5.HashData(Encoding.UTF8.GetBytes(arrangements[entryIndex - 1].Path))
+                    .CopyTo(archive.AsSpan(recordOffset, 16));
+            }
+
+            BinaryPrimitives.WriteUInt32BigEndian(archive.AsSpan(recordOffset + 16), (uint)entryIndex);
+            WriteUInt40(archive.AsSpan(recordOffset + 20), (ulong)contents[entryIndex].Length);
+            WriteUInt40(archive.AsSpan(recordOffset + 25), (ulong)dataOffset);
+            contents[entryIndex].CopyTo(archive, dataOffset);
+            dataOffset += contents[entryIndex].Length;
+            BinaryPrimitives.WriteUInt16BigEndian(archive.AsSpan(blockTableOffset + entryIndex * 2), 0);
+        }
+
+        return archive;
+    }
+
+    /// <summary>Writes an unsigned 40-bit integer in network byte order.</summary>
+    /// <param name="destination">The five-byte destination field.</param>
+    /// <param name="value">The value to encode.</param>
+    private static void WriteUInt40(Span<byte> destination, ulong value)
+    {
+        for (var index = 4; index >= 0; index--)
+        {
+            destination[index] = (byte)value;
+            value >>= 8;
+        }
+    }
+
+    /// <summary>A minimal arrangement used by end-to-end CLI tests.</summary>
+    private const string ArrangementXml = """
+        <song version="7">
+          <title>Test Song</title><arrangement>Lead</arrangement><artistName>Test Artist</artistName><offset>0</offset>
+          <tuning string0="0" string1="0" string2="0" string3="0" string4="0" string5="0" />
+          <chordTemplates />
+          <levels><level difficulty="0"><notes><note time="1.25" sustain="0.5" string="0" fret="3" /></notes><chords /></level></levels>
+        </song>
+        """;
+
+    /// <summary>A minimal bass arrangement used to verify archive-entry selection.</summary>
+    private const string BassArrangementXml = """
+        <song version="7">
+          <title>Test Bass</title><arrangement>Bass</arrangement><artistName>Test Artist</artistName><offset>0</offset>
+          <tuning string0="0" string1="0" string2="0" string3="0" string4="0" string5="0" />
+          <chordTemplates />
+          <levels><level difficulty="0"><notes><note time="1.25" sustain="0.5" string="0" fret="3" /></notes><chords /></level></levels>
+        </song>
+        """;
 
     /// <summary>Stores the result of a CLI invocation.</summary>
     /// <param name="ExitCode">The process exit code.</param>

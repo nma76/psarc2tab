@@ -1,12 +1,16 @@
 using System.Reflection;
+using System.Text;
+using Psarc2Tab.Application;
+using Psarc2Tab.Domain;
 using Psarc2Tab.Formats.Rocksmith;
+using Psarc2Tab.Tablature;
 
 namespace Psarc2Tab.Cli;
 
-/// <summary>Coordinates argument handling, CLI diagnostics, and conversion validation.</summary>
+/// <summary>Coordinates command-line requests, diagnostics, and arrangement conversion.</summary>
 public sealed class CliApplication
 {
-    /// <summary>Exit code returned after successfully displaying help or version information.</summary>
+    /// <summary>Exit code returned after displaying help, version, or completed conversion.</summary>
     public const int SuccessExitCode = 0;
 
     /// <summary>Exit code returned when command-line arguments are invalid.</summary>
@@ -18,8 +22,8 @@ public sealed class CliApplication
     /// <summary>Exit code returned when the output destination cannot be written.</summary>
     public const int OutputErrorExitCode = 4;
 
-    /// <summary>Exit code returned when conversion is not implemented.</summary>
-    public const int ConversionUnavailableExitCode = 5;
+    /// <summary>Exit code returned when imported data cannot be exported.</summary>
+    public const int ConversionErrorExitCode = 5;
 
     /// <summary>Exit code returned when an arrangement number is not present in the archive.</summary>
     public const int InvalidArrangementSelectionExitCode = 6;
@@ -30,13 +34,23 @@ public sealed class CliApplication
     /// <summary>Reads arrangement listings for list and selection commands.</summary>
     private readonly RocksmithArrangementCatalog _arrangementCatalog;
 
+    /// <summary>Imports a selected arrangement and writes its tablature.</summary>
+    private readonly ExportArrangementUseCase _exportArrangement;
+
     /// <summary>Creates a CLI application with supplied components or their defaults.</summary>
     /// <param name="parser">An optional parser for command-line flags.</param>
     /// <param name="arrangementCatalog">An optional archive arrangement catalog.</param>
-    public CliApplication(CommandLineParser? parser = null, RocksmithArrangementCatalog? arrangementCatalog = null)
+    /// <param name="exportArrangement">An optional arrangement export use case.</param>
+    public CliApplication(
+        CommandLineParser? parser = null,
+        RocksmithArrangementCatalog? arrangementCatalog = null,
+        ExportArrangementUseCase? exportArrangement = null)
     {
         _parser = parser ?? new CommandLineParser();
         _arrangementCatalog = arrangementCatalog ?? new RocksmithArrangementCatalog();
+        _exportArrangement = exportArrangement ?? new ExportArrangementUseCase(
+            new RocksmithArchiveArrangementImporter(_arrangementCatalog, new RocksmithArrangementImporter()),
+            new TablatureTextWriter());
     }
 
     /// <summary>Parses arguments, writes output or diagnostics, and returns the CLI exit code.</summary>
@@ -67,7 +81,7 @@ public sealed class CliApplication
                 standardError.WriteLine("Run 'psarc2tab --help' for usage.");
                 return InvalidArgumentsExitCode;
             case CommandKind.Convert:
-                return ValidateAndConvert(command, standardError);
+                return ValidateAndConvert(command, standardOutput, standardError);
             default:
                 throw new InvalidOperationException($"Unsupported command kind: {command.Kind}.");
         }
@@ -97,32 +111,13 @@ public sealed class CliApplication
         }
     }
 
-    /// <summary>Checks conversion paths and reports that conversion is not yet available.</summary>
+    /// <summary>Imports the selected arrangement and safely writes its tablature document.</summary>
     /// <param name="command">A parsed conversion request.</param>
+    /// <param name="standardOutput">Writer for conversion success output.</param>
     /// <param name="standardError">Writer for the conversion diagnostic.</param>
-    /// <returns>The input, output, selection, or conversion-unavailable exit code.</returns>
-    private int ValidateAndConvert(ParsedCommand command, TextWriter standardError)
+    /// <returns>The input, output, selection, or conversion error exit code.</returns>
+    private int ValidateAndConvert(ParsedCommand command, TextWriter standardOutput, TextWriter standardError)
     {
-        try
-        {
-            using var input = File.OpenRead(command.InputPath!);
-            if (command.ArrangementNumber is int arrangementNumber)
-            {
-                var arrangements = _arrangementCatalog.List(input);
-                if (arrangementNumber > arrangements.Count)
-                {
-                    standardError.WriteLine(
-                        $"Error: Arrangement {arrangementNumber} is not available. Run 'psarc2tab --in <input.psarc> --list' to see valid numbers.");
-                    return InvalidArrangementSelectionExitCode;
-                }
-            }
-        }
-        catch (Exception exception) when (IsInputFailure(exception))
-        {
-            standardError.WriteLine($"Error: Cannot read input file '{command.InputPath}': {exception.Message}");
-            return InputErrorExitCode;
-        }
-
         try
         {
             ValidateOutputDestination(command.OutputPath!);
@@ -133,8 +128,45 @@ public sealed class CliApplication
             return OutputErrorExitCode;
         }
 
-        standardError.WriteLine("Error: PSARC to tablature conversion is not implemented yet.");
-        return ConversionUnavailableExitCode;
+        Song song;
+        try
+        {
+            using var input = File.OpenRead(command.InputPath!);
+            song = _exportArrangement.Import(input, command.ArrangementNumber ?? 1);
+        }
+        catch (ArrangementNotFoundException exception)
+        {
+            standardError.WriteLine(
+                $"Error: {exception.Message} Run 'psarc2tab --in <input.psarc> --list' to see valid numbers.");
+            return InvalidArrangementSelectionExitCode;
+        }
+        catch (InvalidOperationException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export arrangement: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (Exception exception) when (IsInputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot read input file or import arrangement from '{command.InputPath}': {exception.Message}");
+            return InputErrorExitCode;
+        }
+
+        try
+        {
+            WriteOutputSafely(song, command.OutputPath!);
+            standardOutput.WriteLine($"Wrote tablature to '{command.OutputPath}'.");
+            return SuccessExitCode;
+        }
+        catch (InvalidOperationException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export arrangement: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (Exception exception) when (IsOutputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot write output file '{command.OutputPath}': {exception.Message}");
+            return OutputErrorExitCode;
+        }
     }
 
     /// <summary>Identifies expected input and archive-format failures.</summary>
@@ -143,6 +175,12 @@ public sealed class CliApplication
     private static bool IsInputFailure(Exception exception) =>
         exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or NotSupportedException or
             System.Security.Cryptography.CryptographicException;
+
+    /// <summary>Identifies expected output path, access, and write failures.</summary>
+    /// <param name="exception">The failure to classify.</param>
+    /// <returns><see langword="true"/> when the exception should be reported as an output error.</returns>
+    private static bool IsOutputFailure(Exception exception) =>
+        exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException;
 
     /// <summary>Verifies that the output path is absent and its directory can create a file.</summary>
     /// <param name="outputPath">The requested output path.</param>
@@ -182,6 +220,45 @@ public sealed class CliApplication
         }
     }
 
+    /// <summary>Writes to a temporary sibling file and moves it into place without overwriting.</summary>
+    /// <param name="song">The imported song to export.</param>
+    /// <param name="outputPath">The requested output path.</param>
+    /// <exception cref="IOException">The destination already exists or writing failed.</exception>
+    /// <exception cref="UnauthorizedAccessException">The destination directory is not writable.</exception>
+    private void WriteOutputSafely(Song song, string outputPath)
+    {
+        var fullPath = Path.GetFullPath(outputPath);
+        if (File.Exists(fullPath) || Directory.Exists(fullPath))
+        {
+            throw new IOException("The destination already exists. Existing files are never overwritten.");
+        }
+
+        var directory = Path.GetDirectoryName(fullPath)
+            ?? throw new DirectoryNotFoundException("The destination directory does not exist.");
+        var temporaryPath = Path.Combine(directory, $".psarc2tab-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+            {
+                _exportArrangement.Write(song, writer);
+                writer.Flush();
+                stream.Flush(flushToDisk: true);
+            }
+
+            File.Move(temporaryPath, fullPath);
+        }
+        catch
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+
+            throw;
+        }
+    }
+
     /// <summary>Returns the version embedded in the CLI assembly.</summary>
     /// <returns>A three-part version string, or <c>0.0.0</c> when unavailable.</returns>
     private static string GetVersion() =>
@@ -203,16 +280,16 @@ public sealed class CliApplication
           --in, -in <path>   Input PSARC archive
           --out, -out <path> Output tablature file (must not already exist)
           --list             List numbered instrument arrangements in the archive
-          --arrangement <n>  Select the numbered arrangement to export
+          --arrangement <n>  Select the numbered arrangement to export (default: 1)
           --help        Show this help
           --version     Show version information
 
         Exit codes:
-          0  Help or version displayed
+          0  Help, version, or conversion completed
           2  Invalid arguments
           3  Input file cannot be read
           4  Output destination cannot be written
-          5  Conversion is not implemented
+          5  Arrangement could not be exported
           6  Arrangement number is not available
         """;
 }

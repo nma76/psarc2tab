@@ -3,8 +3,9 @@
 `psarc2tab` is a cross-platform .NET command-line application for converting
 Rocksmith-style PSARC song data into guitar tablature. The repository contains
 PSARC extraction support, a Rocksmith arrangement XML importer, a
-format-independent Domain model, and a basic text tab generator. End-to-end
-conversion is not implemented yet.
+format-independent Domain model, and a basic text tab generator. The CLI can
+convert a selected Lead, Bass, or Rhythm arrangement to the version 1 `.tab`
+format.
 
 ## Requirements
 
@@ -37,36 +38,33 @@ psarc2tab --version
 
 `--in`/`-in` and `--out`/`-out` may be supplied in either order. The input must
 exist and be readable. The output directory must exist and be writable, and an
-existing output file is never overwritten. Conversion is not implemented yet;
-a valid conversion request currently reports that limitation and exits with
-code 5. `--list` extracts the manifest and displays numbered Lead, Bass, and
-Rhythm XML arrangements found under `songs/arr/`. Use the displayed number with
-`--arrangement` to select one; the number is validated against the archive.
-Arrangement selection is ready in the CLI, while tablature export is not yet
-implemented.
+existing output file is never overwritten. Output is written to a temporary
+file in the destination directory and moved into place only after writing
+completes. `--list` extracts the manifest and displays numbered Lead, Bass,
+and Rhythm XML arrangements found under `songs/arr/`. Use the displayed number
+with `--arrangement` to select one; it defaults to the first listed
+arrangement when omitted. A successful conversion prints its destination to
+stdout.
 
 ### Exit codes
 
 | Code | Meaning |
 | ---: | --- |
-| 0 | Help or version displayed |
+| 0 | Help, version, or conversion completed |
 | 2 | Invalid arguments |
 | 3 | Input file cannot be read |
 | 4 | Output destination cannot be written |
-| 5 | Conversion is not implemented |
+| 5 | Arrangement could not be exported |
 | 6 | The selected arrangement number is unavailable |
 
 ## Known limitations
 
-- The Rocksmith adapter imports a selected Lead, Bass, or Rhythm arrangement
-  XML stream into the Domain model, but the CLI does not yet connect archive
-  selection, extraction, import, and output as one conversion workflow.
 - The importer selects the highest difficulty and skips notes marked `ignore`.
   It does not import phrase structure, sections, anchors, or hand shapes.
   Nonzero song offsets are rejected while their meaning is unverified. Observed
   chord events have no duration field and are imported with zero duration.
-- The tablature project can write a `.tab` document directly from a Domain song
-  and selected track.
+- Arrangement XML whose declared instrument does not match its selected archive
+  entry is rejected.
 - The Domain model represents songs, tracks, string tunings, timed notes and
   chords, fretted positions, and a first set of note techniques. Timeline values
   use `TimeSpan`; see the format facts document for the supported XML mapping.

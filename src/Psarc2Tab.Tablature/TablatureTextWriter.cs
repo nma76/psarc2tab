@@ -1,11 +1,12 @@
 using System.Globalization;
 using System.Text.Json;
+using Psarc2Tab.Application;
 using Psarc2Tab.Domain;
 
 namespace Psarc2Tab.Tablature;
 
 /// <summary>Writes the version 1 psarc2tab tab-separated text format.</summary>
-public sealed class TablatureTextWriter
+public sealed class TablatureTextWriter : ITablatureDocumentWriter
 {
     /// <summary>Writes song metadata, tuning, and time-ordered note rows.</summary>
     /// <param name="song">The song that owns the selected track.</param>
