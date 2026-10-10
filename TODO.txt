@@ -4,7 +4,7 @@
 [x] 4. PSARC-index — Tolka filposter, offsets och blocktabell. Kunna lista arkivets indexposter och testa gränser och felaktiga poster. Stöd för krypterad TOC har verifierats mot PC- och Mac-exemplen.
 [x] 5. Extraktion — Läs enskilda arkivposter säkert och hantera verifierade komprimeringsvarianter. Testa mot syntetiska data och extrahera manifestposten ur PC- och Mac-exemplen.
 [x] 6. Rocksmith-formatfakta — Identifiera relevanta arkivposter och verifiera manifest, arrangemang, kodning och PC/Mac-varianter. Dokumentera vad som bekräftats i exemplen och vad som ännu är okänt; SNG-innehållet återstår.
-[ ] 7. Domänmodell — Utifrån verifierade formatfakta, definiera typade modeller för låtar, spår, stämning, noter, timing och tekniker som behövs för första stödda arrangemanget.
+[x] 7. Domänmodell — Utifrån verifierade formatfakta, definiera typade modeller för låtar, spår, stämning, noter, timing och tekniker som behövs för första stödda arrangemanget.
 [ ] 8. Tabulaturgenerator — Bestäm och dokumentera målformatet. Generera grundläggande tabulatur från en fristående domänmodell utan PSARC-beroende, med deterministiska tester.
 [ ] 9. Importpipeline — Läs den verifierade Rocksmith-datan och konvertera den till domänmodellen via tydliga gränssnitt. Testa importeraren utan full CLI-körning.
 [ ] 10. End-to-end — Koppla ihop PSARC, Rocksmith-import och tabulaturutdata så att ett verifierat arkiv kan bli en .tab-fil.
