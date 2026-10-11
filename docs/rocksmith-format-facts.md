@@ -50,8 +50,9 @@ do not establish support for every Rocksmith release or archive.
 
 ## Import scope and remaining unknowns
 
-- The SNG payload structure and whether its contents are encrypted or
-  transformed. Its observed prefix is not enough to interpret it.
+- SNG chart sections and their note, chord, timing, tuning, and string-count
+  semantics. Container decoding is implemented, but the binary chart has not
+  yet been mapped to the Domain model.
 - The interpretation of nonzero song `offset` values and whether additional
   timing adjustments are needed for other chart variants. The first importer
   accepts an absent or zero offset and rejects nonzero offsets.
@@ -87,10 +88,18 @@ PC/Mac pair:
   `string5`). This demonstrates a six-position metadata layout, not that every
   bass arrangement uses six strings. It cannot resolve the actual string-count
   question.
-- The SNG payloads share an eight-byte prefix in these PC examples. Their
-  remaining bytes have not been decoded by this project; note, timing, and
-  string-index semantics remain unverified here.
+- The SNG payloads start with an eight-byte header, followed by a 16-byte
+  counter, encrypted data, and a 56-byte trailing signature. The encrypted
+  data contains a 32-bit decoded-length field and a zlib stream. PC examples
+  use the little-endian marker `0x4A, 3`; the reader validates that marker and
+  checks the decoded size against a 64 MiB limit.
+- The reader selects PC or Mac byte order and key from `songs/bin/generic/` or
+  `songs/bin/macos/`. All nine Bass, Lead, and Rhythm SNG charts in these three
+  PC archives decoded successfully. Synthetic tests cover both platform
+  variants; no SNG-based Mac archive is currently available for real-file
+  verification. The trailing signature is skipped, not cryptographically
+  validated.
 
-The arrangement catalog now lists these JSON/SNG arrangements and extracts the
-SNG payload. Conversion remains unsupported until the SNG container and chart
-sections are decoded and mapped to the Domain model.
+The arrangement catalog lists these JSON/SNG arrangements and extracts the SNG
+payload. The SNG container reader decodes the PC payloads; conversion remains
+unsupported until chart sections are mapped to the Domain model.
