@@ -69,8 +69,10 @@ stdout.
 
 ## Known limitations
 
-- The importer selects the highest difficulty and skips notes marked `ignore`.
-  It imports section headings, but not phrase structure, anchors, or hand shapes.
+- XML imports select the highest declared level. SNG imports select the full
+  difficulty independently for each phrase iteration. Both skip notes marked
+  `ignore` and import section headings, but not phrase structure, anchors, or
+  hand shapes.
   Nonzero song offsets are rejected while their meaning is unverified. Observed
   chord events have no duration field and are imported with zero duration.
 - Arrangement XML whose declared instrument does not match its selected archive
@@ -81,9 +83,9 @@ stdout.
 - Current PSARC support covers header and index inspection plus extraction of
   one entry at a time for the observed PC and Mac archive layouts. XML charts
   and decoded SNG charts can be converted for the observed PC examples. SNG
-  chart import selects the highest difficulty and maps notes, chord templates,
-  timing, tuning, supported techniques, and section headings. No SNG-based Mac
-  archive has been verified yet.
+  chart import selects each phrase iteration's full difficulty and maps notes,
+  chord templates, timing, tuning, supported techniques, and section headings.
+  No SNG-based Mac archive has been verified yet.
 
 ## PSARC header and index inspection
 
