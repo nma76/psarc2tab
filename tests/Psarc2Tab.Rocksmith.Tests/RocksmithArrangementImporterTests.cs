@@ -16,6 +16,11 @@ public sealed class RocksmithArrangementImporterTests
               <title>Example Song</title><arrangement>Lead</arrangement><artistName>Example Artist</artistName>
               <tuning string0="0" string1="0" string2="0" string3="0" string4="0" string5="0" />
               <chordTemplates><chordTemplate displayName="D" fret0="-1" fret1="-1" fret2="0" fret3="2" fret4="3" fret5="2" /></chordTemplates>
+              <sections>
+                <section name="intro" number="1" startTime="0" />
+                <section name="verse" number="1" startTime="14.89" />
+                <section name="verse" number="2" startTime="24.219" />
+              </sections>
               <levels>
                 <level difficulty="0"><notes><note time="1.25" sustain="0.5" string="0" fret="3" /></notes><chords /></level>
                 <level difficulty="1">
@@ -49,6 +54,10 @@ public sealed class RocksmithArrangementImporterTests
         Assert.Equal(TimeSpan.Zero, chord.Duration);
         Assert.Equal("D", chord.Label);
         Assert.Equal(new[] { 3, 4, 5, 6 }, chord.Notes.Select(item => item.StringNumber.Value));
+        Assert.Collection(song.Sections,
+            section => Assert.Equal(new SongSection("intro", 1, TimeSpan.Zero), section),
+            section => Assert.Equal(new SongSection("verse", 1, TimeSpan.FromSeconds(14.89)), section),
+            section => Assert.Equal(new SongSection("verse", 2, TimeSpan.FromSeconds(24.219)), section));
     }
 
     /// <summary>Imports bass tuning using bass-register MIDI pitches and the XML string numbering.</summary>
@@ -59,6 +68,15 @@ public sealed class RocksmithArrangementImporterTests
 
         Assert.Equal(new[] { 28, 33, 38, 43, 47, 52 }, Assert.Single(song.Tracks).Tuning.OpenStringMidiPitches);
         Assert.Equal(1, Assert.Single(Assert.Single(song.Tracks).Notes).StringNumber.Value);
+    }
+
+    /// <summary>Allows arrangements without a sections element.</summary>
+    [Fact]
+    public void Import_MissingSections_ReturnsNoSectionMarkers()
+    {
+        var song = Import(CreateXml("Lead", string.Empty));
+
+        Assert.Empty(song.Sections);
     }
 
     /// <summary>Rejects unsupported roots and arrangement labels.</summary>

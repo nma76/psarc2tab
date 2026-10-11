@@ -38,19 +38,46 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
         writer.Write("\n\n");
 
         var columns = CreateColumns(track);
-        var rows = CreateRows(columns);
+        var segments = CreateSegments(columns, song.Sections);
         var labels = Enumerable.Range(1, track.Tuning.StringCount)
             .Select(stringNumber => GetStringLabel(track.Tuning.OpenStringMidiPitches[stringNumber - 1],
                 stringNumber == track.Tuning.StringCount))
             .ToArray();
         var labelWidth = labels.Max(label => label.Length);
 
-        foreach (var rowIndex in Enumerable.Range(0, rows.Count))
+        for (var segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
         {
-            for (var stringNumber = track.Tuning.StringCount; stringNumber >= 1; stringNumber--)
+            var segment = segments[segmentIndex];
+            if (segment.Heading is not null)
             {
-                var label = labels[stringNumber - 1];
-                writer.Write(label.PadRight(labelWidth));
+                writer.Write('[');
+                writer.Write(segment.Heading);
+                writer.Write("]\n");
+            }
+
+            var rows = CreateRows(segment.Columns);
+            WriteRows(writer, rows, labels, labelWidth, track.Tuning.StringCount);
+            if (segmentIndex < segments.Count - 1)
+            {
+                writer.Write('\n');
+            }
+        }
+    }
+
+    /// <summary>Writes all string lines in a sequence of wrapped rows.</summary>
+    /// <param name="writer">The destination writer.</param>
+    /// <param name="rows">The tablature rows.</param>
+    /// <param name="labels">The string labels in tuning order.</param>
+    /// <param name="labelWidth">The width reserved for each string label.</param>
+    /// <param name="stringCount">The number of string rows.</param>
+    private static void WriteRows(TextWriter writer, IReadOnlyList<IReadOnlyList<TabColumn>> rows,
+        IReadOnlyList<string> labels, int labelWidth, int stringCount)
+    {
+        for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+        {
+            for (var stringNumber = stringCount; stringNumber >= 1; stringNumber--)
+            {
+                writer.Write(labels[stringNumber - 1].PadRight(labelWidth));
                 writer.Write('|');
                 WriteStringRow(writer, rows[rowIndex], stringNumber);
                 writer.Write('|');
@@ -62,6 +89,56 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
                 writer.Write('\n');
             }
         }
+    }
+
+    /// <summary>Splits event columns at section boundaries and assigns readable headings.</summary>
+    /// <param name="columns">The time-ordered tablature columns.</param>
+    /// <param name="sections">The song section markers.</param>
+    /// <returns>Tablature segments in song order.</returns>
+    private static IReadOnlyList<TabSegment> CreateSegments(IReadOnlyList<TabColumn> columns,
+        IReadOnlyList<SongSection> sections)
+    {
+        if (sections.Count == 0)
+        {
+            return [new TabSegment(null, columns)];
+        }
+
+        var orderedSections = sections.OrderBy(section => section.StartTime).ToArray();
+        var repeatedNames = sections.GroupBy(section => section.Name, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var segments = new List<TabSegment>();
+        var firstStart = orderedSections[0].StartTime;
+        var leadingColumns = columns.Where(column => column.Position < firstStart).ToArray();
+        if (leadingColumns.Length > 0)
+        {
+            segments.Add(new TabSegment(null, leadingColumns));
+        }
+
+        var sectionGroups = orderedSections.GroupBy(section => section.StartTime).ToArray();
+        for (var index = 0; index < sectionGroups.Length; index++)
+        {
+            var group = sectionGroups[index].ToArray();
+            var start = sectionGroups[index].Key;
+            var end = index + 1 < sectionGroups.Length ? sectionGroups[index + 1].Key : (TimeSpan?)null;
+            var sectionColumns = columns.Where(column => column.Position >= start &&
+                (end is null || column.Position < end.Value)).ToArray();
+            var heading = string.Join(" / ", group.Select(section => FormatSectionName(section, repeatedNames)));
+            segments.Add(new TabSegment(heading, sectionColumns));
+        }
+
+        return segments.AsReadOnly();
+    }
+
+    /// <summary>Formats a section name and adds its source number when the name repeats.</summary>
+    /// <param name="section">The section marker.</param>
+    /// <param name="repeatedNames">The names occurring more than once.</param>
+    /// <returns>A title-cased section heading.</returns>
+    private static string FormatSectionName(SongSection section, IReadOnlySet<string> repeatedNames)
+    {
+        var displayName = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(section.Name.ToLowerInvariant());
+        return repeatedNames.Contains(section.Name) ? $"{displayName} {section.Number}" : displayName;
     }
 
     /// <summary>Builds time-ordered columns containing notes and chord tones.</summary>
@@ -107,7 +184,7 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
             var gapBefore = index == 0
                 ? 0
                 : GetGapWidth(groups[index - 1].Key, groups[index].Key);
-            columns.Add(new TabColumn(width, gapBefore, tokens));
+            columns.Add(new TabColumn(groups[index].Key, width, gapBefore, tokens));
         }
 
         return columns.AsReadOnly();
@@ -230,8 +307,14 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
     private sealed record TabEvent(TimeSpan Position, int StringNumber, string Token);
 
     /// <summary>Stores the notes sharing a horizontal position.</summary>
+    /// <param name="Position">The event time represented by the column.</param>
     /// <param name="Width">The widest token in this column.</param>
     /// <param name="GapBefore">The horizontal spacing before this column.</param>
     /// <param name="Tokens">The tokens indexed by one-based string number.</param>
-    private sealed record TabColumn(int Width, int GapBefore, IReadOnlyDictionary<int, string> Tokens);
+    private sealed record TabColumn(TimeSpan Position, int Width, int GapBefore, IReadOnlyDictionary<int, string> Tokens);
+
+    /// <summary>Stores one labeled section span of tablature columns.</summary>
+    /// <param name="Heading">The optional section heading.</param>
+    /// <param name="Columns">The event columns inside the section span.</param>
+    private sealed record TabSegment(string? Heading, IReadOnlyList<TabColumn> Columns);
 }

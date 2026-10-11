@@ -109,8 +109,8 @@ Source string indices are checked against those six available positions.
 Chart metadata includes six tuning positions. This does not reliably establish
 how many physical strings an arrangement uses, so the current tablature output
 keeps six rows. Deciding whether bass output should use four, five, or six rows
-remains open. The chart reader accounts for the observed difficulty,
-note, chord-template, NLD, action, event, tone, DNA, and section layouts. It
-currently imports note and chord events only; section headings remain a
-separate planned capability. No SNG-based Mac archive is available for
+remains open. The chart reader accounts for the observed difficulty, note,
+chord-template, NLD, action, event, tone, DNA, and section layouts. XML section
+headings are imported and displayed in tablature; the binary SNG section
+records are still skipped. No SNG-based Mac archive is available for
 end-to-end verification.

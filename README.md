@@ -82,7 +82,8 @@ stdout.
   and decoded SNG charts can be converted for the observed PC examples. SNG
   chart import selects the highest difficulty and maps notes, chord templates,
   timing, tuning, and supported techniques. No SNG-based Mac archive has been
-  verified yet.
+  verified yet. XML chart section headings are included in the output; section
+  headings from SNG charts remain unsupported.
 
 ## PSARC header and index inspection
 

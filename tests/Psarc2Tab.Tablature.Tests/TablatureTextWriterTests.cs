@@ -68,6 +68,38 @@ public sealed class TablatureTextWriterTests
         Assert.Contains("E|su7-x|", output.ToString());
     }
 
+    /// <summary>Starts a labeled tab segment at each repeated section marker.</summary>
+    [Fact]
+    public void Write_RepeatedSections_AddsNumberedHeadingsAtSectionBoundaries()
+    {
+        var track = CreateTrack(
+        [
+            new NoteEvent(TimeSpan.FromMilliseconds(250), TimeSpan.Zero, new StringNumber(1), new FretNumber(1)),
+            new NoteEvent(TimeSpan.FromMilliseconds(750), TimeSpan.Zero, new StringNumber(1), new FretNumber(2)),
+            new NoteEvent(TimeSpan.FromMilliseconds(1250), TimeSpan.Zero, new StringNumber(1), new FretNumber(3))
+        ], []);
+        var song = new Song("Song", "Artist", [track],
+        [
+            new SongSection("intro", 1, TimeSpan.Zero),
+            new SongSection("verse", 1, TimeSpan.FromMilliseconds(500)),
+            new SongSection("verse", 2, TimeSpan.FromSeconds(1))
+        ]);
+        using var output = new StringWriter();
+
+        new TablatureTextWriter().Write(song, track, output);
+
+        Assert.Contains("[Intro]\n", output.ToString());
+        Assert.Contains("[Verse 1]\n", output.ToString());
+        Assert.Contains("[Verse 2]\n", output.ToString());
+        Assert.True(output.ToString().IndexOf("[Intro]", StringComparison.Ordinal) <
+            output.ToString().IndexOf("[Verse 1]", StringComparison.Ordinal));
+        Assert.True(output.ToString().IndexOf("[Verse 1]", StringComparison.Ordinal) <
+            output.ToString().IndexOf("[Verse 2]", StringComparison.Ordinal));
+        Assert.Contains("E|1|", output.ToString());
+        Assert.Contains("E|2|", output.ToString());
+        Assert.Contains("E|3|", output.ToString());
+    }
+
     /// <summary>Produces identical output when the same song is written repeatedly.</summary>
     [Fact]
     public void Write_RepeatedCalls_AreDeterministic()

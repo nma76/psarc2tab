@@ -91,7 +91,35 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
             .First();
         var notes = ReadNotes(selectedLevel);
         var chords = ReadChords(selectedLevel, root, tuning.StringCount);
-        return new Song(title, artist, [new Track(arrangement, tuning, notes, chords)]);
+        var sections = ReadSections(root);
+        return new Song(title, artist, [new Track(arrangement, tuning, notes, chords)], sections);
+    }
+
+    /// <summary>Reads optional named section markers from the arrangement XML.</summary>
+    /// <param name="root">The song root element.</param>
+    /// <returns>The section markers in source order, or an empty collection when absent.</returns>
+    private static IReadOnlyList<SongSection> ReadSections(XElement root)
+    {
+        var container = root.Element("sections");
+        if (container is null)
+        {
+            return Array.Empty<SongSection>();
+        }
+
+        var sections = new List<SongSection>();
+        foreach (var element in container.Elements("section"))
+        {
+            var name = (string?)element.Attribute("name");
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new InvalidDataException("A Rocksmith section is missing its name.");
+            }
+
+            sections.Add(new SongSection(name.Trim(), ParseIntAttribute(element, "number"),
+                ParseSecondsAttribute(element, "startTime")));
+        }
+
+        return sections.AsReadOnly();
     }
 
     /// <summary>Reads the six XML tuning offsets and converts them to open-string MIDI pitches.</summary>

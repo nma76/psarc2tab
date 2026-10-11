@@ -7,9 +7,10 @@ public sealed class Song
     /// <param name="title">The display title.</param>
     /// <param name="artist">The artist name, or an empty string when unknown.</param>
     /// <param name="tracks">The song's tracks in presentation order.</param>
+    /// <param name="sections">Optional section markers in source order.</param>
     /// <exception cref="ArgumentException">The title is blank or no tracks are supplied.</exception>
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
-    public Song(string title, string artist, IEnumerable<Track> tracks)
+    public Song(string title, string artist, IEnumerable<Track> tracks, IEnumerable<SongSection>? sections = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(artist);
@@ -29,6 +30,13 @@ public sealed class Song
         Title = title;
         Artist = artist;
         Tracks = Array.AsReadOnly(trackArray);
+        var sectionArray = (sections ?? []).ToArray();
+        if (sectionArray.Any(section => section is null))
+        {
+            throw new ArgumentException("A song cannot contain a null section.", nameof(sections));
+        }
+
+        Sections = Array.AsReadOnly(sectionArray);
     }
 
     /// <summary>Gets the display title.</summary>
@@ -39,4 +47,7 @@ public sealed class Song
 
     /// <summary>Gets the tracks in presentation order.</summary>
     public IReadOnlyList<Track> Tracks { get; }
+
+    /// <summary>Gets the optional section markers in source order.</summary>
+    public IReadOnlyList<SongSection> Sections { get; }
 }
