@@ -53,16 +53,108 @@ public sealed class RocksmithArrangementCatalogTests
         Assert.Throws<InvalidDataException>(() => new RocksmithArrangementCatalog().List(stream));
     }
 
+    /// <summary>Discovers an SNG chart through its matching JSON arrangement manifest.</summary>
+    [Fact]
+    public void List_SngPackage_ReturnsArrangementAndChartPath()
+    {
+        const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
+        const string chartPath = "songs/bin/generic/example_bass.sng";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass"}}}}""";
+        var chart = new byte[] { 0x4A, 0x00, 0x00, 0x00 };
+        var archive = CreateArchive([chartPath, jsonPath], payloads: new Dictionary<string, byte[]>
+        {
+            [chartPath] = chart,
+            [jsonPath] = Encoding.UTF8.GetBytes(metadata)
+        });
+        using var stream = new MemoryStream(archive);
+
+        var arrangements = new RocksmithArrangementCatalog().List(stream);
+
+        var arrangement = Assert.Single(arrangements);
+        Assert.Equal("Bass", arrangement.Instrument);
+        Assert.Equal(chartPath, arrangement.ArchivePath);
+        Assert.Equal(jsonPath, arrangement.MetadataPath);
+        Assert.Equal(RocksmithArrangementFormat.Sng, arrangement.DataFormat);
+    }
+
+    /// <summary>Extracts the chart payload rather than its JSON metadata.</summary>
+    [Fact]
+    public void Extract_SngPackage_ReturnsChartBytes()
+    {
+        const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
+        const string chartPath = "songs/bin/generic/example_bass.sng";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass"}}}}""";
+        var chart = new byte[] { 0x4A, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00 };
+        var archive = CreateArchive([chartPath, jsonPath], payloads: new Dictionary<string, byte[]>
+        {
+            [chartPath] = chart,
+            [jsonPath] = Encoding.UTF8.GetBytes(metadata)
+        });
+        using var stream = new MemoryStream(archive);
+        using var destination = new MemoryStream();
+
+        var arrangement = new RocksmithArrangementCatalog().Extract(stream, 1, destination);
+
+        Assert.Equal(RocksmithArrangementFormat.Sng, arrangement.DataFormat);
+        Assert.Equal(chart, destination.ToArray());
+    }
+
+    /// <summary>Reports that SNG chart decoding is not yet available to the importer.</summary>
+    [Fact]
+    public void Import_SngPackage_ThrowsActionableUnsupportedFormatError()
+    {
+        const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
+        const string chartPath = "songs/bin/generic/example_bass.sng";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass"}}}}""";
+        var archive = CreateArchive([chartPath, jsonPath], payloads: new Dictionary<string, byte[]>
+        {
+            [chartPath] = [0x4A, 0x00, 0x00, 0x00],
+            [jsonPath] = Encoding.UTF8.GetBytes(metadata)
+        });
+        using var stream = new MemoryStream(archive);
+
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            new RocksmithArchiveArrangementImporter(new RocksmithArrangementCatalog(), new RocksmithArrangementImporter())
+                .Import(stream, 1));
+
+        Assert.Contains("SNG chart", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>Prefers XML when an archive includes both XML and SNG for one arrangement.</summary>
+    [Fact]
+    public void List_DualFormatPackage_ListsXmlArrangementOnly()
+    {
+        const string xmlPath = "songs/arr/example_bass.xml";
+        const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
+        const string chartPath = "songs/bin/generic/example_bass.sng";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass"}}}}""";
+        var archive = CreateArchive([xmlPath, chartPath, jsonPath], payloads: new Dictionary<string, byte[]>
+        {
+            [xmlPath] = "<song />"u8.ToArray(),
+            [chartPath] = [0x4A, 0x00, 0x00, 0x00],
+            [jsonPath] = Encoding.UTF8.GetBytes(metadata)
+        });
+        using var stream = new MemoryStream(archive);
+
+        var arrangement = Assert.Single(new RocksmithArrangementCatalog().List(stream));
+
+        Assert.Equal(xmlPath, arrangement.ArchivePath);
+        Assert.Equal(RocksmithArrangementFormat.Xml, arrangement.DataFormat);
+    }
+
     /// <summary>Builds an archive with a manifest and one raw block for each path.</summary>
     /// <param name="paths">The non-manifest archive paths.</param>
     /// <param name="manifestPaths">Optional paths to encode in the manifest.</param>
+    /// <param name="payloads">Optional payloads keyed by archive path.</param>
     /// <returns>A minimal unencrypted PSARC byte sequence.</returns>
-    private static byte[] CreateArchive(string[] paths, string[]? manifestPaths = null)
+    private static byte[] CreateArchive(string[] paths, string[]? manifestPaths = null,
+        Dictionary<string, byte[]>? payloads = null)
     {
         const int headerSize = 32;
         const int entrySize = 30;
         var manifest = Encoding.UTF8.GetBytes(string.Join('\n', manifestPaths ?? paths));
-        var content = new[] { manifest }.Concat(paths.Select(_ => "<song />"u8.ToArray())).ToArray();
+        var content = new[] { manifest }.Concat(paths.Select(path =>
+            payloads is not null && payloads.TryGetValue(path, out var payload) ? payload : "<song />"u8.ToArray())).ToArray();
         var tocSize = headerSize + content.Length * (entrySize + sizeof(ushort));
         var dataSize = content.Sum(entry => entry.Length);
         var archive = new byte[tocSize + dataSize];

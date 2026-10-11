@@ -2,10 +2,10 @@
 
 `psarc2tab` is a cross-platform .NET command-line application for converting
 Rocksmith-style PSARC song data into guitar tablature. The repository contains
-PSARC extraction support, a Rocksmith arrangement XML importer, a
-format-independent Domain model, and a basic ASCII tab generator. The CLI can
-convert a selected Lead, Bass, or Rhythm arrangement to conventional six-line
-ASCII tablature in a `.tab` file.
+PSARC extraction support, Rocksmith XML arrangement import, SNG arrangement
+discovery through JSON manifests, a format-independent Domain model, and a
+basic ASCII tab generator. The CLI can convert a selected XML-based Lead, Bass,
+or Rhythm arrangement to conventional six-line ASCII tablature in a `.tab` file.
 
 ## Requirements
 
@@ -48,8 +48,9 @@ psarc2tab --version
 exist and be readable. The output directory must exist and be writable, and an
 existing output file is never overwritten. Output is written to a temporary
 file in the destination directory and moved into place only after writing
-completes. `--list` extracts the manifest and displays numbered Lead, Bass,
-and Rhythm XML arrangements found under `songs/arr/`. Use the displayed number
+completes. `--list` extracts the archive manifest and displays numbered Lead,
+Bass, and Rhythm arrangements. It recognizes XML charts under `songs/arr/` and
+SNG charts referenced by arrangement JSON manifests. Use the displayed number
 with `--arrangement` to select one; it defaults to the first listed
 arrangement when omitted. A successful conversion prints its destination to
 stdout.
@@ -77,8 +78,9 @@ stdout.
   chords, fretted positions, and a first set of note techniques. Timeline values
   use `TimeSpan`; see the format facts document for the supported XML mapping.
 - Current PSARC support covers header and index inspection plus extraction of
-  one entry at a time for the observed PC and Mac archive layout. The CLI can
-  resolve Lead, Bass, and Rhythm arrangement paths from the extracted manifest.
+  one entry at a time for the observed PC and Mac archive layouts. XML charts
+  can be converted; SNG charts can be discovered and extracted but are not yet
+  decoded or converted.
 
 ## PSARC header and index inspection
 
@@ -93,9 +95,9 @@ and 40-bit archive-relative data offset) followed by 16-bit block sizes.
 The index reader validates record bounds and limits the TOC payload to 64 MiB.
 Both supplied examples have 28 entries; the PC index has 128 block sizes and
 the Mac index has 129. The CLI extracts the manifest entry and uses its
-verified line-to-index ordering to resolve archive paths. `--list` displays the
-Lead, Bass, and Rhythm XML arrangements; vocals and show-light XML are not
-listed as tablature instruments.
+verified line-to-index ordering to resolve archive paths. `--list` displays
+Lead, Bass, and Rhythm arrangements from either XML charts or JSON/SNG packages;
+vocals and show-light data are not listed as tablature instruments.
 
 The entry extractor handles raw blocks (both zero-size markers and recorded
 sizes equal to the expected uncompressed block length) and zlib-compressed

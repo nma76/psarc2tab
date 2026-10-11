@@ -1,5 +1,6 @@
 using System.Text;
 using System.Security.Cryptography;
+using System.Text.Json;
 using Psarc2Tab.Formats.PSARC;
 
 namespace Psarc2Tab.Formats.Rocksmith;
@@ -10,7 +11,7 @@ public sealed class RocksmithArrangementCatalog
     /// <summary>The largest manifest accepted for arrangement discovery.</summary>
     private const ulong MaximumManifestLength = 4 * 1024 * 1024;
 
-    /// <summary>The largest arrangement XML entry accepted for import.</summary>
+    /// <summary>The largest arrangement chart entry accepted for extraction.</summary>
     private const ulong MaximumArrangementLength = 64 * 1024 * 1024;
 
     /// <summary>Reads arrangement paths from a supported PSARC stream.</summary>
@@ -25,7 +26,7 @@ public sealed class RocksmithArrangementCatalog
         return Array.AsReadOnly(archive.Arrangements.Select(item => item.Arrangement).ToArray());
     }
 
-    /// <summary>Extracts one numbered arrangement XML entry to a writable stream.</summary>
+    /// <summary>Extracts one numbered arrangement chart entry to a writable stream.</summary>
     /// <param name="archiveStream">The readable, seekable PSARC archive.</param>
     /// <param name="arrangementNumber">The one-based number from <see cref="List(Stream)"/>.</param>
     /// <param name="destination">The writable stream receiving the XML bytes.</param>
@@ -33,7 +34,7 @@ public sealed class RocksmithArrangementCatalog
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
     /// <exception cref="ArgumentException">A stream does not support the required operations.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The number is not present in the archive listing.</exception>
-    /// <exception cref="InvalidDataException">The archive is malformed or the XML entry exceeds its size limit.</exception>
+    /// <exception cref="InvalidDataException">The archive is malformed or the chart entry exceeds its size limit.</exception>
     public RocksmithArrangement Extract(Stream archiveStream, int arrangementNumber, Stream destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
@@ -58,7 +59,7 @@ public sealed class RocksmithArrangementCatalog
         var entry = archive.Index.Entries[selected.EntryIndex];
         if (entry.UncompressedLength > MaximumArrangementLength)
         {
-            throw new InvalidDataException("The arrangement XML exceeds the supported 64 MiB size limit.");
+            throw new InvalidDataException("The arrangement chart exceeds the supported 64 MiB size limit.");
         }
 
         PsarcEntryExtractor.Extract(archiveStream, archive.Header, archive.Index, selected.EntryIndex, destination);
@@ -102,6 +103,21 @@ public sealed class RocksmithArrangementCatalog
             {
                 var listing = new RocksmithArrangement(arrangements.Count + 1, instrument, path);
                 arrangements.Add(new SupportedArrangement(listing, pathIndex + 1));
+            }
+            else if (TryGetManifestInstrument(path, out instrument))
+            {
+                var metadata = ReadArrangementMetadata(archiveStream, header, index, pathIndex + 1, instrument);
+                var xmlArrangementPath = $"songs/arr/{metadata.SongXmlAsset["urn:application:xml:".Length..]}.xml";
+                if (paths.Contains(xmlArrangementPath, StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var chartPath = FindSngChartPath(paths, metadata.SongXmlAsset, instrument);
+                var chartEntryIndex = Array.IndexOf(paths, chartPath) + 1;
+                var listing = new RocksmithArrangement(arrangements.Count + 1, instrument, chartPath,
+                    RocksmithArrangementFormat.Sng, path);
+                arrangements.Add(new SupportedArrangement(listing, chartEntryIndex));
             }
         }
 
@@ -209,6 +225,111 @@ public sealed class RocksmithArrangementCatalog
 
         return instrument.Length > 0;
     }
+
+    /// <summary>Recognizes JSON manifest paths for supported instrument arrangements.</summary>
+    /// <param name="path">A path from the PSARC manifest.</param>
+    /// <param name="instrument">The recognized instrument label.</param>
+    /// <returns><see langword="true"/> when the path is an arrangement JSON manifest.</returns>
+    private static bool TryGetManifestInstrument(string path, out string instrument)
+    {
+        instrument = string.Empty;
+        if (!path.StartsWith("manifests/", StringComparison.OrdinalIgnoreCase) ||
+            !path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var fileName = path[(path.LastIndexOf('/') + 1)..];
+        var separator = fileName.LastIndexOf('_');
+        if (separator < 0)
+        {
+            return false;
+        }
+
+        instrument = fileName[(separator + 1)..^5].ToLowerInvariant() switch
+        {
+            "lead" => "Lead",
+            "bass" => "Bass",
+            "rhythm" => "Rhythm",
+            _ => string.Empty
+        };
+        return instrument.Length > 0;
+    }
+
+    /// <summary>Reads the SongXml asset identifier from an arrangement JSON manifest.</summary>
+    /// <param name="archiveStream">The PSARC archive stream.</param>
+    /// <param name="header">The parsed PSARC header.</param>
+    /// <param name="index">The parsed PSARC index.</param>
+    /// <param name="entryIndex">The index entry containing the JSON manifest.</param>
+    /// <param name="expectedInstrument">The instrument inferred from the manifest path.</param>
+    /// <returns>The XML asset identifier used to correlate its SNG chart.</returns>
+    private static ArrangementMetadata ReadArrangementMetadata(Stream archiveStream, PsarcHeader header,
+        PsarcArchiveIndex index, int entryIndex, string expectedInstrument)
+    {
+        var entry = index.Entries[entryIndex];
+        if (entry.UncompressedLength > MaximumManifestLength)
+        {
+            throw new InvalidDataException("A Rocksmith arrangement JSON manifest exceeds the supported 4 MiB size limit.");
+        }
+
+        using var jsonStream = new MemoryStream(checked((int)entry.UncompressedLength));
+        PsarcEntryExtractor.Extract(archiveStream, header, index, entryIndex, jsonStream);
+        try
+        {
+            using var document = JsonDocument.Parse(jsonStream.ToArray());
+            var entries = document.RootElement.GetProperty("Entries");
+            var metadata = entries.EnumerateObject().Select(item => item.Value.GetProperty("Attributes")).Single();
+            var instrument = metadata.GetProperty("ArrangementName").GetString();
+            var songXmlAsset = metadata.GetProperty("SongXml").GetString();
+            if (!string.Equals(instrument, expectedInstrument, StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(songXmlAsset) || !songXmlAsset.StartsWith("urn:application:xml:", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("The Rocksmith arrangement JSON metadata is inconsistent with its manifest path.");
+            }
+
+            return new ArrangementMetadata(songXmlAsset);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidDataException("A Rocksmith arrangement JSON manifest is malformed.", exception);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            throw new InvalidDataException("A Rocksmith arrangement JSON manifest is missing required metadata.", exception);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new InvalidDataException("A Rocksmith arrangement JSON manifest has an unsupported structure.", exception);
+        }
+    }
+
+    /// <summary>Finds the SNG entry whose basename corresponds to an arrangement's SongXml asset.</summary>
+    /// <param name="paths">The archive paths from the top-level manifest.</param>
+    /// <param name="songXmlAsset">The Rocksmith XML asset identifier.</param>
+    /// <param name="instrument">The expected instrument label.</param>
+    /// <returns>The matching chart path.</returns>
+    private static string FindSngChartPath(string[] paths, string songXmlAsset, string instrument)
+    {
+        var assetName = songXmlAsset["urn:application:xml:".Length..];
+        var expectedSuffix = $"_{instrument.ToLowerInvariant()}";
+        if (!assetName.EndsWith(expectedSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("The Rocksmith arrangement asset name does not identify its instrument.");
+        }
+
+        var matches = paths.Where(path => path.StartsWith("songs/bin/", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(path[(path.LastIndexOf('/') + 1)..], assetName + ".sng", StringComparison.OrdinalIgnoreCase)).ToArray();
+        return matches.Length switch
+        {
+            1 => matches[0],
+            0 => throw new InvalidDataException($"The SNG chart for the '{instrument}' arrangement is missing from the archive."),
+            _ => throw new InvalidDataException($"The SNG chart for the '{instrument}' arrangement is ambiguous.")
+        };
+    }
+
+    /// <summary>Stores identifying metadata from a JSON arrangement manifest.</summary>
+    /// <param name="SongXmlAsset">The stable asset identifier used to locate the SNG chart.</param>
+    private sealed record ArrangementMetadata(string SongXmlAsset);
 
     /// <summary>Stores arrangement metadata with its corresponding PSARC TOC entry number.</summary>
     /// <param name="Arrangement">The user-visible arrangement information.</param>
