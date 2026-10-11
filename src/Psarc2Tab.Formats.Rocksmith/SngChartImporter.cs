@@ -7,7 +7,6 @@ namespace Psarc2Tab.Formats.Rocksmith;
 /// <summary>Converts an uncompressed Rocksmith SNG chart to a song domain model.</summary>
 public sealed class SngChartImporter
 {
-    /// <summary>Rocksmith note-mask bits used by the supported tablature model.</summary>
     /// <summary>The mask identifying chord events.</summary>
     private const uint ChordMask = 0x0000_0002;
     /// <summary>The mask identifying ignored notes.</summary>
@@ -82,7 +81,11 @@ public sealed class SngChartImporter
         reader.SkipRecords(reader.ReadCount(), 260);
         reader.SkipRecords(reader.ReadCount(), 8);
         reader.SkipRecords(reader.ReadCount(), 8);
-        reader.SkipRecords(reader.ReadCount(), 88);
+        var sections = new SongSection[reader.ReadCount()];
+        for (var index = 0; index < sections.Length; index++)
+        {
+            sections[index] = reader.ReadSection();
+        }
 
         var levelCount = reader.ReadCount();
         if (levelCount == 0)
@@ -170,7 +173,7 @@ public sealed class SngChartImporter
         }
 
         return new Song(metadata.Title, metadata.Artist,
-            [new Track(arrangement.Instrument, tuning, notesResult, chordsResult)]);
+            [new Track(arrangement.Instrument, tuning, notesResult, chordsResult)], sections);
     }
 
     /// <summary>Maps the SNG note-mask technique bits to domain flags.</summary>
@@ -263,6 +266,28 @@ public sealed class SngChartImporter
             return new ChordTemplate(frets, name.Length == 0 ? null : name);
         }
 
+        /// <summary>Reads the name, number, and start time from one SNG section record.</summary>
+        /// <returns>The section marker used by tablature headings.</returns>
+        public SongSection ReadSection()
+        {
+            var nameBytes = ReadBytes(32);
+            var terminator = Array.IndexOf(nameBytes, (byte)0);
+            var name = Encoding.UTF8.GetString(nameBytes, 0, terminator < 0 ? nameBytes.Length : terminator).Trim();
+            var number = ReadInt32();
+            var startTime = ReadSingle();
+            var endTime = ReadSingle();
+            Skip(8);
+            Skip(36);
+
+            if (string.IsNullOrWhiteSpace(name) || !float.IsFinite(startTime) || startTime < 0 ||
+                !float.IsFinite(endTime) || endTime < startTime)
+            {
+                throw new InvalidDataException("The SNG chart contains an invalid section record.");
+            }
+
+            return new SongSection(name, number, TimeSpan.FromSeconds(startTime));
+        }
+
         /// <summary>Skips the optional note-level-difficulty section.</summary>
         public void SkipNld()
         {
@@ -301,6 +326,10 @@ public sealed class SngChartImporter
             return _bigEndian ? BinaryPrimitives.ReadInt32BigEndian(bytes) : BinaryPrimitives.ReadInt32LittleEndian(bytes);
         }
 
+        /// <summary>Reads one IEEE-754 single precision value in chart byte order.</summary>
+        /// <returns>The floating-point value.</returns>
+        private float ReadSingle() => BitConverter.Int32BitsToSingle(ReadInt32());
+
         /// <summary>Reads one unsigned 32-bit integer in chart byte order.</summary>
         /// <returns>The integer value.</returns>
         private uint ReadUInt32()
@@ -308,10 +337,6 @@ public sealed class SngChartImporter
             var bytes = ReadBytes(sizeof(uint));
             return _bigEndian ? BinaryPrimitives.ReadUInt32BigEndian(bytes) : BinaryPrimitives.ReadUInt32LittleEndian(bytes);
         }
-
-        /// <summary>Reads one IEEE-754 single precision value in chart byte order.</summary>
-        /// <returns>The floating-point value.</returns>
-        private float ReadSingle() => BitConverter.Int32BitsToSingle(ReadInt32());
 
         /// <summary>Reads one signed byte.</summary>
         /// <returns>The signed byte.</returns>

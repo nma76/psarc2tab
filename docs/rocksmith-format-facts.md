@@ -109,8 +109,13 @@ Source string indices are checked against those six available positions.
 Chart metadata includes six tuning positions. This does not reliably establish
 how many physical strings an arrangement uses, so the current tablature output
 keeps six rows. Deciding whether bass output should use four, five, or six rows
-remains open. The chart reader accounts for the observed difficulty, note,
-chord-template, NLD, action, event, tone, DNA, and section layouts. XML section
-headings are imported and displayed in tablature; the binary SNG section
-records are still skipped. No SNG-based Mac archive is available for
-end-to-end verification.
+remains open. SNG section records are 88 bytes in the observed charts. Each
+record begins with a 32-byte UTF-8 name, a 32-bit section number, start and end
+times as 32-bit floating-point seconds, and two 32-bit phrase-iteration IDs.
+The remaining 36 bytes are skipped as opaque section metadata. Names,
+numbers, and start times are imported into the shared Domain section model,
+and the tablature writer displays them with the same headings used for XML.
+Synthetic tests verify both little-endian and big-endian numeric fields; the
+observed PC charts confirm the 88-byte record stride and plausible ordered
+section timing. No SNG-based Mac archive is available for end-to-end
+verification.

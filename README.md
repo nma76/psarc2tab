@@ -4,8 +4,9 @@
 Rocksmith-style PSARC song data into guitar tablature. The repository contains
 PSARC extraction support, Rocksmith XML arrangement import, SNG arrangement
 discovery through JSON manifests, a format-independent Domain model, and a
-basic ASCII tab generator. The CLI can convert a selected XML-based Lead, Bass,
-or Rhythm arrangement to conventional six-line ASCII tablature in a `.tab` file.
+basic ASCII tab generator. The CLI can convert a selected XML-based or SNG-based
+Lead, Bass, or Rhythm arrangement to conventional six-line ASCII tablature in a
+`.tab` file.
 
 ## Requirements
 
@@ -69,7 +70,7 @@ stdout.
 ## Known limitations
 
 - The importer selects the highest difficulty and skips notes marked `ignore`.
-  It does not import phrase structure, sections, anchors, or hand shapes.
+  It imports section headings, but not phrase structure, anchors, or hand shapes.
   Nonzero song offsets are rejected while their meaning is unverified. Observed
   chord events have no duration field and are imported with zero duration.
 - Arrangement XML whose declared instrument does not match its selected archive
@@ -81,9 +82,8 @@ stdout.
   one entry at a time for the observed PC and Mac archive layouts. XML charts
   and decoded SNG charts can be converted for the observed PC examples. SNG
   chart import selects the highest difficulty and maps notes, chord templates,
-  timing, tuning, and supported techniques. No SNG-based Mac archive has been
-  verified yet. XML chart section headings are included in the output; section
-  headings from SNG charts remain unsupported.
+  timing, tuning, supported techniques, and section headings. No SNG-based Mac
+  archive has been verified yet.
 
 ## PSARC header and index inspection
 
