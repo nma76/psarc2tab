@@ -10,7 +10,8 @@
 [x] 10. Importpipeline — Läs den verifierade Rocksmith-datan och konvertera den till domänmodellen via tydliga gränssnitt. Testa importeraren utan full CLI-körning.
 [x] 11. Arrangemangsval — Lista de stödda instrumentarrangemangen i arkivordning, låt CLI välja ett listat nummer och testa katalogen med ett arkiv som innehåller flera arrangemang. Exportkopplingen görs i steg 12.
 [x] 12. End-to-end — Koppla ihop PSARC, Rocksmith-import, arrangemangsval och klassisk ASCII-tabulatur så att ett verifierat arkiv kan bli en .tab-fil.
-[ ] 13. Robusthet och regressioner — Utöka täckningen för felaktiga arkiv, saknade data, kantfall, stora filer och regressionsfall från tidigare steg.
-[x] 14. XML-dokumentation — Dokumentera alla C#-typer och medlemmar med korta engelska XML Code Comments och beskriv regeln i AGENTS.md.
-[ ] 15. Byggskript - Komplettera med GitHub pipeline som bygger ut artefakter för Windows, MacOS och Linux.
-[x] 16. Städning - rensa bort oanvända klasser så som Class1.cs och ev. annan kod/filer som inte används
+[ ] 13. Sektionsrubriker — Importera Rocksmith-sektionernas namn, starttider och nummer från `<sections>` och skriv ut rubriker som Intro, Verse och Chorus vid rätt position i tabulaturen. Verifiera mot exempelarkiven och testa saknade eller upprepade sektioner.
+[ ] 14. Robusthet och regressioner — Utöka täckningen för felaktiga arkiv, saknade data, kantfall, stora filer och regressionsfall från tidigare steg.
+[x] 15. XML-dokumentation — Dokumentera alla C#-typer och medlemmar med korta engelska XML Code Comments och beskriv regeln i AGENTS.md.
+[x] 16. GitHub pipeline — Kör Release-bygge och tester vid push till `develop`. Vid push av en stabil `vMAJOR.MINOR.PATCH`-tagg från `develop`, bygg och smoke-testa self-contained CLI-paket för `win-x64`, `osx-arm64`, `linux-x64` och `linux-arm64`, skapa en GitHub Release och bifoga arkiv samt SHA-256-checksummor.
+[x] 17. Städning - rensa bort oanvända klasser så som Class1.cs och ev. annan kod/filer som inte används

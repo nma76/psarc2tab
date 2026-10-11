@@ -23,6 +23,14 @@ dotnet build Psarc2Tab.slnx
 dotnet test Psarc2Tab.slnx
 ```
 
+## CI and releases
+
+Pushes to `develop` run the Release build and full test suite. Pushing a stable
+semantic-version tag such as `v1.2.3` runs the same checks, then creates
+self-contained single-file CLI packages for `win-x64`, `osx-arm64`, `linux-x64`,
+and `linux-arm64`. Release tags must point to a commit in `develop`. Each
+platform package is attached to a GitHub Release along with `SHA256SUMS.txt`.
+
 ## Usage
 
 The CLI accepts:
