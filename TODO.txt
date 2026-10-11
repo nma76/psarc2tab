@@ -6,7 +6,7 @@
 [x] 6. Rocksmith-formatfakta — Identifiera relevanta arkivposter och verifiera manifest, arrangemang, kodning och PC/Mac-varianter. Dokumentera vad som bekräftats i exemplen och vad som ännu är okänt; SNG-chartens struktur återstår.
 [x] 7. Domänmodell — Utifrån verifierade formatfakta, definiera typade modeller för låtar, spår, stämning, noter, timing och tekniker som behövs för första stödda arrangemanget.
 [x] 8. Tabulaturgenerator — Generera klassisk sexlinjig ASCII-tabulatur med header för artist, låt och stämning enligt `exampledata/tab_example.txt`, från domänmodellen fristående från PSARC, med deterministiska tester.
-[ ] 9. Baslayout i tabulatur — Bestäm om basarrangemang ska visas med fyra rader eller följa stämningens strängantal, och hur noter på eventuella extra strängar ska hanteras.
+[ ] 9. Baslayout och fysiskt strängantal — Undersök om arrangemangets data pålitligt anger fyra, fem eller sex fysiska strängar. Bestäm därefter antal tabrader och hantering av extra strängar; sex tuningpositioner i manifestet räcker inte som bevis.
 [x] 10. Importpipeline — Läs den verifierade Rocksmith-datan och konvertera den till domänmodellen via tydliga gränssnitt. Testa importeraren utan full CLI-körning.
 [x] 11. Arrangemangsval — Lista de stödda instrumentarrangemangen i arkivordning, låt CLI välja ett listat nummer och testa katalogen med ett arkiv som innehåller flera arrangemang. Exportkopplingen görs i steg 12.
 [x] 12. End-to-end — Koppla ihop PSARC, Rocksmith-import, arrangemangsval och klassisk ASCII-tabulatur så att ett verifierat arkiv kan bli en .tab-fil.
@@ -17,5 +17,5 @@
 [x] 17. Städning - rensa bort oanvända klasser så som Class1.cs och ev. annan kod/filer som inte används
 [x] 18. SNG-arrangemangsupptäckt — Känn igen arrangemangens JSON-manifest, koppla `SongXml` till motsvarande SNG-post, lista Lead/Bass/Rhythm och extrahera chart-posten. Konvertering markeras inte som stödd innan chart-datan har tolkats till domänmodellen.
 [x] 19. SNG-container — Verifiera och implementera avkodning av SNG-header, kryptering/plattformsvariant och zlib-data med storleksgränser och feltester. PC-avkodning har verifierats på de tre SNG-exemplen; Mac-varianten har syntetiska tester i väntan på ett SNG-baserat Mac-exempel.
-[ ] 20. SNG-chart till domänmodell — Tolka svårighetsnivåer, noter, ackord, timing, tuning och strängindex från avkodad chart-data. Verifiera strängantal mot innehållet och testa export genom CLI.
+[x] 20. SNG-chart till domänmodell — Tolka svårighetsnivåer, noter, ackord, timing, tuning och strängindex från avkodad chart-data. Verifiera not- och ackordindex mot chartens sex tuningpositioner och testa export genom CLI. Fysiskt strängantal och antal tabrader hanteras separat i punkt 9 eftersom metadata inte styrker antalet.
 [x] 21. Anonymisera analysdokumentation — Beskriv verifierade formatfakta utan att namnge låtar eller arkiv som analyserats.

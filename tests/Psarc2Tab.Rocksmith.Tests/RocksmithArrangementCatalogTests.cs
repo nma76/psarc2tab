@@ -59,7 +59,7 @@ public sealed class RocksmithArrangementCatalogTests
     {
         const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
         const string chartPath = "songs/bin/generic/example_bass.sng";
-        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass"}}}}""";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass","SongName":"Example Song","ArtistName":"Example Artist","Tuning":{"string0":0,"string1":0,"string2":0,"string3":0,"string4":0,"string5":0}}}}}""";
         var chart = new byte[] { 0x4A, 0x00, 0x00, 0x00 };
         var archive = CreateArchive([chartPath, jsonPath], payloads: new Dictionary<string, byte[]>
         {
@@ -75,6 +75,9 @@ public sealed class RocksmithArrangementCatalogTests
         Assert.Equal(chartPath, arrangement.ArchivePath);
         Assert.Equal(jsonPath, arrangement.MetadataPath);
         Assert.Equal(RocksmithArrangementFormat.Sng, arrangement.DataFormat);
+        Assert.Equal("Example Song", arrangement.SngMetadata?.Title);
+        Assert.Equal("Example Artist", arrangement.SngMetadata?.Artist);
+        Assert.Equal(new[] { 0, 0, 0, 0, 0, 0 }, arrangement.SngMetadata?.TuningOffsets);
     }
 
     /// <summary>Extracts the chart payload rather than its JSON metadata.</summary>
@@ -83,7 +86,7 @@ public sealed class RocksmithArrangementCatalogTests
     {
         const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
         const string chartPath = "songs/bin/generic/example_bass.sng";
-        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass"}}}}""";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass","SongName":"Example Song","ArtistName":"Example Artist","Tuning":{"string0":0,"string1":0,"string2":0,"string3":0,"string4":0,"string5":0}}}}}""";
         var chart = new byte[] { 0x4A, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00 };
         var archive = CreateArchive([chartPath, jsonPath], payloads: new Dictionary<string, byte[]>
         {
@@ -99,13 +102,13 @@ public sealed class RocksmithArrangementCatalogTests
         Assert.Equal(chart, destination.ToArray());
     }
 
-    /// <summary>Reports that SNG chart decoding is not yet available to the importer.</summary>
+    /// <summary>Rejects malformed SNG chart containers with a useful error.</summary>
     [Fact]
-    public void Import_SngPackage_ThrowsActionableUnsupportedFormatError()
+    public void Import_SngPackage_RejectsMalformedContainer()
     {
         const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
         const string chartPath = "songs/bin/generic/example_bass.sng";
-        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass"}}}}""";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass","SongName":"Example Song","ArtistName":"Example Artist","Tuning":{"string0":0,"string1":0,"string2":0,"string3":0,"string4":0,"string5":0}}}}}""";
         var archive = CreateArchive([chartPath, jsonPath], payloads: new Dictionary<string, byte[]>
         {
             [chartPath] = [0x4A, 0x00, 0x00, 0x00],
@@ -117,7 +120,7 @@ public sealed class RocksmithArrangementCatalogTests
             new RocksmithArchiveArrangementImporter(new RocksmithArrangementCatalog(), new RocksmithArrangementImporter())
                 .Import(stream, 1));
 
-        Assert.Contains("SNG chart", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("SNG container", exception.Message, StringComparison.Ordinal);
     }
 
     /// <summary>Prefers XML when an archive includes both XML and SNG for one arrangement.</summary>
@@ -127,7 +130,7 @@ public sealed class RocksmithArrangementCatalogTests
         const string xmlPath = "songs/arr/example_bass.xml";
         const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
         const string chartPath = "songs/bin/generic/example_bass.sng";
-        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass"}}}}""";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass","SongName":"Example Song","ArtistName":"Example Artist","Tuning":{"string0":0,"string1":0,"string2":0,"string3":0,"string4":0,"string5":0}}}}}""";
         var archive = CreateArchive([xmlPath, chartPath, jsonPath], payloads: new Dictionary<string, byte[]>
         {
             [xmlPath] = "<song />"u8.ToArray(),

@@ -99,5 +99,18 @@ paired PC/Mac samples described above:
   validated.
 
 The arrangement catalog lists these JSON/SNG arrangements and extracts the SNG
-payload. The SNG container reader decodes the PC payloads; conversion remains
-unsupported until chart sections are mapped to the Domain model.
+payload. The SNG reader decodes and imports charts from all three observed PC
+archives. It selects the highest difficulty level, maps individual notes and
+chords through their templates, and reads event time and sustain values in
+seconds. Common technique bits map to the Domain model. Tuning is calculated
+from the six manifest offsets and the standard guitar or bass MIDI pitches.
+Source string indices are checked against those six available positions.
+
+Chart metadata includes six tuning positions. This does not reliably establish
+how many physical strings an arrangement uses, so the current tablature output
+keeps six rows. Deciding whether bass output should use four, five, or six rows
+remains open. The chart reader accounts for the observed difficulty,
+note, chord-template, NLD, action, event, tone, DNA, and section layouts. It
+currently imports note and chord events only; section headings remain a
+separate planned capability. No SNG-based Mac archive is available for
+end-to-end verification.

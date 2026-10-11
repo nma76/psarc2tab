@@ -79,8 +79,10 @@ stdout.
   use `TimeSpan`; see the format facts document for the supported XML mapping.
 - Current PSARC support covers header and index inspection plus extraction of
   one entry at a time for the observed PC and Mac archive layouts. XML charts
-  can be converted. Encrypted SNG containers can be decoded for the observed PC
-  examples; SNG chart contents are not yet parsed or converted.
+  and decoded SNG charts can be converted for the observed PC examples. SNG
+  chart import selects the highest difficulty and maps notes, chord templates,
+  timing, tuning, and supported techniques. No SNG-based Mac archive has been
+  verified yet.
 
 ## PSARC header and index inspection
 
