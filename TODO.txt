@@ -3,7 +3,7 @@
 [x] 3. PSARC-header — Läs headern och validera signatur, version, storlekar och metadata. Lägg till tester med syntetiska data.
 [x] 4. PSARC-index — Tolka filposter, offsets och blocktabell. Kunna lista arkivets indexposter och testa gränser och felaktiga poster. Stöd för krypterad TOC har verifierats mot PC- och Mac-exemplen.
 [x] 5. Extraktion — Läs enskilda arkivposter säkert och hantera verifierade komprimeringsvarianter. Testa mot syntetiska data och extrahera manifestposten ur PC- och Mac-exemplen.
-[x] 6. Rocksmith-formatfakta — Identifiera relevanta arkivposter och verifiera manifest, arrangemang, kodning och PC/Mac-varianter. Dokumentera vad som bekräftats i exemplen och vad som ännu är okänt; SNG-innehållet återstår.
+[x] 6. Rocksmith-formatfakta — Identifiera relevanta arkivposter och verifiera manifest, arrangemang, kodning och PC/Mac-varianter. Dokumentera vad som bekräftats i exemplen och vad som ännu är okänt; SNG-chartens struktur återstår.
 [x] 7. Domänmodell — Utifrån verifierade formatfakta, definiera typade modeller för låtar, spår, stämning, noter, timing och tekniker som behövs för första stödda arrangemanget.
 [x] 8. Tabulaturgenerator — Generera klassisk sexlinjig ASCII-tabulatur med header för artist, låt och stämning enligt `exampledata/tab_example.txt`, från domänmodellen fristående från PSARC, med deterministiska tester.
 [ ] 9. Baslayout i tabulatur — Bestäm om basarrangemang ska visas med fyra rader eller följa stämningens strängantal, och hur noter på eventuella extra strängar ska hanteras.
@@ -15,6 +15,6 @@
 [x] 15. XML-dokumentation — Dokumentera alla C#-typer och medlemmar med korta engelska XML Code Comments och beskriv regeln i AGENTS.md.
 [x] 16. GitHub pipeline — Kör Release-bygge och tester vid push till `develop`. Vid push av en stabil `vMAJOR.MINOR.PATCH`-tagg från `develop`, bygg och smoke-testa self-contained CLI-paket för `win-x64`, `osx-arm64`, `linux-x64` och `linux-arm64`, skapa en GitHub Release och bifoga arkiv samt SHA-256-checksummor.
 [x] 17. Städning - rensa bort oanvända klasser så som Class1.cs och ev. annan kod/filer som inte används
-[x] 18. SNG-arrangemangsupptäckt — Känn igen arrangemangens JSON-manifest, koppla `SongXml` till motsvarande SNG-post, lista Lead/Bass/Rhythm och extrahera chart-posten. Konvertering markeras inte som stödd innan SNG-datan är avkodad.
-[ ] 19. SNG-container — Verifiera och implementera avkodning av SNG-header, kryptering/plattformsvariant och zlib-data med storleksgränser och feltester. Börja med PC-exemplen; lägg till Mac först när ett SNG-baserat Mac-exempel finns.
+[x] 18. SNG-arrangemangsupptäckt — Känn igen arrangemangens JSON-manifest, koppla `SongXml` till motsvarande SNG-post, lista Lead/Bass/Rhythm och extrahera chart-posten. Konvertering markeras inte som stödd innan chart-datan har tolkats till domänmodellen.
+[x] 19. SNG-container — Verifiera och implementera avkodning av SNG-header, kryptering/plattformsvariant och zlib-data med storleksgränser och feltester. PC-avkodning har verifierats på de tre SNG-exemplen; Mac-varianten har syntetiska tester i väntan på ett SNG-baserat Mac-exempel.
 [ ] 20. SNG-chart till domänmodell — Tolka svårighetsnivåer, noter, ackord, timing, tuning och strängindex från avkodad chart-data. Verifiera strängantal mot innehållet och testa export genom CLI.
