@@ -1,10 +1,9 @@
 # Rocksmith format facts
 
-This note records observations from the supplied PC (`_p`) and Mac (`_m`)
-archives. They are two platform variants of one song package, so these findings
+This note records observations from sampled PC and Mac archives. The findings
 do not establish support for every Rocksmith release or archive.
 
-## Confirmed in both supplied archives
+## Confirmed in both sampled archives
 
 - Each archive has 28 TOC entries. Entry zero is the names manifest; its
   extracted payload contains 27 LF-delimited paths encoded as UTF-8 without a
@@ -17,11 +16,11 @@ do not establish support for every Rocksmith release or archive.
 - Arrangement XML and JSON payloads are valid UTF-8 documents. The arrangement
   files parse as XML; the per-arrangement manifest files parse as JSON objects
   with `Entries`, `ModelName`, `IterationVersion`, and `InsertRoot` properties.
-- Bass, lead, and rhythm XML use a `song` root. Their root contains song
-  metadata, tuning, phrases, beats, sections, events, and difficulty levels.
+- Bass, lead, and rhythm XML use a `song` root. Their root contains metadata,
+  tuning, phrases, beats, sections, events, and difficulty levels.
   Level data includes notes, chords, fret-hand mutes, anchors, and hand shapes.
   Note elements expose fields including `time`, `fret`, `string`, and `sustain`.
-- In the supplied Lead arrangement, note `time` and `sustain` values are
+- In a sampled Lead arrangement, note `time` and `sustain` values are
   decimal seconds (for example, `time="7.024"` and `sustain="0.146"`). The
   importer preserves them as `TimeSpan` values.
 - Instrument note `string` values use zero-based indices in the XML. The
@@ -39,10 +38,10 @@ do not establish support for every Rocksmith release or archive.
 - Vocal arrangement XML uses a `vocals` root; show-light data uses a
   `showlights` root.
 - The bass, lead, rhythm, and show-light XML payloads are byte-identical between
-  these PC and Mac examples. The vocal XML payload differs between them.
+  the paired PC and Mac samples. The vocal XML payload differs between them.
 - The PC archive uses `songs/bin/generic` and `audio/windows` paths. The Mac
   archive uses `songs/bin/macos` and `audio/mac` paths. Its SNG files also have
-  different lengths from the corresponding PC files.
+  different lengths from their corresponding PC entries.
 - In these archives, blocks recorded with zero size are raw. Blocks whose
   recorded size equals their expected uncompressed length are also raw; the
   shorter blocks are zlib streams. This allowed every entry in both examples
@@ -63,16 +62,15 @@ do not establish support for every Rocksmith release or archive.
 - Why the vocal XML differs between these platform variants and whether other
   versions use the same layout.
 - Whether these structures and compression behaviors apply to archives beyond
-  the two supplied examples.
+  the sampled archives.
 
-Treat the confirmed items above as observations for these examples. Resolve the
+Treat the confirmed items above as observations for these samples. Resolve the
 unknowns with additional focused fixtures before relying on them in conversion.
 
-## Additional SNG-based PC examples
+## SNG-based PC samples
 
-The `americanidiot_p.psarc`, `garbithink_p.psarc`, and `kissheavens_p.psarc`
-examples use a different arrangement layout from the supplied Hard-to-Handle
-PC/Mac pair:
+The sampled SNG-based PC archives use a different arrangement layout from the
+paired PC/Mac samples described above:
 
 - Each contains Bass, Lead, and Rhythm charts under `songs/bin/generic/` as
   `.sng` files. It has no instrument chart XML entries under `songs/arr/`; the
@@ -82,7 +80,7 @@ PC/Mac pair:
   `SongXml`. That asset name correlates with the basename of the matching SNG
   chart.
 - Bass is represented by `ArrangementName: Bass` and `ArrangementType: 3` in
-  these examples. Those fields identify the instrument category, not its
+  these samples. Those fields identify the instrument category, not its
   physical string count.
 - Every arrangement JSON manifest has six `Tuning` offsets (`string0` through
   `string5`). This demonstrates a six-position metadata layout, not that every
@@ -90,12 +88,12 @@ PC/Mac pair:
   question.
 - The SNG payloads start with an eight-byte header, followed by a 16-byte
   counter, encrypted data, and a 56-byte trailing signature. The encrypted
-  data contains a 32-bit decoded-length field and a zlib stream. PC examples
+  data contains a 32-bit decoded-length field and a zlib stream. The PC samples
   use the little-endian marker `0x4A, 3`; the reader validates that marker and
   checks the decoded size against a 64 MiB limit.
 - The reader selects PC or Mac byte order and key from `songs/bin/generic/` or
-  `songs/bin/macos/`. All nine Bass, Lead, and Rhythm SNG charts in these three
-  PC archives decoded successfully. Synthetic tests cover both platform
+  `songs/bin/macos/`. All nine Bass, Lead, and Rhythm SNG charts in the three
+  sampled PC archives decoded successfully. Synthetic tests cover both platform
   variants; no SNG-based Mac archive is currently available for real-file
   verification. The trailing signature is skipped, not cryptographically
   validated.

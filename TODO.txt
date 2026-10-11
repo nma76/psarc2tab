@@ -18,3 +18,4 @@
 [x] 18. SNG-arrangemangsupptäckt — Känn igen arrangemangens JSON-manifest, koppla `SongXml` till motsvarande SNG-post, lista Lead/Bass/Rhythm och extrahera chart-posten. Konvertering markeras inte som stödd innan chart-datan har tolkats till domänmodellen.
 [x] 19. SNG-container — Verifiera och implementera avkodning av SNG-header, kryptering/plattformsvariant och zlib-data med storleksgränser och feltester. PC-avkodning har verifierats på de tre SNG-exemplen; Mac-varianten har syntetiska tester i väntan på ett SNG-baserat Mac-exempel.
 [ ] 20. SNG-chart till domänmodell — Tolka svårighetsnivåer, noter, ackord, timing, tuning och strängindex från avkodad chart-data. Verifiera strängantal mot innehållet och testa export genom CLI.
+[x] 21. Anonymisera analysdokumentation — Beskriv verifierade formatfakta utan att namnge låtar eller arkiv som analyserats.
