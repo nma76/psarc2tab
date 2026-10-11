@@ -41,6 +41,12 @@ public sealed class RocksmithArchiveArrangementImporter : IArchiveArrangementImp
             throw new ArrangementNotFoundException(arrangementNumber, exception);
         }
 
+        if (selected.DataFormat != RocksmithArrangementFormat.Xml)
+        {
+            throw new InvalidDataException(
+                $"The selected '{selected.Instrument}' arrangement uses an SNG chart, which is not supported for conversion yet.");
+        }
+
         arrangementXml.Position = 0;
         var song = _xmlImporter.Import(arrangementXml);
         if (song.Tracks.Count != 1 || !string.Equals(song.Tracks[0].Name, selected.Instrument, StringComparison.Ordinal))

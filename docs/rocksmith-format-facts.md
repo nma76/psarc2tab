@@ -66,3 +66,31 @@ do not establish support for every Rocksmith release or archive.
 
 Treat the confirmed items above as observations for these examples. Resolve the
 unknowns with additional focused fixtures before relying on them in conversion.
+
+## Additional SNG-based PC examples
+
+The `americanidiot_p.psarc`, `garbithink_p.psarc`, and `kissheavens_p.psarc`
+examples use a different arrangement layout from the supplied Hard-to-Handle
+PC/Mac pair:
+
+- Each contains Bass, Lead, and Rhythm charts under `songs/bin/generic/` as
+  `.sng` files. It has no instrument chart XML entries under `songs/arr/`; the
+  only XML entry under that directory is show-light data.
+- Per-arrangement JSON manifests under `manifests/songs_dlc_*/` identify the
+  arrangement through `ArrangementName` and refer to an XML asset name through
+  `SongXml`. That asset name correlates with the basename of the matching SNG
+  chart.
+- Bass is represented by `ArrangementName: Bass` and `ArrangementType: 3` in
+  these examples. Those fields identify the instrument category, not its
+  physical string count.
+- Every arrangement JSON manifest has six `Tuning` offsets (`string0` through
+  `string5`). This demonstrates a six-position metadata layout, not that every
+  bass arrangement uses six strings. It cannot resolve the actual string-count
+  question.
+- The SNG payloads share an eight-byte prefix in these PC examples. Their
+  remaining bytes have not been decoded by this project; note, timing, and
+  string-index semantics remain unverified here.
+
+The arrangement catalog now lists these JSON/SNG arrangements and extracts the
+SNG payload. Conversion remains unsupported until the SNG container and chart
+sections are decoded and mapped to the Domain model.

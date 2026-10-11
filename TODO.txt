@@ -15,3 +15,6 @@
 [x] 15. XML-dokumentation — Dokumentera alla C#-typer och medlemmar med korta engelska XML Code Comments och beskriv regeln i AGENTS.md.
 [x] 16. GitHub pipeline — Kör Release-bygge och tester vid push till `develop`. Vid push av en stabil `vMAJOR.MINOR.PATCH`-tagg från `develop`, bygg och smoke-testa self-contained CLI-paket för `win-x64`, `osx-arm64`, `linux-x64` och `linux-arm64`, skapa en GitHub Release och bifoga arkiv samt SHA-256-checksummor.
 [x] 17. Städning - rensa bort oanvända klasser så som Class1.cs och ev. annan kod/filer som inte används
+[x] 18. SNG-arrangemangsupptäckt — Känn igen arrangemangens JSON-manifest, koppla `SongXml` till motsvarande SNG-post, lista Lead/Bass/Rhythm och extrahera chart-posten. Konvertering markeras inte som stödd innan SNG-datan är avkodad.
+[ ] 19. SNG-container — Verifiera och implementera avkodning av SNG-header, kryptering/plattformsvariant och zlib-data med storleksgränser och feltester. Börja med PC-exemplen; lägg till Mac först när ett SNG-baserat Mac-exempel finns.
+[ ] 20. SNG-chart till domänmodell — Tolka svårighetsnivåer, noter, ackord, timing, tuning och strängindex från avkodad chart-data. Verifiera strängantal mot innehållet och testa export genom CLI.
