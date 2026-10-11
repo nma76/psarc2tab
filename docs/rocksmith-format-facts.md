@@ -100,11 +100,16 @@ paired PC/Mac samples described above:
 
 The arrangement catalog lists these JSON/SNG arrangements and extracts the SNG
 payload. The SNG reader decodes and imports charts from all three observed PC
-archives. It selects the highest difficulty level, maps individual notes and
-chords through their templates, and reads event time and sustain values in
-seconds. Common technique bits map to the Domain model. Tuning is calculated
-from the six manifest offsets and the standard guitar or bass MIDI pitches.
-Source string indices are checked against those six available positions.
+archives. Each note identifies its phrase iteration, and each phrase iteration
+stores three difficulty choices. The 24-byte phrase-iteration record contains
+its phrase ID, start and next-phrase times, and Easy, Medium, and Master
+difficulty indices. Notes identify their phrase iteration in the note record.
+The importer uses the Master difficulty for each iteration instead of choosing
+one difficulty for the whole song. It maps notes and chords through their
+templates and reads event time and sustain values in seconds. Common technique
+bits map to the Domain model. Tuning is calculated from the six manifest
+offsets and the standard guitar or bass MIDI pitches. Source string indices
+are checked against those six available positions.
 
 Chart metadata includes six tuning positions. This does not reliably establish
 how many physical strings an arrangement uses, so the current tablature output

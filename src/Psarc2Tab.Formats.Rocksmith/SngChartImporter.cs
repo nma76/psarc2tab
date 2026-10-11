@@ -63,8 +63,8 @@ public sealed class SngChartImporter
         var reader = new ChartReader(chart, SngContainerReader.GetPlatform(arrangement.ArchivePath) == SngPlatform.Mac);
         var beats = reader.ReadCount();
         reader.SkipRecords(beats, 16);
-        var phrases = reader.ReadCount();
-        reader.SkipRecords(phrases, 44);
+        var phraseCount = reader.ReadCount();
+        reader.SkipRecords(phraseCount, 44);
         var chordCount = reader.ReadCount();
         var chordTemplates = new ChordTemplate[chordCount];
         for (var index = 0; index < chordCount; index++)
@@ -74,7 +74,11 @@ public sealed class SngChartImporter
 
         reader.SkipRecords(reader.ReadCount(), 2376);
         reader.SkipRecords(reader.ReadCount(), 60);
-        reader.SkipRecords(reader.ReadCount(), 24);
+        var phraseIterations = new PhraseIteration[reader.ReadCount()];
+        for (var index = 0; index < phraseIterations.Length; index++)
+        {
+            phraseIterations[index] = reader.ReadPhraseIteration(phraseCount);
+        }
         reader.SkipRecords(reader.ReadCount(), 16);
         reader.SkipNld();
         reader.SkipRecords(reader.ReadCount(), 260);
@@ -93,7 +97,6 @@ public sealed class SngChartImporter
             throw new InvalidDataException($"The SNG chart has no difficulty levels at byte {reader.Offset} (count {levelCount}).");
         }
 
-        var selectedDifficulty = int.MinValue;
         List<SngNote> selectedNotes = [];
         for (var levelIndex = 0; levelIndex < levelCount; levelIndex++)
         {
@@ -103,20 +106,18 @@ public sealed class SngChartImporter
             reader.SkipRecords(reader.ReadCount(), 20);
             reader.SkipRecords(reader.ReadCount(), 20);
             var noteCount = reader.ReadCount();
-            var notes = new List<SngNote>(difficulty >= selectedDifficulty ? noteCount : 0);
             for (var noteIndex = 0; noteIndex < noteCount; noteIndex++)
             {
                 var note = reader.ReadNote();
-                if (difficulty >= selectedDifficulty)
+                if ((uint)note.PhraseIterationId >= (uint)phraseIterations.Length)
                 {
-                    notes.Add(note);
+                    throw new InvalidDataException("An SNG note references a missing phrase iteration.");
                 }
-            }
 
-            if (difficulty > selectedDifficulty)
-            {
-                selectedDifficulty = difficulty;
-                selectedNotes = notes;
+                if (difficulty == phraseIterations[note.PhraseIterationId].MasterDifficulty)
+                {
+                    selectedNotes.Add(note);
+                }
             }
 
             reader.SkipRecords(reader.ReadCount(), 4);
@@ -209,8 +210,17 @@ public sealed class SngChartImporter
     /// <param name="StringIndex">The zero-based string index.</param>
     /// <param name="Fret">The fret position.</param>
     /// <param name="ChordId">The referenced chord template index.</param>
+    /// <param name="PhraseIterationId">The zero-based phrase iteration containing the note.</param>
     /// <param name="Sustain">The note sustain in seconds.</param>
-    private sealed record SngNote(uint Mask, float Time, sbyte StringIndex, sbyte Fret, int ChordId, float Sustain);
+    private sealed record SngNote(uint Mask, float Time, sbyte StringIndex, sbyte Fret, int ChordId,
+        int PhraseIterationId, float Sustain);
+
+    /// <summary>Stores per-phrase-iteration difficulty metadata.</summary>
+    /// <param name="PhraseId">The phrase definition identifier.</param>
+    /// <param name="StartTime">The phrase iteration start time in seconds.</param>
+    /// <param name="NextPhraseTime">The next phrase iteration time in seconds.</param>
+    /// <param name="MasterDifficulty">The full arrangement difficulty for this iteration.</param>
+    private sealed record PhraseIteration(int PhraseId, float StartTime, float NextPhraseTime, int MasterDifficulty);
 
     /// <summary>Reads bounded primitive values and records from a chart buffer.</summary>
     private sealed class ChartReader
@@ -266,6 +276,28 @@ public sealed class SngChartImporter
             return new ChordTemplate(frets, name.Length == 0 ? null : name);
         }
 
+        /// <summary>Reads timing and per-performance difficulty values from one phrase iteration.</summary>
+        /// <param name="phraseCount">The number of phrase definitions in the chart.</param>
+        /// <returns>The phrase iteration's full arrangement difficulty.</returns>
+        /// <exception cref="InvalidDataException">The phrase iteration contains invalid metadata.</exception>
+        public PhraseIteration ReadPhraseIteration(int phraseCount)
+        {
+            var phraseId = ReadInt32();
+            var startTime = ReadSingle();
+            var nextPhraseTime = ReadSingle();
+            _ = ReadInt32();
+            _ = ReadInt32();
+            var masterDifficulty = ReadInt32();
+
+            if ((uint)phraseId >= (uint)phraseCount || !float.IsFinite(startTime) || startTime < 0 ||
+                !float.IsFinite(nextPhraseTime) || nextPhraseTime < startTime || masterDifficulty < 0)
+            {
+                throw new InvalidDataException("The SNG chart contains an invalid phrase iteration.");
+            }
+
+            return new PhraseIteration(phraseId, startTime, nextPhraseTime, masterDifficulty);
+        }
+
         /// <summary>Reads the name, number, and start time from one SNG section record.</summary>
         /// <returns>The section marker used by tablature headings.</returns>
         public SongSection ReadSection()
@@ -310,12 +342,15 @@ public sealed class SngChartImporter
             var fret = ReadSByte();
             Skip(2);
             var chordId = ReadInt32();
-            Skip(3 * sizeof(int) + 5 * sizeof(short) + 7 + sizeof(short));
+            Skip(sizeof(int));
+            Skip(sizeof(int));
+            var phraseIterationId = ReadInt32();
+            Skip(5 * sizeof(short) + 7 + sizeof(short));
             var sustain = ReadSingle();
             Skip(sizeof(float));
             var bendCount = ReadCount();
             SkipRecords(bendCount, 12);
-            return new SngNote(mask, time, stringIndex, fret, chordId, sustain);
+            return new SngNote(mask, time, stringIndex, fret, chordId, phraseIterationId, sustain);
         }
 
         /// <summary>Reads one signed 32-bit integer in chart byte order.</summary>

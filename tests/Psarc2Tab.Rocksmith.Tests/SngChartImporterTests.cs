@@ -6,9 +6,9 @@ namespace Psarc2Tab.Rocksmith.Tests;
 /// <summary>Verifies conversion of decoded SNG chart sections into domain events.</summary>
 public sealed class SngChartImporterTests
 {
-    /// <summary>Imports the highest level with tuning offsets, timing, string position, and techniques.</summary>
+    /// <summary>Imports notes at the full arrangement difficulty for each phrase iteration.</summary>
     [Fact]
-    public void Import_ChartWithLevels_UsesHighestDifficultyAndMapsNote()
+    public void Import_ChartWithLevels_UsesPhraseIterationMasterDifficultyAndMapsNote()
     {
         var arrangement = CreateArrangement();
         var chart = CreateChart([
@@ -28,6 +28,23 @@ public sealed class SngChartImporterTests
         Assert.Equal(TimeSpan.FromSeconds(1.25), note.Duration);
         Assert.True(note.Techniques.HasFlag(Psarc2Tab.Domain.NoteTechnique.HammerOn));
         Assert.True(note.Techniques.HasFlag(Psarc2Tab.Domain.NoteTechnique.Slide));
+    }
+
+    /// <summary>Selects the full difficulty independently for each phrase iteration.</summary>
+    [Fact]
+    public void Import_PhraseIterations_UsesTheirOwnMasterDifficulties()
+    {
+        var chart = CreateChart([
+            (difficulty: 10, note: new TestNote(0x800000, 25.0f, 1, 2, -1, 0, 1)),
+            (difficulty: 12, note: new TestNote(0x800000, 15.0f, 0, 4, -1, 0, 0)),
+            (difficulty: 14, note: new TestNote(0x800000, 50.0f, 0, 9, -1, 0, 0))],
+            masterDifficulties: [12, 10]);
+
+        var song = new SngChartImporter().Import(chart, CreateArrangement());
+
+        Assert.Collection(Assert.Single(song.Tracks).Notes.OrderBy(note => note.Position),
+            note => { Assert.Equal(TimeSpan.FromSeconds(15), note.Position); Assert.Equal(4, note.FretNumber.Value); },
+            note => { Assert.Equal(TimeSpan.FromSeconds(25), note.Position); Assert.Equal(2, note.FretNumber.Value); });
     }
 
     /// <summary>Maps a bass tuning and chord fret template to domain objects.</summary>
@@ -98,14 +115,17 @@ public sealed class SngChartImporterTests
     /// <param name="withChord">Whether to include one chord template.</param>
     /// <param name="bigEndian">Whether to write numeric fields in big-endian order.</param>
     /// <param name="sections">Optional section records.</param>
+    /// <param name="masterDifficulties">Optional full difficulties, one per phrase iteration.</param>
     /// <returns>The chart bytes.</returns>
     private static byte[] CreateChart((int difficulty, TestNote note)[] levels, bool withChord = false, bool bigEndian = false,
-        (string name, int number, float start, float end)[]? sections = null)
+        (string name, int number, float start, float end)[]? sections = null, int[]? masterDifficulties = null)
     {
+        masterDifficulties ??= [levels.Max(level => level.difficulty)];
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
         writer.Write(0);
-        writer.Write(0);
+        WriteInt32(writer, masterDifficulties.Length, bigEndian);
+        for (var index = 0; index < masterDifficulties.Length; index++) writer.Write(new byte[44]);
         if (withChord)
         {
             writer.Write(1);
@@ -127,7 +147,17 @@ public sealed class SngChartImporterTests
 
         writer.Write(0);
         writer.Write(0);
-        writer.Write(0);
+        WriteInt32(writer, masterDifficulties.Length, bigEndian);
+        for (var index = 0; index < masterDifficulties.Length; index++)
+        {
+            WriteInt32(writer, index, bigEndian);
+            WriteSingle(writer, 0, bigEndian);
+            WriteSingle(writer, 100, bigEndian);
+            WriteInt32(writer, masterDifficulties[index], bigEndian);
+            WriteInt32(writer, masterDifficulties[index], bigEndian);
+            WriteInt32(writer, masterDifficulties[index], bigEndian);
+        }
+
         writer.Write(0);
         writer.Write(0);
         writer.Write(0);
@@ -174,7 +204,9 @@ public sealed class SngChartImporterTests
         writer.Write((sbyte)0);
         writer.Write((sbyte)0);
         WriteInt32(writer, note.ChordId, bigEndian);
-        for (var index = 0; index < 3; index++) writer.Write(0);
+        WriteInt32(writer, 0, bigEndian);
+        WriteInt32(writer, note.PhraseIterationId, bigEndian);
+        WriteInt32(writer, note.PhraseIterationId, bigEndian);
         for (var index = 0; index < 5; index++) writer.Write((short)0);
         for (var index = 0; index < 7; index++) writer.Write((sbyte)0);
         writer.Write((short)0);
@@ -208,5 +240,7 @@ public sealed class SngChartImporterTests
     /// <param name="Fret">The fret.</param>
     /// <param name="ChordId">The chord-template reference.</param>
     /// <param name="Sustain">The duration.</param>
-    private sealed record TestNote(uint Mask, float Time, sbyte StringIndex, sbyte Fret, int ChordId, float Sustain);
+    /// <param name="PhraseIterationId">The phrase iteration containing the test note.</param>
+    private sealed record TestNote(uint Mask, float Time, sbyte StringIndex, sbyte Fret, int ChordId, float Sustain,
+        int PhraseIterationId = 0);
 }
