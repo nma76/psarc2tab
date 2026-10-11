@@ -1,5 +1,8 @@
 # psarc2tab
 
+[![CI](https://github.com/nma76/psarc2tab/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/nma76/psarc2tab/actions/workflows/ci.yml)
+[![Release](https://github.com/nma76/psarc2tab/actions/workflows/release.yml/badge.svg)](https://github.com/nma76/psarc2tab/actions/workflows/release.yml)
+
 `psarc2tab` is a cross-platform .NET command-line application for converting
 Rocksmith-style PSARC song data into guitar tablature. The repository contains
 PSARC extraction support, Rocksmith XML arrangement import, SNG arrangement
