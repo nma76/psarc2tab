@@ -101,6 +101,32 @@ public sealed class SngChartImporterTests
         Assert.Throws<InvalidDataException>(() => new SngChartImporter().Import([0, 0, 0], CreateArrangement()));
     }
 
+    /// <summary>Imports lyric text and timing from fixed-size PC vocal records.</summary>
+    [Fact]
+    public void ImportLyrics_PcRecords_ReturnsTimedFragments()
+    {
+        var chart = CreateLyricsChart([(1.25f, "Hello"), (2.5f, "world+")]);
+
+        var lyrics = new SngChartImporter().ImportLyrics(chart, "songs/bin/generic/sample_vocals.sng");
+
+        Assert.Collection(lyrics.Lyrics,
+            lyric => { Assert.Equal(TimeSpan.FromSeconds(1.25), lyric.Position); Assert.Equal("Hello", lyric.Text); },
+            lyric => { Assert.Equal(TimeSpan.FromSeconds(2.5), lyric.Position); Assert.Equal("world+", lyric.Text); });
+    }
+
+    /// <summary>Reads vocal timing fields using the Mac chart byte order.</summary>
+    [Fact]
+    public void ImportLyrics_MacRecords_UsesBigEndianFields()
+    {
+        var chart = CreateLyricsChart([(12.5f, "bonjour")], bigEndian: true);
+
+        var lyrics = new SngChartImporter().ImportLyrics(chart, "songs/bin/macos/sample_vocals.sng");
+
+        var lyric = Assert.Single(lyrics.Lyrics);
+        Assert.Equal(TimeSpan.FromSeconds(12.5), lyric.Position);
+        Assert.Equal("bonjour", lyric.Text);
+    }
+
     /// <summary>Creates SNG arrangement metadata for an importer test.</summary>
     /// <param name="instrument">The arrangement label.</param>
     /// <param name="tuning">The six semitone offsets.</param>
@@ -183,6 +209,38 @@ public sealed class SngChartImporterTests
             WriteInt32(writer, 1, bigEndian);
             WriteNote(writer, note, bigEndian);
             for (var index = 0; index < 3; index++) writer.Write(0);
+        }
+
+        writer.Flush();
+        return stream.ToArray();
+    }
+
+    /// <summary>Builds the SNG header sections required to reach a vocal record array.</summary>
+    /// <param name="lyrics">The time and text pairs to encode.</param>
+    /// <param name="bigEndian">Whether numeric fields use Mac byte order.</param>
+    /// <returns>The decoded chart bytes.</returns>
+    private static byte[] CreateLyricsChart((float time, string text)[] lyrics, bool bigEndian = false)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(0);
+        WriteInt32(writer, lyrics.Length, bigEndian);
+        foreach (var lyric in lyrics)
+        {
+            WriteSingle(writer, lyric.time, bigEndian);
+            WriteInt32(writer, 60, bigEndian);
+            WriteSingle(writer, 0.25f, bigEndian);
+            var text = Encoding.UTF8.GetBytes(lyric.text);
+            if (text.Length > 48)
+            {
+                throw new ArgumentException("Test lyric text exceeds the SNG field width.", nameof(lyrics));
+            }
+
+            writer.Write(text);
+            writer.Write(new byte[48 - text.Length]);
         }
 
         writer.Flush();

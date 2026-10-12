@@ -47,6 +47,23 @@ do not establish support for every Rocksmith release or archive.
   shorter blocks are zlib streams. This allowed every entry in both examples
   to be extracted.
 
+## Lyrics
+
+Vocal charts are separate entries whose filename shares the instrument chart's
+song key and ends in `_vocals.xml` or `_vocals.sng`. The observed vocal XML uses
+`<vocal>` elements with `time`, `note`, `length`, and `lyric` attributes. The
+decoded SNG chart places a vocal count and fixed 60-byte records after chord
+notes. Each record contains a 32-bit time, a 32-bit pitch value, a 32-bit
+length, and a 48-byte UTF-8 lyric field. The SNG record shape is also described
+by the [psarcjs SNG parser](https://github.com/sandiz/psarcjs/blob/master/src/sngparser.ts#L1192-L1210).
+
+The exporter writes plain-text LRC lines with the timestamp of each line's
+first fragment. A trailing `+` in a lyric fragment ends the current line, as
+described in the [Rocksmith vocal line discussion](https://customsforge.com/topic/1273-some-help-understanding-how-lyrics-work-in-rs2014/).
+When source data has no explicit line marker, fragments are grouped and wrapped
+at 80 characters. PC SNG vocal export and XML vocal export were exercised with
+the available archives. Mac SNG byte order has synthetic test coverage only.
+
 ## Import scope and remaining unknowns
 
 - SNG chart sections and their note, chord, timing, tuning, and string-count

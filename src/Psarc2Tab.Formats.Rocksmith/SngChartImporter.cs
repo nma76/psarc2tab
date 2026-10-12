@@ -177,6 +177,28 @@ public sealed class SngChartImporter
             [new Track(arrangement.Instrument, tuning, notesResult, chordsResult)], sections);
     }
 
+    /// <summary>Reads timed lyric entries from a decoded SNG chart.</summary>
+    /// <param name="chart">The decoded chart bytes.</param>
+    /// <param name="archivePath">The archive path used to determine chart byte order.</param>
+    /// <returns>The lyrics in chart order.</returns>
+    /// <exception cref="ArgumentException"><paramref name="archivePath"/> is not a supported SNG path.</exception>
+    /// <exception cref="InvalidDataException">The chart is malformed or contains invalid lyric data.</exception>
+    public SongLyrics ImportLyrics(ReadOnlySpan<byte> chart, string archivePath)
+    {
+        var reader = new ChartReader(chart, SngContainerReader.GetPlatform(archivePath) == SngPlatform.Mac);
+        reader.SkipRecords(reader.ReadCount(), 16);
+        reader.SkipRecords(reader.ReadCount(), 44);
+        reader.SkipRecords(reader.ReadCount(), 72);
+        reader.SkipRecords(reader.ReadCount(), 2376);
+        var lyrics = new TimedLyric[reader.ReadCount()];
+        for (var index = 0; index < lyrics.Length; index++)
+        {
+            lyrics[index] = reader.ReadLyric();
+        }
+
+        return new SongLyrics(lyrics);
+    }
+
     /// <summary>Maps the SNG note-mask technique bits to domain flags.</summary>
     /// <param name="mask">The note mask.</param>
     /// <returns>The techniques represented by the domain model.</returns>
@@ -260,7 +282,16 @@ public sealed class SngChartImporter
         /// <summary>Skips a fixed-size record array after checking the buffer bounds.</summary>
         /// <param name="count">The number of records.</param>
         /// <param name="recordSize">The bytes in each record.</param>
-        public void SkipRecords(int count, int recordSize) => Skip(checked(count * recordSize));
+        public void SkipRecords(int count, int recordSize)
+        {
+            var byteCount = (long)count * recordSize;
+            if (byteCount > int.MaxValue)
+            {
+                throw new InvalidDataException("The SNG chart record array exceeds the supported size.");
+            }
+
+            Skip((int)byteCount);
+        }
 
         /// <summary>Reads one fixed-size chord template.</summary>
         /// <returns>The frets and label stored by the template.</returns>
@@ -351,6 +382,40 @@ public sealed class SngChartImporter
             var bendCount = ReadCount();
             SkipRecords(bendCount, 12);
             return new SngNote(mask, time, stringIndex, fret, chordId, phraseIterationId, sustain);
+        }
+
+        /// <summary>Reads one timed lyric record with a fixed-width UTF-8 text field.</summary>
+        /// <returns>The decoded lyric fragment.</returns>
+        /// <exception cref="InvalidDataException">The lyric timing or text encoding is invalid.</exception>
+        public TimedLyric ReadLyric()
+        {
+            var time = ReadSingle();
+            _ = ReadInt32();
+            var length = ReadSingle();
+            var textBytes = ReadBytes(48);
+            var terminator = Array.IndexOf(textBytes, (byte)0);
+            string text;
+            try
+            {
+                text = new UTF8Encoding(false, true).GetString(textBytes, 0,
+                    terminator < 0 ? textBytes.Length : terminator).Trim();
+            }
+            catch (DecoderFallbackException exception)
+            {
+                throw new InvalidDataException("The SNG chart contains lyric text that is not valid UTF-8.", exception);
+            }
+
+            if (!float.IsFinite(time) || time < 0 || !float.IsFinite(length) || length < 0)
+            {
+                throw new InvalidDataException("The SNG chart contains invalid lyric timing.");
+            }
+
+            if (text.Length == 0)
+            {
+                throw new InvalidDataException("The SNG chart contains an empty lyric record.");
+            }
+
+            return new TimedLyric(TimeSpan.FromSeconds(time), text);
         }
 
         /// <summary>Reads one signed 32-bit integer in chart byte order.</summary>

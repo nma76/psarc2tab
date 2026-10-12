@@ -26,6 +26,59 @@ public sealed class RocksmithArrangementCatalog
         return Array.AsReadOnly(archive.Arrangements.Select(item => item.Arrangement).ToArray());
     }
 
+    /// <summary>Lists instrument arrangements and appends a lyric export when vocal data exists.</summary>
+    /// <param name="archiveStream">The readable, seekable PSARC archive.</param>
+    /// <returns>Selectable export items in archive arrangement order, with lyrics last when available.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="archiveStream"/> is null.</exception>
+    /// <exception cref="InvalidDataException">The archive or its manifest is malformed or unsupported.</exception>
+    public IReadOnlyList<RocksmithArchiveItem> ListItems(Stream archiveStream)
+    {
+        var archive = ReadArchive(archiveStream);
+        var items = archive.Arrangements.Select((item, index) => new RocksmithArchiveItem(
+            index + 1, item.Arrangement.Instrument, item.Arrangement.ArchivePath)).ToList();
+        if (archive.LyricsSource is not null)
+        {
+            items.Add(new RocksmithArchiveItem(items.Count + 1, "Lyrics", archive.LyricsSource.ArchivePath, IsLyrics: true));
+        }
+
+        return Array.AsReadOnly(items.ToArray());
+    }
+
+    /// <summary>Extracts the vocal chart entry when the archive contains one.</summary>
+    /// <param name="archiveStream">The readable, seekable PSARC archive.</param>
+    /// <param name="destination">The writable stream receiving the vocal chart bytes.</param>
+    /// <returns>The source path and format for the extracted chart.</returns>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    /// <exception cref="ArgumentException">A stream does not have the required capabilities.</exception>
+    /// <exception cref="InvalidDataException">The archive has no vocal chart or its entry is malformed.</exception>
+    public RocksmithLyricsSource ExtractLyrics(Stream archiveStream, Stream destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        if (!destination.CanWrite || ReferenceEquals(archiveStream, destination))
+        {
+            throw new ArgumentException("The lyric destination must be writable and separate from the archive stream.", nameof(destination));
+        }
+
+        var archive = ReadArchive(archiveStream);
+        var source = archive.LyricsSource
+            ?? throw new InvalidDataException("The PSARC archive does not contain a supported vocal chart.");
+        var pathIndex = Array.IndexOf(archive.Paths, source.ArchivePath);
+        if (pathIndex < 0)
+        {
+            throw new InvalidDataException("The vocal chart path is missing from the PSARC manifest.");
+        }
+
+        var entryIndex = pathIndex + 1;
+        var entry = archive.Index.Entries[entryIndex];
+        if (entry.UncompressedLength > MaximumArrangementLength)
+        {
+            throw new InvalidDataException("The vocal chart exceeds the supported 64 MiB size limit.");
+        }
+
+        PsarcEntryExtractor.Extract(archiveStream, archive.Header, archive.Index, entryIndex, destination);
+        return source;
+    }
+
     /// <summary>Extracts one numbered arrangement chart entry to a writable stream.</summary>
     /// <param name="archiveStream">The readable, seekable PSARC archive.</param>
     /// <param name="arrangementNumber">The one-based number from <see cref="List(Stream)"/>.</param>
@@ -128,7 +181,8 @@ public sealed class RocksmithArrangementCatalog
             throw new InvalidDataException("The PSARC manifest contains no supported instrument arrangements.");
         }
 
-        return new ParsedRocksmithArchive(header, index, arrangements.ToArray());
+        var lyricSource = FindLyricsSource(paths, arrangements);
+        return new ParsedRocksmithArchive(header, index, paths, arrangements.ToArray(), lyricSource);
     }
 
     /// <summary>Decodes the UTF-8 path manifest and checks its entry count.</summary>
@@ -335,6 +389,70 @@ public sealed class RocksmithArrangementCatalog
         };
     }
 
+    /// <summary>Finds one vocal chart matching the song key of a discovered instrument arrangement.</summary>
+    /// <param name="paths">The archive paths from the top-level manifest.</param>
+    /// <param name="arrangements">The discovered instrument arrangements.</param>
+    /// <returns>The vocal chart source, or null when no matching vocal entry exists.</returns>
+    /// <exception cref="InvalidDataException">More than one chart of the preferred format matches the song key.</exception>
+    private static RocksmithLyricsSource? FindLyricsSource(string[] paths, IReadOnlyList<SupportedArrangement> arrangements)
+    {
+        var songKey = GetSongKey(arrangements[0].Arrangement.ArchivePath);
+        if (songKey is null)
+        {
+            return null;
+        }
+
+        var xmlMatches = paths.Where(path => path.StartsWith("songs/arr/", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(GetFileName(path), $"{songKey}_vocals.xml", StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (xmlMatches.Length > 1)
+        {
+            throw new InvalidDataException("The archive contains multiple XML vocal charts for the selected song.");
+        }
+
+        if (xmlMatches.Length == 1)
+        {
+            return new RocksmithLyricsSource(xmlMatches[0], RocksmithArrangementFormat.Xml);
+        }
+
+        var sngMatches = paths.Where(path => path.StartsWith("songs/bin/", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(GetFileName(path), $"{songKey}_vocals.sng", StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (sngMatches.Length > 1)
+        {
+            throw new InvalidDataException("The archive contains multiple SNG vocal charts for the selected song.");
+        }
+
+        return sngMatches.Length == 1
+            ? new RocksmithLyricsSource(sngMatches[0], RocksmithArrangementFormat.Sng)
+            : null;
+    }
+
+    /// <summary>Extracts the song key from a supported instrument chart filename.</summary>
+    /// <param name="archivePath">The instrument chart path.</param>
+    /// <returns>The filename stem without the instrument suffix, or null when no known suffix exists.</returns>
+    private static string? GetSongKey(string archivePath)
+    {
+        var fileName = GetFileName(archivePath);
+        var extensionIndex = fileName.LastIndexOf('.');
+        if (extensionIndex < 0)
+        {
+            return null;
+        }
+
+        var stem = fileName[..extensionIndex];
+        var separator = stem.LastIndexOf('_');
+        if (separator < 0 || stem[(separator + 1)..].ToLowerInvariant() is not ("lead" or "bass" or "rhythm"))
+        {
+            return null;
+        }
+
+        return stem[..separator];
+    }
+
+    /// <summary>Gets a filename from a normalized archive path.</summary>
+    /// <param name="path">The slash-separated archive path.</param>
+    /// <returns>The final path component.</returns>
+    private static string GetFileName(string path) => path[(path.LastIndexOf('/') + 1)..];
+
     /// <summary>Stores identifying metadata from a JSON arrangement manifest.</summary>
     /// <param name="SongXmlAsset">The stable asset identifier used to locate the SNG chart.</param>
     private sealed record ArrangementMetadata(string SongXmlAsset, string SongName, string ArtistName, int[] TuningOffsets);
@@ -351,5 +469,7 @@ public sealed class RocksmithArrangementCatalog
     private sealed record ParsedRocksmithArchive(
         PsarcHeader Header,
         PsarcArchiveIndex Index,
-        SupportedArrangement[] Arrangements);
+        string[] Paths,
+        SupportedArrangement[] Arrangements,
+        RocksmithLyricsSource? LyricsSource);
 }

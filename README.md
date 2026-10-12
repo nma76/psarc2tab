@@ -45,6 +45,7 @@ psarc2tab --in <input.psarc> --out <output.tab>
 psarc2tab -in <input.psarc> -out <output.tab>
 psarc2tab --in <input.psarc> --list
 psarc2tab --in <input.psarc> --out <output.tab> --arrangement <number>
+psarc2tab --in <input.psarc> --out <lyrics.lrc> --arrangement <lyrics-number>
 psarc2tab --help
 psarc2tab --version
 ```
@@ -54,22 +55,23 @@ exist and be readable. The output directory must exist and be writable, and an
 existing output file is never overwritten. Output is written to a temporary
 file in the destination directory and moved into place only after writing
 completes. `--list` extracts the archive manifest and displays numbered Lead,
-Bass, and Rhythm arrangements. It recognizes XML charts under `songs/arr/` and
-SNG charts referenced by arrangement JSON manifests. Use the displayed number
-with `--arrangement` to select one; it defaults to the first listed
-arrangement when omitted. A successful conversion prints its destination to
-stdout.
+Bass, and Rhythm arrangements, followed by Lyrics when a matching vocal chart
+is present. It recognizes XML charts under `songs/arr/` and SNG charts
+referenced by arrangement JSON manifests. Use the displayed number with
+`--arrangement` to select an item; it defaults to the first listed arrangement
+when omitted. Selecting Lyrics writes timestamped plain-text LRC output instead
+of tablature. A successful export prints its destination to stdout.
 
 ### Exit codes
 
 | Code | Meaning |
 | ---: | --- |
-| 0 | Help, version, or conversion completed |
+| 0 | Help, version, or export completed |
 | 2 | Invalid arguments |
 | 3 | Input file cannot be read |
 | 4 | Output destination cannot be written |
-| 5 | Arrangement could not be exported |
-| 6 | The selected arrangement number is unavailable |
+| 5 | Arrangement or lyrics could not be exported |
+| 6 | The selected archive item number is unavailable |
 
 ## Known limitations
 
@@ -90,6 +92,11 @@ stdout.
   chart import selects each phrase iteration's full difficulty and maps notes,
   chord templates, timing, tuning, supported techniques, and section headings.
   No SNG-based Mac archive has been verified yet.
+- Vocal charts are exported as LRC text with line start timestamps. Rocksmith's
+  explicit `+` line marker is honored; unmarked lyric fragments are grouped and
+  wrapped at 80 characters. SNG vocal parsing uses the declared PC/Mac path to
+  choose byte order; the Mac lyric record layout has synthetic test coverage
+  only. Only the observed `*_vocals` entry naming is recognized.
 
 ## PSARC header and index inspection
 

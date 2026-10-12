@@ -31,6 +31,26 @@ public sealed class RocksmithArrangementCatalogTests
             arrangement => Assert.Equal(new RocksmithArrangement(3, "Rhythm", "songs/arr/sample_rhythm.xml"), arrangement));
     }
 
+    /// <summary>Appends a matching vocals XML file as the final selectable item.</summary>
+    [Fact]
+    public void ListItems_VocalsXml_AppendsLyricsAfterArrangements()
+    {
+        var archive = CreateArchive(
+        [
+            "songs/arr/sample_vocals.xml",
+            "songs/arr/sample_lead.xml",
+            "songs/arr/sample_bass.xml"
+        ]);
+        using var stream = new MemoryStream(archive);
+
+        var items = new RocksmithArrangementCatalog().ListItems(stream);
+
+        Assert.Collection(items,
+            item => { Assert.Equal(1, item.Number); Assert.Equal("Lead", item.Name); Assert.False(item.IsLyrics); },
+            item => { Assert.Equal(2, item.Number); Assert.Equal("Bass", item.Name); Assert.False(item.IsLyrics); },
+            item => { Assert.Equal(3, item.Number); Assert.Equal("Lyrics", item.Name); Assert.True(item.IsLyrics); });
+    }
+
     /// <summary>Rejects a manifest whose path count differs from the archive index.</summary>
     [Fact]
     public void List_MismatchedManifestCount_ThrowsInvalidDataException()
@@ -78,6 +98,34 @@ public sealed class RocksmithArrangementCatalogTests
         Assert.Equal("Example Song", arrangement.SngMetadata?.Title);
         Assert.Equal("Example Artist", arrangement.SngMetadata?.Artist);
         Assert.Equal(new[] { 0, 0, 0, 0, 0, 0 }, arrangement.SngMetadata?.TuningOffsets);
+    }
+
+    /// <summary>Finds the vocal SNG associated with a manifest-discovered arrangement.</summary>
+    [Fact]
+    public void ListItems_SngPackage_AppendsMatchingLyricsChart()
+    {
+        const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
+        const string chartPath = "songs/bin/generic/example_bass.sng";
+        const string lyricsPath = "songs/bin/generic/example_vocals.sng";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass","SongName":"Example Song","ArtistName":"Example Artist","Tuning":{"string0":0,"string1":0,"string2":0,"string3":0,"string4":0,"string5":0}}}}}""";
+        var archive = CreateArchive([chartPath, lyricsPath, jsonPath], payloads: new Dictionary<string, byte[]>
+        {
+            [chartPath] = [0x4A, 0x00, 0x00, 0x00],
+            [lyricsPath] = [0x4A, 0x00, 0x00, 0x00],
+            [jsonPath] = Encoding.UTF8.GetBytes(metadata)
+        });
+        using var stream = new MemoryStream(archive);
+
+        var items = new RocksmithArrangementCatalog().ListItems(stream);
+
+        Assert.Collection(items,
+            item => Assert.Equal("Bass", item.Name),
+            item =>
+            {
+                Assert.Equal("Lyrics", item.Name);
+                Assert.Equal(lyricsPath, item.ArchivePath);
+                Assert.True(item.IsLyrics);
+            });
     }
 
     /// <summary>Extracts the chart payload rather than its JSON metadata.</summary>
