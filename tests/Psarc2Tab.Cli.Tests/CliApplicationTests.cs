@@ -15,10 +15,13 @@ public sealed class CliApplicationTests
         var output = Run("--help");
 
         Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
-        Assert.Contains("--in, -in <path>", output.StandardOutput);
+        Assert.Contains("--in <path>", output.StandardOutput);
         Assert.Contains("--version", output.StandardOutput);
         Assert.Contains("--list", output.StandardOutput);
-        Assert.Contains("--arrangement <n>", output.StandardOutput);
+        Assert.Contains("--arr <n>", output.StandardOutput);
+        Assert.DoesNotContain("--arrangement <", output.StandardOutput);
+        Assert.DoesNotContain("\n  -in ", output.StandardOutput);
+        Assert.DoesNotContain("\n  -out ", output.StandardOutput);
         Assert.Empty(output.StandardError);
     }
 
@@ -122,7 +125,7 @@ public sealed class CliApplicationTests
             ("songs/arr/sample_lead.xml", ArrangementXml),
             ("songs/arr/sample_bass.xml", BassArrangementXml)));
 
-        var output = Run("--in", inputPath, "--out", outputPath, "--arrangement", "2");
+        var output = Run("--in", inputPath, "--out", outputPath, "--arr", "2");
 
         Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
         Assert.Contains("Wrote tablature", output.StandardOutput);
@@ -157,7 +160,7 @@ public sealed class CliApplicationTests
             ("songs/arr/sample_vocals.xml", "<vocals><vocal time=\"1.25\" note=\"60\" length=\"0.2\" lyric=\"Hello+\" /></vocals>")));
 
         var listing = Run("--in", inputPath, "--list");
-        var output = Run("--in", inputPath, "--out", outputPath, "--arrangement", "2");
+        var output = Run("--in", inputPath, "--out", outputPath, "--arr", "2");
 
         Assert.Equal(CliApplication.SuccessExitCode, listing.ExitCode);
         Assert.Contains("2. Lyrics — songs/arr/sample_vocals.xml", listing.StandardOutput);
@@ -177,7 +180,7 @@ public sealed class CliApplicationTests
         var outputPath = Path.Combine(directory.Path, "song.tab");
         File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml));
 
-        var output = Run("--in", inputPath, "--out", outputPath, "--arrangement", "2");
+        var output = Run("--in", inputPath, "--out", outputPath, "--arr", "2");
 
         Assert.Equal(CliApplication.InvalidArrangementSelectionExitCode, output.ExitCode);
         Assert.Contains("Arrangement 2 is not available", output.StandardError);

@@ -1,5 +1,5 @@
 [x] 1. Projektgrund — Skapa solution, projekt, referenser, .gitignore och README. Verifiera att allt bygger.
-[x] 2. CLI och argument — Implementera -in och -out, hjälptext, validering och exitkoder. Själva konverteringen kan vara en stub.
+[x] 2. CLI och argument — Implementera --in, --out, --list och --arr, hjälptext, validering och exitkoder. Själva konverteringen kan vara en stub.
 [x] 3. PSARC-header — Läs headern och validera signatur, version, storlekar och metadata. Lägg till tester med syntetiska data.
 [x] 4. PSARC-index — Tolka filposter, offsets och blocktabell. Kunna lista arkivets indexposter och testa gränser och felaktiga poster. Stöd för krypterad TOC har verifierats mot PC- och Mac-exemplen.
 [x] 5. Extraktion — Läs enskilda arkivposter säkert och hantera verifierade komprimeringsvarianter. Testa mot syntetiska data och extrahera manifestposten ur PC- och Mac-exemplen.
@@ -22,5 +22,5 @@
 [ ] 22. Sektionsvisning i tabulaturen — Undersök om tomma sektioner och sektioner med namn som `NoGuitar1` bör utelämnas. Identifiera även andra sektionsnamn eller metadata som signalerar att arrangemanget saknar noter under sektionen, och testa ett eventuellt filtreringsbeteende.
 [ ] 23. CentOffset i tab-header — Läs arrangemangets `CentOffset` från metadata och visa avvikelsen i cents samt motsvarande referensfrekvens, exempelvis A4 i Hz, i tabulaturens header. Testa nollvärde, positiv och negativ offset.
 [x] 24. Anonymisera analysdokumentation — Beskriv verifierade formatfakta utan att namnge låtar eller arkiv som analyserats.
-[x] 25. Sångtextfiler — Läs låttext från stödda arkivformat och exportera den som en separat LRC-fil. Lägg till Lyrics som val efter sista arrangemanget i `--list` och välj det med `--arrangement`.
+[x] 25. Sångtextfiler — Läs låttext från stödda arkivformat och exportera den som en separat LRC-fil. Lägg till Lyrics som val efter sista arrangemanget i `--list` och välj det med `--arr`.
 [x] 26. Sångtexter — Exportera tidsstämplad låttext med tydlig koppling till låtens tidslinje. Dokumentera begränsningar och testa saknad eller ofullständig textdata.

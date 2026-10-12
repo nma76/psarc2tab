@@ -42,23 +42,22 @@ The CLI accepts:
 
 ```sh
 psarc2tab --in <input.psarc> --out <output.tab>
-psarc2tab -in <input.psarc> -out <output.tab>
 psarc2tab --in <input.psarc> --list
-psarc2tab --in <input.psarc> --out <output.tab> --arrangement <number>
-psarc2tab --in <input.psarc> --out <lyrics.lrc> --arrangement <lyrics-number>
+psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
+psarc2tab --in <input.psarc> --out <lyrics.lrc> --arr <lyrics-number>
 psarc2tab --help
 psarc2tab --version
 ```
 
-`--in`/`-in` and `--out`/`-out` may be supplied in either order. The input must
-exist and be readable. The output directory must exist and be writable, and an
-existing output file is never overwritten. Output is written to a temporary
-file in the destination directory and moved into place only after writing
-completes. `--list` extracts the archive manifest and displays numbered Lead,
-Bass, and Rhythm arrangements, followed by Lyrics when a matching vocal chart
-is present. It recognizes XML charts under `songs/arr/` and SNG charts
+`--in` and `--out` may be supplied in either order. All options use double-dash
+syntax. The input must exist and be readable. The output directory must exist
+and be writable, and an existing output file is never overwritten. Output is
+written to a temporary file in the destination directory and moved into place
+only after writing completes. `--list` extracts the archive manifest and
+displays numbered Lead, Bass, and Rhythm arrangements, followed by Lyrics when a
+matching vocal chart is present. It recognizes XML charts under `songs/arr/` and SNG charts
 referenced by arrangement JSON manifests. Use the displayed number with
-`--arrangement` to select an item; it defaults to the first listed arrangement
+`--arr` to select an item; it defaults to the first listed arrangement
 when omitted. Selecting Lyrics writes timestamped plain-text LRC output instead
 of tablature. A successful export prints its destination to stdout.
 

@@ -340,18 +340,17 @@ public sealed class CliApplication
 
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
-          psarc2tab --in <input.psarc> --out <output.lrc> --arrangement <lyrics-number>
-          psarc2tab -in <input.psarc> -out <output.tab>
+          psarc2tab --in <input.psarc> --out <output.lrc> --arr <lyrics-number>
           psarc2tab --in <input.psarc> --list
-          psarc2tab --in <input.psarc> --out <output.tab> --arrangement <number>
+          psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
           psarc2tab --help
           psarc2tab --version
 
         Options:
-          --in, -in <path>   Input PSARC archive
-          --out, -out <path> Output file (must not already exist)
+          --in <path>        Input PSARC archive
+          --out <path>       Output file (must not already exist)
           --list             List numbered arrangements and lyrics in the archive
-          --arrangement <n>  Select the numbered arrangement or Lyrics item (default: 1)
+          --arr <n>          Select the numbered arrangement or Lyrics item (default: 1)
           --help        Show this help
           --version     Show version information
 
