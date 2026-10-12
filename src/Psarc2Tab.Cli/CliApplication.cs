@@ -37,6 +37,9 @@ public sealed class CliApplication
     /// <summary>Imports a selected arrangement and writes its tablature.</summary>
     private readonly ExportArrangementUseCase _exportArrangement;
 
+    /// <summary>Imports and writes the archive's timed lyrics.</summary>
+    private readonly ExportLyricsUseCase _exportLyrics;
+
     /// <summary>Creates a CLI application with supplied components or their defaults.</summary>
     /// <param name="parser">An optional parser for command-line flags.</param>
     /// <param name="arrangementCatalog">An optional archive arrangement catalog.</param>
@@ -44,13 +47,16 @@ public sealed class CliApplication
     public CliApplication(
         CommandLineParser? parser = null,
         RocksmithArrangementCatalog? arrangementCatalog = null,
-        ExportArrangementUseCase? exportArrangement = null)
+        ExportArrangementUseCase? exportArrangement = null,
+        ExportLyricsUseCase? exportLyrics = null)
     {
         _parser = parser ?? new CommandLineParser();
         _arrangementCatalog = arrangementCatalog ?? new RocksmithArrangementCatalog();
         _exportArrangement = exportArrangement ?? new ExportArrangementUseCase(
             new RocksmithArchiveArrangementImporter(_arrangementCatalog, new RocksmithArrangementImporter()),
             new TablatureTextWriter());
+        _exportLyrics = exportLyrics ?? new ExportLyricsUseCase(
+            new RocksmithArchiveLyricsImporter(_arrangementCatalog), new LrcLyricsWriter());
     }
 
     /// <summary>Parses arguments, writes output or diagnostics, and returns the CLI exit code.</summary>
@@ -97,9 +103,9 @@ public sealed class CliApplication
         try
         {
             using var archive = File.OpenRead(command.InputPath!);
-            foreach (var arrangement in _arrangementCatalog.List(archive))
+            foreach (var arrangement in _arrangementCatalog.ListItems(archive))
             {
-                standardOutput.WriteLine($"{arrangement.Number}. {arrangement.Instrument} — {arrangement.ArchivePath}");
+                standardOutput.WriteLine($"{arrangement.Number}. {arrangement.Name} — {arrangement.ArchivePath}");
             }
 
             return SuccessExitCode;
@@ -128,11 +134,27 @@ public sealed class CliApplication
             return OutputErrorExitCode;
         }
 
-        Song song;
+        Song? song = null;
+        SongLyrics? lyrics = null;
         try
         {
             using var input = File.OpenRead(command.InputPath!);
-            song = _exportArrangement.Import(input, command.ArrangementNumber ?? 1);
+            var arrangementNumber = command.ArrangementNumber ?? 1;
+            var items = _arrangementCatalog.ListItems(input);
+            if (arrangementNumber > items.Count)
+            {
+                throw new ArrangementNotFoundException(arrangementNumber);
+            }
+
+            input.Position = 0;
+            if (items[arrangementNumber - 1].IsLyrics)
+            {
+                lyrics = _exportLyrics.Import(input);
+            }
+            else
+            {
+                song = _exportArrangement.Import(input, arrangementNumber);
+            }
         }
         catch (ArrangementNotFoundException exception)
         {
@@ -142,7 +164,7 @@ public sealed class CliApplication
         }
         catch (InvalidOperationException exception)
         {
-            standardError.WriteLine($"Error: Cannot export arrangement: {exception.Message}");
+            standardError.WriteLine($"Error: Cannot export selected archive item: {exception.Message}");
             return ConversionErrorExitCode;
         }
         catch (Exception exception) when (IsInputFailure(exception))
@@ -153,13 +175,22 @@ public sealed class CliApplication
 
         try
         {
-            WriteOutputSafely(song, command.OutputPath!);
-            standardOutput.WriteLine($"Wrote tablature to '{command.OutputPath}'.");
+            if (lyrics is not null)
+            {
+                WriteLyricsSafely(lyrics, command.OutputPath!);
+                standardOutput.WriteLine($"Wrote lyrics to '{command.OutputPath}'.");
+            }
+            else
+            {
+                WriteOutputSafely(song ?? throw new InvalidOperationException("No archive item was imported."), command.OutputPath!);
+                standardOutput.WriteLine($"Wrote tablature to '{command.OutputPath}'.");
+            }
+
             return SuccessExitCode;
         }
         catch (InvalidOperationException exception)
         {
-            standardError.WriteLine($"Error: Cannot export arrangement: {exception.Message}");
+            standardError.WriteLine($"Error: Cannot export selected archive item: {exception.Message}");
             return ConversionErrorExitCode;
         }
         catch (Exception exception) when (IsOutputFailure(exception))
@@ -259,6 +290,45 @@ public sealed class CliApplication
         }
     }
 
+    /// <summary>Writes lyrics to a temporary sibling file and moves it into place without overwriting.</summary>
+    /// <param name="lyrics">The imported lyrics to export.</param>
+    /// <param name="outputPath">The requested output path.</param>
+    /// <exception cref="IOException">The destination already exists or writing failed.</exception>
+    /// <exception cref="UnauthorizedAccessException">The destination directory is not writable.</exception>
+    private void WriteLyricsSafely(SongLyrics lyrics, string outputPath)
+    {
+        var fullPath = Path.GetFullPath(outputPath);
+        if (File.Exists(fullPath) || Directory.Exists(fullPath))
+        {
+            throw new IOException("The destination already exists. Existing files are never overwritten.");
+        }
+
+        var directory = Path.GetDirectoryName(fullPath)
+            ?? throw new DirectoryNotFoundException("The destination directory does not exist.");
+        var temporaryPath = Path.Combine(directory, $".psarc2tab-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+            {
+                _exportLyrics.Write(lyrics, writer);
+                writer.Flush();
+                stream.Flush(flushToDisk: true);
+            }
+
+            File.Move(temporaryPath, fullPath);
+        }
+        catch
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+
+            throw;
+        }
+    }
+
     /// <summary>Returns the version embedded in the CLI assembly.</summary>
     /// <returns>A three-part version string, or <c>0.0.0</c> when unavailable.</returns>
     private static string GetVersion() =>
@@ -270,6 +340,7 @@ public sealed class CliApplication
 
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
+          psarc2tab --in <input.psarc> --out <output.lrc> --arrangement <lyrics-number>
           psarc2tab -in <input.psarc> -out <output.tab>
           psarc2tab --in <input.psarc> --list
           psarc2tab --in <input.psarc> --out <output.tab> --arrangement <number>
@@ -278,9 +349,9 @@ public sealed class CliApplication
 
         Options:
           --in, -in <path>   Input PSARC archive
-          --out, -out <path> Output tablature file (must not already exist)
-          --list             List numbered instrument arrangements in the archive
-          --arrangement <n>  Select the numbered arrangement to export (default: 1)
+          --out, -out <path> Output file (must not already exist)
+          --list             List numbered arrangements and lyrics in the archive
+          --arrangement <n>  Select the numbered arrangement or Lyrics item (default: 1)
           --help        Show this help
           --version     Show version information
 

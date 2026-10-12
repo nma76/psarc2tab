@@ -22,5 +22,5 @@
 [ ] 22. Sektionsvisning i tabulaturen — Undersök om tomma sektioner och sektioner med namn som `NoGuitar1` bör utelämnas. Identifiera även andra sektionsnamn eller metadata som signalerar att arrangemanget saknar noter under sektionen, och testa ett eventuellt filtreringsbeteende.
 [ ] 23. CentOffset i tab-header — Läs arrangemangets `CentOffset` från metadata och visa avvikelsen i cents samt motsvarande referensfrekvens, exempelvis A4 i Hz, i tabulaturens header. Testa nollvärde, positiv och negativ offset.
 [x] 24. Anonymisera analysdokumentation — Beskriv verifierade formatfakta utan att namnge låtar eller arkiv som analyserats.
-[ ] 25. Sångtextfiler — Undersök hur låttext och timing kan läsas från stödda arkivformat och exportera texten till en separat fil. Lägg till ett val efter sista arret för låttext vid export. Även --list ska lista ett nytt val för låttext
-[ ] 26. Sångtexter — Undesök om låttext kan exporteras med tydlig koppling till låtens tidslinje. Dokumentera begränsningar och testa saknad eller ofullständig textdata.
+[x] 25. Sångtextfiler — Läs låttext från stödda arkivformat och exportera den som en separat LRC-fil. Lägg till Lyrics som val efter sista arrangemanget i `--list` och välj det med `--arrangement`.
+[x] 26. Sångtexter — Exportera tidsstämplad låttext med tydlig koppling till låtens tidslinje. Dokumentera begränsningar och testa saknad eller ofullständig textdata.

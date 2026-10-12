@@ -145,6 +145,29 @@ public sealed class CliApplicationTests
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
 
+    /// <summary>Exports the final listed archive item as a lyrics-only LRC file.</summary>
+    [Fact]
+    public void Run_SelectedLyrics_WritesLrcWithoutTablature()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "song.lrc");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_vocals.xml", "<vocals><vocal time=\"1.25\" note=\"60\" length=\"0.2\" lyric=\"Hello+\" /></vocals>")));
+
+        var listing = Run("--in", inputPath, "--list");
+        var output = Run("--in", inputPath, "--out", outputPath, "--arrangement", "2");
+
+        Assert.Equal(CliApplication.SuccessExitCode, listing.ExitCode);
+        Assert.Contains("2. Lyrics — songs/arr/sample_vocals.xml", listing.StandardOutput);
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Contains("Wrote lyrics", output.StandardOutput);
+        Assert.Empty(output.StandardError);
+        Assert.Equal("[00:01.25]Hello\n", File.ReadAllText(outputPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
     /// <summary>Reports an unavailable arrangement and creates no output file.</summary>
     [Fact]
     public void Run_UnknownArrangement_ReturnsSelectionError()
