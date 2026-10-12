@@ -13,7 +13,7 @@ GUI** unless explicitly requested.
 Example intended usage:
 
 ``` text
-psarc2tab -in song_p.psarc -out song.tab
+psarc2tab --in song_p.psarc --out song.tab
 ```
 
 The exact input formats, archive variants, and output tablature syntax
@@ -160,13 +160,13 @@ readers, and tablature writers.
 The initial command shape is:
 
 ``` text
-psarc2tab -in <input.psarc> -out <output.tab>
+psarc2tab --in <input.psarc> --out <output.tab>
 ```
 
 Requirements:
 
--   Support the documented `-in` and `-out` options. Any aliases or
-    additional options must be deliberate and documented.
+-   Support the documented `--in`, `--out`, `--list`, and `--arr` options.
+    All flags use double-dash syntax; do not accept single-dash aliases.
 -   Show concise usage/help text for `--help` or invalid arguments.
 -   Validate that the input exists and is readable, and that the output
     destination can be written.
@@ -227,7 +227,7 @@ Requirements:
 
 1.  Create the solution, projects, project references, `.gitignore`, and
     a minimal README.
-2.  Establish a working CLI that validates `-in` and `-out`, prints
+2.  Establish a working CLI that validates `--in` and `--out`, prints
     help, and returns documented exit codes. Conversion may initially
     report "not implemented."
 3.  Implement PSARC header and index inspection with focused tests; do

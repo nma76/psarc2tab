@@ -30,15 +30,14 @@ public sealed class CommandLineParserTests
         Assert.Equal("song.tab", result.OutputPath);
     }
 
-    /// <summary>Accepts the documented single-dash option aliases.</summary>
+    /// <summary>Rejects single-dash options.</summary>
     [Fact]
-    public void Parse_SingleDashOptions_ReturnsPaths()
+    public void Parse_SingleDashOptions_IsInvalid()
     {
         var result = _parser.Parse(["-in", "song.psarc", "-out", "song.tab"]);
 
-        Assert.Equal(CommandKind.Convert, result.Kind);
-        Assert.Equal("song.psarc", result.InputPath);
-        Assert.Equal("song.tab", result.OutputPath);
+        Assert.Equal(CommandKind.Invalid, result.Kind);
+        Assert.Contains("Unknown option", result.Error);
     }
 
     /// <summary>Parses a numbered arrangement listing request.</summary>
@@ -55,7 +54,7 @@ public sealed class CommandLineParserTests
     [Fact]
     public void Parse_ArrangementSelection_ReturnsNumber()
     {
-        var result = _parser.Parse(["--in", "song.psarc", "--out", "song.tab", "--arrangement", "2"]);
+        var result = _parser.Parse(["--in", "song.psarc", "--out", "song.tab", "--arr", "2"]);
 
         Assert.Equal(CommandKind.Convert, result.Kind);
         Assert.Equal(2, result.ArrangementNumber);
@@ -64,11 +63,12 @@ public sealed class CommandLineParserTests
     /// <summary>Rejects invalid arrangement numbers and incompatible list options.</summary>
     /// <param name="arguments">An invalid arrangement-related command.</param>
     [Theory]
-    [InlineData("--in song.psarc --out song.tab --arrangement 0")]
-    [InlineData("--in song.psarc --out song.tab --arrangement one")]
+    [InlineData("--in song.psarc --out song.tab --arr 0")]
+    [InlineData("--in song.psarc --out song.tab --arr one")]
     [InlineData("--list")]
     [InlineData("--in song.psarc --out song.tab --list")]
-    [InlineData("--in song.psarc --list --arrangement 1")]
+    [InlineData("--in song.psarc --list --arr 1")]
+    [InlineData("--in song.psarc --out song.tab --arrangement 1")]
     public void Parse_InvalidArrangementCommand_IsInvalid(string arguments)
     {
         var result = _parser.Parse(arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries));

@@ -70,14 +70,12 @@ public sealed class CommandLineParser
                     listArrangements = true;
                     break;
                 case "--in":
-                case "-in":
                 case "--out":
-                case "-out":
-                case "--arrangement":
+                case "--arr":
                     if (index + 1 >= args.Count || args[index + 1].StartsWith("--", StringComparison.Ordinal))
                     {
-                        return Invalid(argument == "--arrangement"
-                            ? "Option '--arrangement' requires a positive number."
+                        return Invalid(argument == "--arr"
+                            ? "Option '--arr' requires a positive number."
                             : $"Option '{argument}' requires a path.");
                     }
 
@@ -87,7 +85,7 @@ public sealed class CommandLineParser
                         return Invalid($"Option '{argument}' requires a non-empty path.");
                     }
 
-                    if (argument == "--arrangement")
+                    if (argument == "--arr")
                     {
                         if (arrangementNumber is not null)
                         {
@@ -97,12 +95,12 @@ public sealed class CommandLineParser
                         if (!int.TryParse(path, System.Globalization.NumberStyles.None,
                                 System.Globalization.CultureInfo.InvariantCulture, out var parsedNumber) || parsedNumber <= 0)
                         {
-                            return Invalid("Option '--arrangement' requires a positive number.");
+                            return Invalid("Option '--arr' requires a positive number.");
                         }
 
                         arrangementNumber = parsedNumber;
                     }
-                    else if (argument is "--in" or "-in")
+                    else if (argument == "--in")
                     {
                         if (inputPath is not null)
                         {
@@ -151,7 +149,7 @@ public sealed class CommandLineParser
         {
             if (inputPath is null || outputPath is not null || arrangementNumber is not null)
             {
-                return Invalid("'--list' requires '--in' and cannot be combined with '--out' or '--arrangement'.");
+                return Invalid("'--list' requires '--in' and cannot be combined with '--out' or '--arr'.");
             }
 
             return new ParsedCommand(CommandKind.ListArrangements, InputPath: inputPath);
