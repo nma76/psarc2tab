@@ -8,9 +8,11 @@ public sealed class Song
     /// <param name="artist">The artist name, or an empty string when unknown.</param>
     /// <param name="tracks">The song's tracks in presentation order.</param>
     /// <param name="sections">Optional section markers in source order.</param>
+    /// <param name="centOffsetCents">The arrangement's pitch offset from A4=440 Hz, in cents.</param>
     /// <exception cref="ArgumentException">The title is blank or no tracks are supplied.</exception>
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
-    public Song(string title, string artist, IEnumerable<Track> tracks, IEnumerable<SongSection>? sections = null)
+    public Song(string title, string artist, IEnumerable<Track> tracks, IEnumerable<SongSection>? sections = null,
+        decimal centOffsetCents = 0)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(artist);
@@ -37,6 +39,7 @@ public sealed class Song
         }
 
         Sections = Array.AsReadOnly(sectionArray);
+        CentOffsetCents = centOffsetCents;
     }
 
     /// <summary>Gets the display title.</summary>
@@ -50,4 +53,7 @@ public sealed class Song
 
     /// <summary>Gets the optional section markers in source order.</summary>
     public IReadOnlyList<SongSection> Sections { get; }
+
+    /// <summary>Gets the arrangement's pitch offset from A4=440 Hz, in cents.</summary>
+    public decimal CentOffsetCents { get; }
 }

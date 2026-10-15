@@ -92,7 +92,10 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
         var notes = ReadNotes(selectedLevel);
         var chords = ReadChords(selectedLevel, root, tuning.StringCount);
         var sections = ReadSections(root);
-        return new Song(title, artist, [new Track(arrangement, tuning, notes, chords)], sections);
+        var centOffsetCents = root.Element("centOffset") is { } centOffset
+            ? ParseDecimalValue(centOffset.Value)
+            : 0;
+        return new Song(title, artist, [new Track(arrangement, tuning, notes, chords)], sections, centOffsetCents);
     }
 
     /// <summary>Reads optional named section markers from the arrangement XML.</summary>

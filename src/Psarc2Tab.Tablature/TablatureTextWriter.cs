@@ -35,6 +35,9 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
         writer.Write('\n');
         writer.Write("Tuning: ");
         writer.Write(FormatTuning(track.Tuning));
+        writer.Write('\n');
+        writer.Write("Tuning reference: ");
+        writer.Write(FormatTuningReference(song.CentOffsetCents));
         writer.Write("\n\n");
 
         var columns = CreateColumns(track);
@@ -258,6 +261,17 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
     private static string FormatTuning(GuitarTuning tuning) => string.Join(' ',
         tuning.OpenStringMidiPitches.Select(pitch =>
             $"{PitchNames[pitch % PitchNames.Length]}{pitch / 12 - 1}"));
+
+    /// <summary>Formats the A4 reference frequency implied by an arrangement cent offset.</summary>
+    /// <param name="centOffsetCents">The pitch offset from A4=440 Hz.</param>
+    /// <returns>The reference frequency and offset in cents.</returns>
+    private static string FormatTuningReference(decimal centOffsetCents)
+    {
+        var frequency = 440 * Math.Pow(2, (double)centOffsetCents / 1200);
+        var formattedFrequency = frequency.ToString("0.00", CultureInfo.InvariantCulture);
+        var formattedOffset = centOffsetCents.ToString("+0.##;-0.##;0", CultureInfo.InvariantCulture);
+        return $"A4={formattedFrequency} Hz ({formattedOffset} cents)";
+    }
 
     /// <summary>Formats a fret and its supported playing techniques as common tab notation.</summary>
     /// <param name="fret">The fret number.</param>

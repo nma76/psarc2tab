@@ -30,6 +30,18 @@ public sealed class SngChartImporterTests
         Assert.True(note.Techniques.HasFlag(Psarc2Tab.Domain.NoteTechnique.Slide));
     }
 
+    /// <summary>Copies the arrangement cent offset from its manifest metadata into the song model.</summary>
+    [Fact]
+    public void Import_CentOffset_MapsToSong()
+    {
+        var arrangement = CreateArrangement(centOffsetCents: -33.5m);
+        var chart = CreateChart([(difficulty: 12, note: new TestNote(0x800000, 1.0f, 0, 2, -1, 0.25f))]);
+
+        var song = new SngChartImporter().Import(chart, arrangement);
+
+        Assert.Equal(-33.5m, song.CentOffsetCents);
+    }
+
     /// <summary>Selects the full difficulty independently for each phrase iteration.</summary>
     [Fact]
     public void Import_PhraseIterations_UsesTheirOwnMasterDifficulties()
@@ -131,10 +143,12 @@ public sealed class SngChartImporterTests
     /// <param name="instrument">The arrangement label.</param>
     /// <param name="tuning">The six semitone offsets.</param>
     /// <param name="archivePath">The chart path used to select byte order.</param>
+    /// <param name="centOffsetCents">The arrangement pitch offset.</param>
     /// <returns>An SNG arrangement descriptor.</returns>
-    private static RocksmithArrangement CreateArrangement(string instrument = "Lead", int[]? tuning = null, string archivePath = "songs/bin/generic/test_lead.sng") =>
+    private static RocksmithArrangement CreateArrangement(string instrument = "Lead", int[]? tuning = null,
+        string archivePath = "songs/bin/generic/test_lead.sng", decimal centOffsetCents = 0) =>
         new(1, instrument, archivePath, RocksmithArrangementFormat.Sng, "manifests/test.json",
-            new RocksmithSngMetadata("Example Song", "Example Artist", tuning ?? [0, 0, 0, 0, 0, 0]));
+            new RocksmithSngMetadata("Example Song", "Example Artist", tuning ?? [0, 0, 0, 0, 0, 0], centOffsetCents));
 
     /// <summary>Builds a small SNG chart containing the requested levels and sections.</summary>
     /// <param name="levels">Difficulty and note pairs.</param>
