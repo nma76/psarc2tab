@@ -169,7 +169,7 @@ public sealed class RocksmithArrangementCatalog
                 var chartPath = FindSngChartPath(paths, metadata.SongXmlAsset, instrument);
                 var chartEntryIndex = Array.IndexOf(paths, chartPath) + 1;
                 var sngMetadata = new RocksmithSngMetadata(metadata.SongName, metadata.ArtistName,
-                    Array.AsReadOnly(metadata.TuningOffsets));
+                    Array.AsReadOnly(metadata.TuningOffsets), metadata.CentOffsetCents);
                 var listing = new RocksmithArrangement(arrangements.Count + 1, instrument, chartPath,
                     RocksmithArrangementFormat.Sng, path, sngMetadata);
                 arrangements.Add(new SupportedArrangement(listing, chartEntryIndex));
@@ -342,6 +342,9 @@ public sealed class RocksmithArrangementCatalog
             var tuning = metadata.GetProperty("Tuning");
             var tuningOffsets = Enumerable.Range(0, 6)
                 .Select(index => tuning.GetProperty($"string{index}").GetInt32()).ToArray();
+            var centOffsetCents = metadata.TryGetProperty("CentOffset", out var centOffset)
+                ? centOffset.GetDecimal()
+                : 0;
             if (!string.Equals(instrument, expectedInstrument, StringComparison.OrdinalIgnoreCase) ||
                 string.IsNullOrWhiteSpace(songXmlAsset) || !songXmlAsset.StartsWith("urn:application:xml:", StringComparison.Ordinal) ||
                 string.IsNullOrWhiteSpace(songName) || string.IsNullOrWhiteSpace(artistName))
@@ -349,11 +352,15 @@ public sealed class RocksmithArrangementCatalog
                 throw new InvalidDataException("The Rocksmith arrangement JSON metadata is inconsistent with its manifest path.");
             }
 
-            return new ArrangementMetadata(songXmlAsset, songName, artistName, tuningOffsets);
+            return new ArrangementMetadata(songXmlAsset, songName, artistName, tuningOffsets, centOffsetCents);
         }
         catch (JsonException exception)
         {
             throw new InvalidDataException("A Rocksmith arrangement JSON manifest is malformed.", exception);
+        }
+        catch (FormatException exception)
+        {
+            throw new InvalidDataException("A Rocksmith arrangement JSON manifest contains an invalid numeric value.", exception);
         }
         catch (KeyNotFoundException exception)
         {
@@ -455,7 +462,8 @@ public sealed class RocksmithArrangementCatalog
 
     /// <summary>Stores identifying metadata from a JSON arrangement manifest.</summary>
     /// <param name="SongXmlAsset">The stable asset identifier used to locate the SNG chart.</param>
-    private sealed record ArrangementMetadata(string SongXmlAsset, string SongName, string ArtistName, int[] TuningOffsets);
+    private sealed record ArrangementMetadata(string SongXmlAsset, string SongName, string ArtistName,
+        int[] TuningOffsets, decimal CentOffsetCents);
 
     /// <summary>Stores arrangement metadata with its corresponding PSARC TOC entry number.</summary>
     /// <param name="Arrangement">The user-visible arrangement information.</param>

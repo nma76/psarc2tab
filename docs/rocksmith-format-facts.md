@@ -103,6 +103,11 @@ paired PC/Mac samples described above:
   `string5`). This demonstrates a six-position metadata layout, not that every
   bass arrangement uses six strings. It cannot resolve the actual string-count
   question.
+- Arrangement pitch offset is available as `centOffset` in XML chart metadata;
+  JSON arrangement metadata may expose it as `CentOffset`. The importer uses
+  zero when either source omits the value. The tablature header reports the
+  offset in cents and calculates its A4 reference frequency using
+  `440 * 2^(cents / 1200)`.
 - The SNG payloads start with an eight-byte header, followed by a 16-byte
   counter, encrypted data, and a 56-byte trailing signature. The encrypted
   data contains a 32-bit decoded-length field and a zlib stream. The PC samples

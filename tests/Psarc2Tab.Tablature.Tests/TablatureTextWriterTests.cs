@@ -40,6 +40,7 @@ public sealed class TablatureTextWriterTests
             "Artist: Artist",
             "Song: Test Song",
             "Tuning: E2 A2 D3 G3 B3 E4",
+            "Tuning reference: A4=440.00 Hz (0 cents)",
             string.Empty,
             "e|0------------|",
             "B|-------------|",
@@ -114,7 +115,27 @@ public sealed class TablatureTextWriterTests
         tabWriter.Write(song, track, secondOutput);
 
         Assert.Equal(firstOutput.ToString(), secondOutput.ToString());
-        Assert.StartsWith("Artist: Artist\nSong: Song\nTuning: E2 A2 D3 G3 B3 E4\n\n", firstOutput.ToString());
+        Assert.StartsWith(
+            "Artist: Artist\nSong: Song\nTuning: E2 A2 D3 G3 B3 E4\nTuning reference: A4=440.00 Hz (0 cents)\n\n",
+            firstOutput.ToString());
+    }
+
+    /// <summary>Displays zero, positive, and negative cent offsets as A4 reference frequencies.</summary>
+    /// <param name="centOffset">The arrangement offset.</param>
+    /// <param name="expected">The expected tab header value.</param>
+    [Theory]
+    [InlineData(0, "Tuning reference: A4=440.00 Hz (0 cents)")]
+    [InlineData(33, "Tuning reference: A4=448.47 Hz (+33 cents)")]
+    [InlineData(-33, "Tuning reference: A4=431.69 Hz (-33 cents)")]
+    public void Write_CentOffset_FormatsReferenceFrequency(decimal centOffset, string expected)
+    {
+        var track = CreateTrack([], []);
+        var song = new Song("Song", "Artist", [track], centOffsetCents: centOffset);
+        using var output = new StringWriter();
+
+        new TablatureTextWriter().Write(song, track, output);
+
+        Assert.Contains(expected, output.ToString());
     }
 
     /// <summary>Rejects a track that does not belong to the supplied song.</summary>

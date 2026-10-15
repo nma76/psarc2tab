@@ -136,6 +136,7 @@ public sealed class CliApplicationTests
             "Artist: Test Artist",
             "Song: Test Bass",
             "Tuning: E1 A1 D2 G2 B2 E3",
+            "Tuning reference: A4=440.00 Hz (0 cents)",
             string.Empty,
             "e|-|",
             "B|-|",

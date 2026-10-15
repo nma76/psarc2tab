@@ -79,6 +79,21 @@ public sealed class RocksmithArrangementImporterTests
         Assert.Empty(song.Sections);
     }
 
+    /// <summary>Imports positive and negative cent offsets from arrangement XML.</summary>
+    /// <param name="centOffset">The XML cent offset.</param>
+    [Theory]
+    [InlineData("33.5", 33.5)]
+    [InlineData("-33.5", -33.5)]
+    public void Import_CentOffset_MapsToSong(string centOffset, decimal expected)
+    {
+        var xml = CreateXml("Lead", "").Replace("<artistName />",
+            $"<artistName /><centOffset>{centOffset}</centOffset>", StringComparison.Ordinal);
+
+        var song = Import(xml);
+
+        Assert.Equal(expected, song.CentOffsetCents);
+    }
+
     /// <summary>Rejects unsupported roots and arrangement labels.</summary>
     /// <param name="xml">The unsupported document.</param>
     [Theory]
