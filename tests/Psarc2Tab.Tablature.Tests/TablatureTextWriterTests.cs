@@ -3,7 +3,7 @@ using Psarc2Tab.Tablature;
 
 namespace Psarc2Tab.Tablature.Tests;
 
-/// <summary>Verifies conventional six-line ASCII tablature output.</summary>
+/// <summary>Verifies conventional ASCII tablature output and instrument-specific string counts.</summary>
 public sealed class TablatureTextWriterTests
 {
     /// <summary>Writes six labeled strings with fret numbers aligned by time and string.</summary>
@@ -177,6 +177,68 @@ public sealed class TablatureTextWriterTests
         new TablatureTextWriter().Write(song, track, output);
 
         Assert.Contains(expected, output.ToString());
+    }
+
+    /// <summary>Renders at least four strings for bass and extends the layout when a higher string is used.</summary>
+    [Theory]
+    [InlineData(4, "Tuning: E1 A1 D2 G2", new[] { "g|", "D|", "A|", "E|" })]
+    [InlineData(5, "Tuning: E1 A1 D2 G2 B2", new[] { "b|", "G|", "D|", "A|", "E|" })]
+    [InlineData(6, "Tuning: E1 A1 D2 G2 B2 E3", new[] { "e|", "B|", "G|", "D|", "A|", "E|" })]
+    public void Write_Bass_UsesMinimumFourStringsAndExtendsForUsedStrings(int highestString,
+        string expectedTuning, string[] expectedRows)
+    {
+        var bass = new Track("Bass", new GuitarTuning([28, 33, 38, 43, 47, 52]),
+            [new NoteEvent(TimeSpan.Zero, TimeSpan.Zero, new StringNumber(highestString), new FretNumber(1))], []);
+        var song = new Song("Song", "Artist", [bass]);
+        using var output = new StringWriter();
+
+        new TablatureTextWriter().Write(song, bass, output);
+
+        Assert.Contains(expectedTuning, output.ToString());
+        foreach (var row in expectedRows)
+        {
+            Assert.Contains(row, output.ToString());
+        }
+        Assert.Equal(expectedRows.Length, output.ToString().Split('\n').Count(line => line.Contains('|')));
+    }
+
+    /// <summary>Uses four rows for an empty bass and includes higher strings used only by chord tones.</summary>
+    [Fact]
+    public void Write_Bass_EmptyAndChordEvents_UseExpectedStringCount()
+    {
+        var emptyBass = new Track("Bass", new GuitarTuning([28, 33, 38, 43, 47, 52]), [], []);
+        var emptySong = new Song("Song", "Artist", [emptyBass]);
+        using var emptyOutput = new StringWriter();
+        new TablatureTextWriter().Write(emptySong, emptyBass, emptyOutput);
+
+        Assert.Equal(4, emptyOutput.ToString().Split('\n').Count(line => line.Contains('|')));
+
+        var chordBass = new Track("Bass", new GuitarTuning([28, 33, 38, 43, 47, 52]), [],
+        [
+            new ChordEvent(TimeSpan.Zero, TimeSpan.Zero,
+                [new FrettedNote(new StringNumber(5), new FretNumber(3))])
+        ]);
+        var chordSong = new Song("Song", "Artist", [chordBass]);
+        using var chordOutput = new StringWriter();
+        new TablatureTextWriter().Write(chordSong, chordBass, chordOutput);
+
+        Assert.Equal(5, chordOutput.ToString().Split('\n').Count(line => line.Contains('|')));
+        Assert.Contains("b|3|", chordOutput.ToString());
+    }
+
+    /// <summary>Keeps all six guitar rows even when the arrangement only uses its lowest string.</summary>
+    [Fact]
+    public void Write_Guitar_AlwaysRendersSixStrings()
+    {
+        var guitar = CreateTrack(
+            [new NoteEvent(TimeSpan.Zero, TimeSpan.Zero, new StringNumber(1), new FretNumber(1))], []);
+        var song = new Song("Song", "Artist", [guitar]);
+        using var output = new StringWriter();
+
+        new TablatureTextWriter().Write(song, guitar, output);
+
+        Assert.Contains("Tuning: E2 A2 D3 G3 B3 E4", output.ToString());
+        Assert.Equal(6, output.ToString().Split('\n').Count(line => line.Contains('|')));
     }
 
     /// <summary>Rejects a track that does not belong to the supplied song.</summary>
