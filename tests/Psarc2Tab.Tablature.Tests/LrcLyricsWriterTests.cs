@@ -31,4 +31,16 @@ public sealed class LrcLyricsWriterTests
 
         Assert.Throws<InvalidOperationException>(() => new LrcLyricsWriter().Write(new SongLyrics([]), output));
     }
+
+    /// <summary>Uses stable LF line endings even when the destination writer defaults to CRLF.</summary>
+    [Fact]
+    public void Write_UsesPlatformIndependentLineEndings()
+    {
+        using var output = new StringWriter { NewLine = "\r\n" };
+        var lyrics = new SongLyrics([new TimedLyric(TimeSpan.Zero, "Hello+")]);
+
+        new LrcLyricsWriter().Write(lyrics, output);
+
+        Assert.Equal("[00:00.00]Hello\n", output.ToString());
+    }
 }

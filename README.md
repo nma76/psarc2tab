@@ -94,7 +94,8 @@ of tablature. A successful export prints its destination to stdout.
   No SNG-based Mac archive has been verified yet.
 - Vocal charts are exported as LRC text with line start timestamps. Rocksmith's
   explicit `+` line marker is honored; unmarked lyric fragments are grouped and
-  wrapped at 80 characters. SNG vocal parsing uses the declared PC/Mac path to
+  wrapped at 80 characters. LRC files use LF line endings on every platform.
+  SNG vocal parsing uses the declared PC/Mac path to
   choose byte order; the Mac lyric record layout has synthetic test coverage
   only. Only the observed `*_vocals` entry naming is recognized.
 

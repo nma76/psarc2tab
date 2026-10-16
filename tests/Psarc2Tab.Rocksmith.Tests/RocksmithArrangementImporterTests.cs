@@ -104,6 +104,17 @@ public sealed class RocksmithArrangementImporterTests
         Assert.Throws<InvalidDataException>(() => Import(xml));
     }
 
+    /// <summary>Reports missing required chart structures as invalid input.</summary>
+    /// <param name="xml">A chart missing one required field or collection.</param>
+    [Theory]
+    [InlineData("<song><title /><arrangement>Lead</arrangement><tuning string0=\"0\" string1=\"0\" string2=\"0\" string3=\"0\" string4=\"0\" string5=\"0\" /><levels><level difficulty=\"0\"><notes /><chords /></level></levels></song>")]
+    [InlineData("<song><title>Song</title><arrangement>Lead</arrangement><levels><level difficulty=\"0\"><notes /><chords /></level></levels></song>")]
+    [InlineData("<song><title>Song</title><arrangement>Lead</arrangement><tuning string0=\"0\" string1=\"0\" string2=\"0\" string3=\"0\" string4=\"0\" string5=\"0\" /><levels /></song>")]
+    public void Import_MissingRequiredData_ThrowsInvalidDataException(string xml)
+    {
+        Assert.Throws<InvalidDataException>(() => Import(xml));
+    }
+
     /// <summary>Rejects a document containing a DTD.</summary>
     [Fact]
     public void Import_DtdDocument_ThrowsInvalidDataException()
