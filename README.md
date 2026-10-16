@@ -77,7 +77,8 @@ of tablature. A successful export prints its destination to stdout.
 - XML imports select the highest declared level. SNG imports select the full
   difficulty independently for each phrase iteration. Both skip notes marked
   `ignore` and import section headings, but not phrase structure, anchors, or
-  hand shapes.
+  hand shapes. Section headings are omitted when no note or chord starts in
+  their time interval; names such as `NoGuitar1` alone never suppress content.
   Nonzero song offsets are rejected while their meaning is unverified. Observed
   chord events have no duration field and are imported with zero duration.
 - Arrangement XML whose declared instrument does not match its selected archive

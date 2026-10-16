@@ -101,6 +101,47 @@ public sealed class TablatureTextWriterTests
         Assert.Contains("E|3|", output.ToString());
     }
 
+    /// <summary>Omits empty sections while retaining notes and chords from populated sections.</summary>
+    [Fact]
+    public void Write_EmptySection_OmitsHeadingAndPreservesEvents()
+    {
+        var track = CreateTrack(
+            [new NoteEvent(TimeSpan.FromMilliseconds(250), TimeSpan.Zero, new StringNumber(1), new FretNumber(1))],
+            [new ChordEvent(TimeSpan.FromMilliseconds(1250), TimeSpan.Zero,
+                [new FrettedNote(new StringNumber(1), new FretNumber(3))])]);
+        var song = new Song("Song", "Artist", [track],
+        [
+            new SongSection("intro", 1, TimeSpan.Zero),
+            new SongSection("NoGuitar1", 1, TimeSpan.FromMilliseconds(500)),
+            new SongSection("verse", 1, TimeSpan.FromSeconds(1))
+        ]);
+        using var output = new StringWriter();
+
+        new TablatureTextWriter().Write(song, track, output);
+
+        Assert.Contains("[Intro]\n", output.ToString());
+        Assert.DoesNotContain("[Noguitar1]", output.ToString());
+        Assert.Contains("[Verse]\n", output.ToString());
+        Assert.Contains("E|1", output.ToString());
+        Assert.Contains("E|3", output.ToString());
+    }
+
+    /// <summary>Keeps a NoGuitar-named section when it contains note data.</summary>
+    [Fact]
+    public void Write_NoGuitarSectionWithNote_PreservesHeadingAndNote()
+    {
+        var track = CreateTrack(
+            [new NoteEvent(TimeSpan.FromSeconds(1), TimeSpan.Zero, new StringNumber(1), new FretNumber(7))], []);
+        var song = new Song("Song", "Artist", [track],
+            [new SongSection("NoGuitar1", 1, TimeSpan.Zero)]);
+        using var output = new StringWriter();
+
+        new TablatureTextWriter().Write(song, track, output);
+
+        Assert.Contains("[Noguitar1]\n", output.ToString());
+        Assert.Contains("E|7|", output.ToString());
+    }
+
     /// <summary>Produces identical output when the same song is written repeatedly.</summary>
     [Fact]
     public void Write_RepeatedCalls_AreDeterministic()
