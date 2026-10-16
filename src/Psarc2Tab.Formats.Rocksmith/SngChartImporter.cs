@@ -169,7 +169,7 @@ public sealed class SngChartImporter
             }
 
             var fret = (note.Mask & OpenMask) != 0 ? 0 : note.Fret;
-            notesResult.Add(new NoteEvent(TimeSpan.FromSeconds(note.Time), TimeSpan.FromSeconds(note.Sustain),
+            notesResult.Add(new NoteEvent(ToTimeSpan(note.Time, "note time"), ToTimeSpan(note.Sustain, "note sustain"),
                 new StringNumber(note.StringIndex + 1), new FretNumber(fret), MapTechniques(note.Mask)));
         }
 
@@ -220,6 +220,21 @@ public sealed class SngChartImporter
         if ((mask & TremoloMask) != 0) techniques |= NoteTechnique.Tremolo;
         if ((mask & MutedMask) != 0) techniques |= NoteTechnique.Muted;
         return techniques;
+    }
+
+    /// <summary>Converts validated SNG seconds while rejecting values outside the Domain timeline range.</summary>
+    /// <param name="seconds">The floating-point time in seconds.</param>
+    /// <param name="fieldName">The SNG field name used in the diagnostic.</param>
+    /// <returns>The corresponding timeline value.</returns>
+    /// <exception cref="InvalidDataException">The time is non-finite, negative, or outside the supported range.</exception>
+    private static TimeSpan ToTimeSpan(float seconds, string fieldName)
+    {
+        if (!float.IsFinite(seconds) || seconds < 0 || seconds > TimeSpan.MaxValue.TotalSeconds)
+        {
+            throw new InvalidDataException($"The SNG chart contains an invalid {fieldName}.");
+        }
+
+        return TimeSpan.FromSeconds((double)seconds);
     }
 
     /// <summary>Stores a chord template used by chord notes.</summary>
@@ -349,7 +364,7 @@ public sealed class SngChartImporter
                 throw new InvalidDataException("The SNG chart contains an invalid section record.");
             }
 
-            return new SongSection(name, number, TimeSpan.FromSeconds(startTime));
+            return new SongSection(name, number, ToTimeSpan(startTime, "section start time"));
         }
 
         /// <summary>Skips the optional note-level-difficulty section.</summary>
@@ -416,7 +431,7 @@ public sealed class SngChartImporter
                 throw new InvalidDataException("The SNG chart contains an empty lyric record.");
             }
 
-            return new TimedLyric(TimeSpan.FromSeconds(time), text);
+            return new TimedLyric(ToTimeSpan(time, "lyric time"), text);
         }
 
         /// <summary>Reads one signed 32-bit integer in chart byte order.</summary>

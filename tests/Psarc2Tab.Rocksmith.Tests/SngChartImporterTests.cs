@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Text;
 using Psarc2Tab.Formats.Rocksmith;
 
@@ -111,6 +112,40 @@ public sealed class SngChartImporterTests
     public void Import_TruncatedChart_ThrowsInvalidDataException()
     {
         Assert.Throws<InvalidDataException>(() => new SngChartImporter().Import([0, 0, 0], CreateArrangement()));
+    }
+
+    /// <summary>Rejects negative array counts before attempting to read chart records.</summary>
+    [Fact]
+    public void Import_NegativeArrayCount_ThrowsInvalidDataException()
+    {
+        var chart = CreateChart([(12, new TestNote(0x800000, 1, 0, 2, -1, 0.25f))]);
+        BinaryPrimitives.WriteInt32LittleEndian(chart, -1);
+
+        Assert.Throws<InvalidDataException>(() => new SngChartImporter().Import(chart, CreateArrangement()));
+    }
+
+    /// <summary>Rejects finite SNG time values that cannot fit the Domain timeline.</summary>
+    [Fact]
+    public void Import_ExtremeFiniteNoteTime_ThrowsInvalidDataException()
+    {
+        var chart = CreateChart([(12, new TestNote(0x800000, float.MaxValue, 0, 2, -1, 0.25f))]);
+        var sustainChart = CreateChart([(12, new TestNote(0x800000, 1, 0, 2, -1, float.MaxValue))]);
+
+        Assert.Throws<InvalidDataException>(() => new SngChartImporter().Import(chart, CreateArrangement()));
+        Assert.Throws<InvalidDataException>(() => new SngChartImporter().Import(sustainChart, CreateArrangement()));
+    }
+
+    /// <summary>Rejects extreme section and lyric times instead of leaking range exceptions.</summary>
+    [Fact]
+    public void Import_ExtremeFiniteSectionAndLyricTimes_ThrowsInvalidDataException()
+    {
+        var sectionChart = CreateChart([(12, new TestNote(0x800000, 1, 0, 2, -1, 0.25f))],
+            sections: [("intro", 1, float.MaxValue, float.MaxValue)]);
+        var lyricChart = CreateLyricsChart([(float.MaxValue, "Hello")]);
+        var importer = new SngChartImporter();
+
+        Assert.Throws<InvalidDataException>(() => importer.Import(sectionChart, CreateArrangement()));
+        Assert.Throws<InvalidDataException>(() => importer.ImportLyrics(lyricChart, "songs/bin/generic/test_vocals.sng"));
     }
 
     /// <summary>Imports lyric text and timing from fixed-size PC vocal records.</summary>

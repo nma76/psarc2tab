@@ -114,6 +114,20 @@ public sealed class CliApplicationTests
         Assert.Contains("destination path is a directory", output.StandardError);
     }
 
+    /// <summary>Rejects an output path whose parent directory does not exist.</summary>
+    [Fact]
+    public void Run_OutputDirectoryMissing_ReturnsOutputError()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = Path.Combine(directory.Path, "missing", "song.tab");
+
+        var output = Run("--in", Path.Combine(directory.Path, "song.psarc"), "--out", outputPath);
+
+        Assert.Equal(CliApplication.OutputErrorExitCode, output.ExitCode);
+        Assert.Contains("destination directory does not exist", output.StandardError);
+        Assert.Empty(Directory.GetFiles(directory.Path));
+    }
+
     /// <summary>Imports and writes a selected arrangement from a PSARC archive.</summary>
     [Fact]
     public void Run_ValidArchive_WritesTabAndReturnsSuccess()

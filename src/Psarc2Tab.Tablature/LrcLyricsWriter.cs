@@ -83,7 +83,8 @@ public sealed class LrcLyricsWriter : ILyricsDocumentWriter
         destination.Write('[');
         destination.Write(FormatTimestamp(position));
         destination.Write(']');
-        destination.WriteLine(line.ToString());
+        destination.Write(line.ToString());
+        destination.Write('\n');
         line.Clear();
     }
 
