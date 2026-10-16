@@ -4,7 +4,7 @@ using Psarc2Tab.Domain;
 
 namespace Psarc2Tab.Tablature;
 
-/// <summary>Writes conventional six-line ASCII tablature from a domain track.</summary>
+/// <summary>Writes conventional ASCII tablature from a domain track.</summary>
 public sealed class TablatureTextWriter : ITablatureDocumentWriter
 {
     /// <summary>The maximum event-grid width of one visual tablature row.</summary>
@@ -34,7 +34,8 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
         writer.Write(song.Title);
         writer.Write('\n');
         writer.Write("Tuning: ");
-        writer.Write(FormatTuning(track.Tuning));
+        var stringCount = GetDisplayedStringCount(track);
+        writer.Write(FormatTuning(track.Tuning, stringCount));
         writer.Write('\n');
         writer.Write("Tuning reference: ");
         writer.Write(FormatTuningReference(song.CentOffsetCents));
@@ -42,9 +43,9 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
 
         var columns = CreateColumns(track);
         var segments = CreateSegments(columns, song.Sections);
-        var labels = Enumerable.Range(1, track.Tuning.StringCount)
+        var labels = Enumerable.Range(1, stringCount)
             .Select(stringNumber => GetStringLabel(track.Tuning.OpenStringMidiPitches[stringNumber - 1],
-                stringNumber == track.Tuning.StringCount))
+                stringNumber == stringCount))
             .ToArray();
         var labelWidth = labels.Max(label => label.Length);
 
@@ -59,12 +60,29 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
             }
 
             var rows = CreateRows(segment.Columns);
-            WriteRows(writer, rows, labels, labelWidth, track.Tuning.StringCount);
+            WriteRows(writer, rows, labels, labelWidth, stringCount);
             if (segmentIndex < segments.Count - 1)
             {
                 writer.Write('\n');
             }
         }
+    }
+
+    /// <summary>Chooses the displayed string count, keeping guitars at six and basses at four or more.</summary>
+    /// <param name="track">The track to render.</param>
+    /// <returns>The number of strings required to render the track.</returns>
+    private static int GetDisplayedStringCount(Track track)
+    {
+        if (!string.Equals(track.Name, "Bass", StringComparison.OrdinalIgnoreCase))
+        {
+            return track.Tuning.StringCount;
+        }
+
+        var highestUsedString = track.Notes.Select(note => note.StringNumber.Value)
+            .Concat(track.Chords.SelectMany(chord => chord.Notes).Select(note => note.StringNumber.Value))
+            .DefaultIfEmpty(4)
+            .Max();
+        return Math.Min(track.Tuning.StringCount, Math.Max(4, highestUsedString));
     }
 
     /// <summary>Writes all string lines in a sequence of wrapped rows.</summary>
@@ -265,11 +283,12 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
         return isHighestString && name.Length == 1 ? name.ToLowerInvariant() : name;
     }
 
-    /// <summary>Formats open-string pitches from the lowest string to the highest string.</summary>
+    /// <summary>Formats the displayed open-string pitches from lowest to highest string.</summary>
     /// <param name="tuning">The track tuning.</param>
+    /// <param name="stringCount">The number of displayed string positions.</param>
     /// <returns>Space-separated note names with MIDI octave numbers.</returns>
-    private static string FormatTuning(GuitarTuning tuning) => string.Join(' ',
-        tuning.OpenStringMidiPitches.Select(pitch =>
+    private static string FormatTuning(GuitarTuning tuning, int stringCount) => string.Join(' ',
+        tuning.OpenStringMidiPitches.Take(stringCount).Select(pitch =>
             $"{PitchNames[pitch % PitchNames.Length]}{pitch / 12 - 1}"));
 
     /// <summary>Formats the A4 reference frequency implied by an arrangement cent offset.</summary>

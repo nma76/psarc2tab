@@ -6,7 +6,7 @@
 [x] 6. Rocksmith-formatfakta — Identifiera relevanta arkivposter och verifiera manifest, arrangemang, kodning och PC/Mac-varianter. Dokumentera vad som bekräftats i exemplen och vad som ännu är okänt; SNG-chartens struktur återstår.
 [x] 7. Domänmodell — Utifrån verifierade formatfakta, definiera typade modeller för låtar, spår, stämning, noter, timing och tekniker som behövs för första stödda arrangemanget.
 [x] 8. Tabulaturgenerator — Generera klassisk sexlinjig ASCII-tabulatur med header för artist, låt och stämning enligt `exampledata/tab_example.txt`, från domänmodellen fristående från PSARC, med deterministiska tester.
-[ ] 9. Baslayout och fysiskt strängantal — Undersök om arrangemangets data pålitligt anger fyra, fem eller sex fysiska strängar. Bestäm därefter antal tabrader och hantering av extra strängar; sex tuningpositioner i manifestet räcker inte som bevis.
+[x] 9. Baslayout — Visa alltid sex strängar för gitarr. Visa minst fyra strängar för bas och utöka till sträng 5 eller 6 om någon not eller ackordton använder den. Rocksmiths sex tuningpositioner styr inte fysiskt strängantal, så baslayouten baseras på faktiskt använda strängpositioner.
 [x] 10. Importpipeline — Läs den verifierade Rocksmith-datan och konvertera den till domänmodellen via tydliga gränssnitt. Testa importeraren utan full CLI-körning.
 [x] 11. Arrangemangsval — Lista de stödda instrumentarrangemangen i arkivordning, låt CLI välja ett listat nummer och testa katalogen med ett arkiv som innehåller flera arrangemang. Exportkopplingen görs i steg 12.
 [x] 12. End-to-end — Koppla ihop PSARC, Rocksmith-import, arrangemangsval och klassisk ASCII-tabulatur så att ett verifierat arkiv kan bli en .tab-fil.
