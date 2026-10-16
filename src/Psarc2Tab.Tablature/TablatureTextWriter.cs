@@ -94,10 +94,10 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
         }
     }
 
-    /// <summary>Splits event columns at section boundaries and assigns readable headings.</summary>
+    /// <summary>Splits event columns at section boundaries and omits sections without events.</summary>
     /// <param name="columns">The time-ordered tablature columns.</param>
     /// <param name="sections">The song section markers.</param>
-    /// <returns>Tablature segments in song order.</returns>
+    /// <returns>Segments containing events, or one unheaded empty segment when all sections are empty.</returns>
     private static IReadOnlyList<TabSegment> CreateSegments(IReadOnlyList<TabColumn> columns,
         IReadOnlyList<SongSection> sections)
     {
@@ -127,8 +127,18 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
             var end = index + 1 < sectionGroups.Length ? sectionGroups[index + 1].Key : (TimeSpan?)null;
             var sectionColumns = columns.Where(column => column.Position >= start &&
                 (end is null || column.Position < end.Value)).ToArray();
+            if (sectionColumns.Length == 0)
+            {
+                continue;
+            }
+
             var heading = string.Join(" / ", group.Select(section => FormatSectionName(section, repeatedNames)));
             segments.Add(new TabSegment(heading, sectionColumns));
+        }
+
+        if (segments.Count == 0)
+        {
+            segments.Add(new TabSegment(null, columns));
         }
 
         return segments.AsReadOnly();

@@ -140,8 +140,11 @@ remains open. SNG section records are 88 bytes in the observed charts. Each
 record begins with a 32-byte UTF-8 name, a 32-bit section number, start and end
 times as 32-bit floating-point seconds, and two 32-bit phrase-iteration IDs.
 The remaining 36 bytes are skipped as opaque section metadata. Names,
-numbers, and start times are imported into the shared Domain section model,
-and the tablature writer displays them with the same headings used for XML.
+numbers, and start times are imported into the shared Domain section model.
+The section model has no reliable `has notes` flag, so the tablature writer
+omits a heading only when no note or chord event starts in that section's time
+interval. A name such as `NoGuitar1` is not used as a filter because it cannot
+prove that the section contains no events.
 Synthetic tests verify both little-endian and big-endian numeric fields; the
 observed PC charts confirm the 88-byte record stride and plausible ordered
 section timing. No SNG-based Mac archive is available for end-to-end
