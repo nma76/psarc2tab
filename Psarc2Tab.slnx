@@ -5,6 +5,7 @@
     <Project Path="src/Psarc2Tab.Domain/Psarc2Tab.Domain.csproj" />
     <Project Path="src/Psarc2Tab.Formats.PSARC/Psarc2Tab.Formats.PSARC.csproj" />
     <Project Path="src/Psarc2Tab.Formats.Rocksmith/Psarc2Tab.Formats.Rocksmith.csproj" />
+    <Project Path="src/Psarc2Tab.Midi/Psarc2Tab.Midi.csproj" />
     <Project Path="src/Psarc2Tab.Tablature/Psarc2Tab.Tablature.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -13,6 +14,7 @@
     <Project Path="tests/Psarc2Tab.Domain.Tests/Psarc2Tab.Domain.Tests.csproj" />
     <Project Path="tests/Psarc2Tab.PSARC.Tests/Psarc2Tab.PSARC.Tests.csproj" />
     <Project Path="tests/Psarc2Tab.Rocksmith.Tests/Psarc2Tab.Rocksmith.Tests.csproj" />
+    <Project Path="tests/Psarc2Tab.Midi.Tests/Psarc2Tab.Midi.Tests.csproj" />
     <Project Path="tests/Psarc2Tab.Tablature.Tests/Psarc2Tab.Tablature.Tests.csproj" />
   </Folder>
 </Solution>

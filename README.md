@@ -46,6 +46,7 @@ psarc2tab --in <input.psarc> --out <output.tab>
 psarc2tab --in <input.psarc> --list
 psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
+psarc2tab --in <input.psarc> --out <output.mid> --format midi
 psarc2tab --in <input.psarc> --out <lyrics.lrc> --arr <lyrics-number>
 psarc2tab --help
 psarc2tab --version
@@ -62,9 +63,18 @@ referenced by arrangement JSON manifests. Use the displayed number with
 `--arr` to select an item; it defaults to the first listed arrangement
 when omitted. Selecting Lyrics writes timestamped plain-text LRC output instead
 of tablature. `--format` selects the arrangement output format and defaults to
-`tab`; `tab` is currently the only supported arrangement format. Lyrics remain
-LRC exports. Unknown or not-yet-implemented formats are rejected with a list of
-available formats. A successful export prints its destination to stdout.
+`tab`; supported arrangement formats are `tab` and `midi`. MIDI output is a
+Standard MIDI File containing the selected arrangement's notes and chord tones.
+It uses 960 ticks per quarter note and a fixed 120 BPM tempo, converting the
+source timeline's absolute seconds to ticks. A song-level cent offset is sent
+as channel pitch bend. No time-signature metadata is emitted because the current
+domain model does not contain it. Lead and Rhythm use the General MIDI clean
+electric guitar program; Bass uses fingered electric bass. Note articulations
+and other playing techniques are not encoded, and playback sound depends on the
+receiving sequencer or synthesizer. MIDI export has not yet been manually
+validated in GarageBand or Windows Media Player. Lyrics remain LRC exports.
+Unknown formats are rejected with a list of available formats. A successful
+export prints its destination to stdout.
 
 ### Exit codes
 
