@@ -44,6 +44,7 @@ The CLI accepts:
 psarc2tab --in <input.psarc> --out <output.tab>
 psarc2tab --in <input.psarc> --list
 psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
+psarc2tab --in <input.psarc> --out <output.tab> --format tab
 psarc2tab --in <input.psarc> --out <lyrics.lrc> --arr <lyrics-number>
 psarc2tab --help
 psarc2tab --version
@@ -59,7 +60,10 @@ matching vocal chart is present. It recognizes XML charts under `songs/arr/` and
 referenced by arrangement JSON manifests. Use the displayed number with
 `--arr` to select an item; it defaults to the first listed arrangement
 when omitted. Selecting Lyrics writes timestamped plain-text LRC output instead
-of tablature. A successful export prints its destination to stdout.
+of tablature. `--format` selects the arrangement output format and defaults to
+`tab`; `tab` is currently the only supported arrangement format. Lyrics remain
+LRC exports. Unknown or not-yet-implemented formats are rejected with a list of
+available formats. A successful export prints its destination to stdout.
 
 ### Exit codes
 

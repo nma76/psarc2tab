@@ -34,7 +34,7 @@ public sealed class CliApplication
     /// <summary>Reads arrangement listings for list and selection commands.</summary>
     private readonly RocksmithArrangementCatalog _arrangementCatalog;
 
-    /// <summary>Imports a selected arrangement and writes its tablature.</summary>
+    /// <summary>Imports selected arrangements and resolves their output formats.</summary>
     private readonly ExportArrangementUseCase _exportArrangement;
 
     /// <summary>Imports and writes the archive's timed lyrics.</summary>
@@ -54,7 +54,7 @@ public sealed class CliApplication
         _arrangementCatalog = arrangementCatalog ?? new RocksmithArrangementCatalog();
         _exportArrangement = exportArrangement ?? new ExportArrangementUseCase(
             new RocksmithArchiveArrangementImporter(_arrangementCatalog, new RocksmithArrangementImporter()),
-            new TablatureTextWriter());
+            new ArrangementFormatRegistry([new TablatureTextWriter()]));
         _exportLyrics = exportLyrics ?? new ExportLyricsUseCase(
             new RocksmithArchiveLyricsImporter(_arrangementCatalog), new LrcLyricsWriter());
     }
@@ -124,6 +124,14 @@ public sealed class CliApplication
     /// <returns>The input, output, selection, or conversion error exit code.</returns>
     private int ValidateAndConvert(ParsedCommand command, TextWriter standardOutput, TextWriter standardError)
     {
+        if (!_exportArrangement.SupportsFormat(command.FormatName))
+        {
+            var supportedFormats = string.Join(", ", _exportArrangement.SupportedFormatNames);
+            standardError.WriteLine(
+                $"Error: Unsupported output format '{command.FormatName}'. Supported formats: {supportedFormats}.");
+            return InvalidArgumentsExitCode;
+        }
+
         try
         {
             ValidateOutputDestination(command.OutputPath!);
@@ -182,8 +190,9 @@ public sealed class CliApplication
             }
             else
             {
-                WriteOutputSafely(song ?? throw new InvalidOperationException("No archive item was imported."), command.OutputPath!);
-                standardOutput.WriteLine($"Wrote tablature to '{command.OutputPath}'.");
+                WriteOutputSafely(song ?? throw new InvalidOperationException("No archive item was imported."),
+                    command.OutputPath!, command.FormatName);
+                standardOutput.WriteLine($"Wrote {command.FormatName} export to '{command.OutputPath}'.");
             }
 
             return SuccessExitCode;
@@ -251,12 +260,13 @@ public sealed class CliApplication
         }
     }
 
-    /// <summary>Writes to a temporary sibling file and moves it into place without overwriting.</summary>
+    /// <summary>Writes through the selected format writer to a temporary sibling file before moving it into place.</summary>
     /// <param name="song">The imported song to export.</param>
     /// <param name="outputPath">The requested output path.</param>
+    /// <param name="formatName">The selected registered output format.</param>
     /// <exception cref="IOException">The destination already exists or writing failed.</exception>
     /// <exception cref="UnauthorizedAccessException">The destination directory is not writable.</exception>
-    private void WriteOutputSafely(Song song, string outputPath)
+    private void WriteOutputSafely(Song song, string outputPath, string formatName)
     {
         var fullPath = Path.GetFullPath(outputPath);
         if (File.Exists(fullPath) || Directory.Exists(fullPath))
@@ -270,10 +280,8 @@ public sealed class CliApplication
         try
         {
             using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
             {
-                _exportArrangement.Write(song, writer);
-                writer.Flush();
+                _exportArrangement.Write(song, formatName, stream);
                 stream.Flush(flushToDisk: true);
             }
 
@@ -340,6 +348,7 @@ public sealed class CliApplication
 
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
+          psarc2tab --in <input.psarc> --out <output.tab> --format tab
           psarc2tab --in <input.psarc> --out <output.lrc> --arr <lyrics-number>
           psarc2tab --in <input.psarc> --list
           psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
@@ -351,6 +360,7 @@ public sealed class CliApplication
           --out <path>       Output file (must not already exist)
           --list             List numbered arrangements and lyrics in the archive
           --arr <n>          Select the numbered arrangement or Lyrics item (default: 1)
+          --format <name>    Arrangement output format (supported: tab; default: tab)
           --help        Show this help
           --version     Show version information
 

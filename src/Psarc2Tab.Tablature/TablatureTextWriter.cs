@@ -1,11 +1,12 @@
 using System.Globalization;
+using System.Text;
 using Psarc2Tab.Application;
 using Psarc2Tab.Domain;
 
 namespace Psarc2Tab.Tablature;
 
 /// <summary>Writes conventional ASCII tablature from a domain track.</summary>
-public sealed class TablatureTextWriter : ITablatureDocumentWriter
+public sealed class TablatureTextWriter : IArrangementFormatWriter
 {
     /// <summary>The maximum event-grid width of one visual tablature row.</summary>
     private const int MaximumRowWidth = 64;
@@ -17,6 +18,24 @@ public sealed class TablatureTextWriter : ITablatureDocumentWriter
     private static readonly string[] PitchNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
     /// <inheritdoc />
+    public string FormatName => "tab";
+
+    /// <inheritdoc />
+    public void Write(Song song, Track track, Stream destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        using var writer = new StreamWriter(destination, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            leaveOpen: true);
+        Write(song, track, writer);
+        writer.Flush();
+    }
+
+    /// <summary>Writes conventional tablature text to a text writer.</summary>
+    /// <param name="song">The song that owns the track.</param>
+    /// <param name="track">The selected track to render.</param>
+    /// <param name="writer">The destination text writer.</param>
+    /// <exception cref="ArgumentException">The track does not belong to the song.</exception>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
     public void Write(Song song, Track track, TextWriter writer)
     {
         ArgumentNullException.ThrowIfNull(song);
