@@ -9,10 +9,11 @@ public sealed class Song
     /// <param name="tracks">The song's tracks in presentation order.</param>
     /// <param name="sections">Optional section markers in source order.</param>
     /// <param name="centOffsetCents">The arrangement's pitch offset from A4=440 Hz, in cents.</param>
-    /// <exception cref="ArgumentException">The title is blank or no tracks are supplied.</exception>
+    /// <param name="beats">Optional beat markers in chronological order.</param>
+    /// <exception cref="ArgumentException">The title is blank, no tracks are supplied, or beats are unordered.</exception>
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
     public Song(string title, string artist, IEnumerable<Track> tracks, IEnumerable<SongSection>? sections = null,
-        decimal centOffsetCents = 0)
+        decimal centOffsetCents = 0, IEnumerable<BeatMarker>? beats = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(artist);
@@ -40,6 +41,18 @@ public sealed class Song
 
         Sections = Array.AsReadOnly(sectionArray);
         CentOffsetCents = centOffsetCents;
+        var beatArray = (beats ?? []).ToArray();
+        if (beatArray.Any(beat => beat is null))
+        {
+            throw new ArgumentException("A song cannot contain a null beat marker.", nameof(beats));
+        }
+
+        if (beatArray.Zip(beatArray.Skip(1)).Any(pair => pair.First.Time >= pair.Second.Time))
+        {
+            throw new ArgumentException("Beat markers must be in strictly increasing time order.", nameof(beats));
+        }
+
+        Beats = Array.AsReadOnly(beatArray);
     }
 
     /// <summary>Gets the display title.</summary>
@@ -56,4 +69,7 @@ public sealed class Song
 
     /// <summary>Gets the arrangement's pitch offset from A4=440 Hz, in cents.</summary>
     public decimal CentOffsetCents { get; }
+
+    /// <summary>Gets source beat markers in chronological order.</summary>
+    public IReadOnlyList<BeatMarker> Beats { get; }
 }

@@ -11,8 +11,8 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
     /// <summary>The MIDI ticks per quarter note in exported files.</summary>
     private const ushort TicksPerQuarterNote = 960;
 
-    /// <summary>The fixed MIDI tempo, in microseconds per quarter note.</summary>
-    private const int MicrosecondsPerQuarterNote = 500_000;
+    /// <summary>The fallback tempo used when the chart has fewer than two beat markers.</summary>
+    private const int FallbackMicrosecondsPerQuarterNote = 500_000;
 
     /// <summary>The largest delta time encodable in a four-byte MIDI variable-length quantity.</summary>
     private const int MaximumVariableLengthQuantity = 0x0FFFFFFF;
@@ -23,7 +23,7 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
     /// <inheritdoc />
     public string FormatName => "midi";
 
-    /// <summary>Writes an arrangement with note timing preserved in seconds at a fixed 120 BPM.</summary>
+    /// <summary>Writes an arrangement with its source beat timing or a fixed 120 BPM fallback.</summary>
     /// <param name="song">The song that owns the track.</param>
     /// <param name="track">The selected arrangement.</param>
     /// <param name="destination">The writable destination stream.</param>
@@ -66,8 +66,13 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
     private static IReadOnlyList<MidiTrackEvent> CreateEvents(Song song, Track track)
     {
         var events = new List<MidiTrackEvent>();
+        var tempoMap = TempoMap.Create(song.Beats);
         events.Add(new MidiTrackEvent(0, 0, CreateTextMetaEvent(0x03, $"psarc2tab {track.Name}")));
-        events.Add(new MidiTrackEvent(0, 1, [0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20]));
+        foreach (var tempoChange in tempoMap.TempoChanges)
+        {
+            events.Add(new MidiTrackEvent(tempoChange.Tick, 1, CreateTempoMetaEvent(tempoChange.MicrosecondsPerQuarterNote)));
+        }
+
         events.Add(new MidiTrackEvent(0, 2, [0xC0, GetProgramNumber(track.Name)]));
         if (song.CentOffsetCents != 0)
         {
@@ -77,7 +82,7 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
         foreach (var note in track.Notes)
         {
             var pitch = GetMidiPitch(track.Tuning, note.StringNumber, note.FretNumber);
-            AddNoteEvents(events, note.Position, note.Duration, pitch);
+            AddNoteEvents(events, note.Position, note.Duration, pitch, tempoMap);
         }
 
         foreach (var chord in track.Chords)
@@ -85,7 +90,7 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
             foreach (var note in chord.Notes)
             {
                 var pitch = GetMidiPitch(track.Tuning, note.StringNumber, note.FretNumber);
-                AddNoteEvents(events, chord.Position, chord.Duration, pitch);
+                AddNoteEvents(events, chord.Position, chord.Duration, pitch, tempoMap);
             }
         }
 
@@ -127,10 +132,11 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
     /// <param name="position">The note start time.</param>
     /// <param name="duration">The note duration.</param>
     /// <param name="pitch">The MIDI pitch number.</param>
-    private static void AddNoteEvents(List<MidiTrackEvent> events, TimeSpan position, TimeSpan duration, byte pitch)
+    private static void AddNoteEvents(List<MidiTrackEvent> events, TimeSpan position, TimeSpan duration, byte pitch,
+        TempoMap tempoMap)
     {
-        var startTick = ToMidiTick(position.Ticks);
-        var endTick = ToMidiTick((decimal)position.Ticks + duration.Ticks);
+        var startTick = tempoMap.ToMidiTick(position.Ticks);
+        var endTick = tempoMap.ToMidiTick((decimal)position.Ticks + duration.Ticks);
         if (endTick <= startTick)
         {
             endTick = checked(startTick + 1);
@@ -168,15 +174,142 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
         _ => throw new InvalidDataException($"The '{instrumentName}' arrangement has no MIDI instrument mapping.")
     };
 
-    /// <summary>Converts 100-nanosecond time units to ticks at the fixed file tempo.</summary>
-    /// <param name="timeSpanTicks">The timeline position in <see cref="TimeSpan.Ticks"/> units.</param>
-    /// <returns>The nearest MIDI tick, rounded away from zero.</returns>
-    private static long ToMidiTick(decimal timeSpanTicks)
+    /// <summary>Creates a three-byte MIDI tempo meta event.</summary>
+    /// <param name="microsecondsPerQuarterNote">The tempo in microseconds per quarter note.</param>
+    /// <returns>The encoded tempo event without a delta time.</returns>
+    private static byte[] CreateTempoMetaEvent(int microsecondsPerQuarterNote)
     {
-        var ticksPerSecond = TicksPerQuarterNote * 1_000_000m / MicrosecondsPerQuarterNote;
-        return checked((long)decimal.Round(timeSpanTicks * ticksPerSecond / TimeSpan.TicksPerSecond,
-            MidpointRounding.AwayFromZero));
+        return [0xFF, 0x51, 0x03,
+            (byte)((microsecondsPerQuarterNote >> 16) & 0xFF),
+            (byte)((microsecondsPerQuarterNote >> 8) & 0xFF),
+            (byte)(microsecondsPerQuarterNote & 0xFF)];
     }
+
+    /// <summary>Maps source seconds onto MIDI ticks and records tempo changes at beat boundaries.</summary>
+    private sealed class TempoMap
+    {
+        /// <summary>The source beat markers.</summary>
+        private readonly IReadOnlyList<BeatMarker> _beats;
+        /// <summary>The MIDI tick corresponding to each source beat.</summary>
+        private readonly long[] _anchorTicks;
+        /// <summary>The source-time span between each pair of beats.</summary>
+        private readonly decimal[] _intervalTicks;
+        /// <summary>The tempo events to write into the MIDI track.</summary>
+        private readonly IReadOnlyList<TempoChange> _tempoChanges;
+        /// <summary>Whether the map uses direct absolute-time conversion.</summary>
+        private readonly bool _usesFallback;
+
+        /// <summary>Creates a tempo map from ordered source beat markers.</summary>
+        /// <param name="beats">The source beats.</param>
+        private TempoMap(IReadOnlyList<BeatMarker> beats)
+        {
+            _beats = beats;
+            _usesFallback = beats.Count < 2;
+            if (_usesFallback)
+            {
+                _anchorTicks = [];
+                _intervalTicks = [];
+                _tempoChanges = [new TempoChange(0, FallbackMicrosecondsPerQuarterNote)];
+                return;
+            }
+
+            _intervalTicks = new decimal[beats.Count - 1];
+            var intervalTempos = new int[_intervalTicks.Length];
+            for (var index = 0; index < _intervalTicks.Length; index++)
+            {
+                _intervalTicks[index] = beats[index + 1].Time.Ticks - beats[index].Time.Ticks;
+                var tempo = decimal.Round(_intervalTicks[index] * 1_000_000m / TimeSpan.TicksPerSecond,
+                    MidpointRounding.AwayFromZero);
+                if (tempo is < 1 or > 0x00FF_FFFF)
+                {
+                    throw new InvalidDataException("A chart beat interval cannot be represented as a MIDI tempo.");
+                }
+
+                intervalTempos[index] = (int)tempo;
+            }
+
+            _anchorTicks = new long[beats.Count];
+            _anchorTicks[0] = checked((long)decimal.Round(
+                beats[0].Time.Ticks * (decimal)TicksPerQuarterNote / _intervalTicks[0],
+                MidpointRounding.AwayFromZero));
+            for (var index = 1; index < _anchorTicks.Length; index++)
+            {
+                _anchorTicks[index] = checked(_anchorTicks[index - 1] + TicksPerQuarterNote);
+            }
+
+            var changes = new List<TempoChange> { new(0, intervalTempos[0]) };
+            for (var index = 1; index < intervalTempos.Length; index++)
+            {
+                if (intervalTempos[index] != intervalTempos[index - 1])
+                {
+                    changes.Add(new TempoChange(_anchorTicks[index], intervalTempos[index]));
+                }
+            }
+
+            _tempoChanges = Array.AsReadOnly(changes.ToArray());
+        }
+
+        /// <summary>Gets the tempo meta events in chronological order.</summary>
+        public IReadOnlyList<TempoChange> TempoChanges => _tempoChanges;
+
+        /// <summary>Creates the fallback or source-beat tempo map.</summary>
+        /// <param name="beats">The ordered beat markers.</param>
+        /// <returns>The MIDI tempo map.</returns>
+        public static TempoMap Create(IReadOnlyList<BeatMarker> beats) => new(beats);
+
+        /// <summary>Converts a source timeline position to the nearest MIDI tick.</summary>
+        /// <param name="timelineTicks">The position in <see cref="TimeSpan.Ticks"/> from the beginning of the song.</param>
+        /// <returns>The nearest nonnegative MIDI tick.</returns>
+        public long ToMidiTick(decimal timelineTicks)
+        {
+            if (_usesFallback)
+            {
+                var ticksPerSecond = TicksPerQuarterNote * 1_000_000m / FallbackMicrosecondsPerQuarterNote;
+                return checked((long)decimal.Round(timelineTicks * ticksPerSecond / TimeSpan.TicksPerSecond,
+                    MidpointRounding.AwayFromZero));
+            }
+
+            decimal mappedTick;
+            if (timelineTicks <= _beats[0].Time.Ticks)
+            {
+                mappedTick = _anchorTicks[0] + (timelineTicks - _beats[0].Time.Ticks) *
+                    TicksPerQuarterNote / _intervalTicks[0];
+            }
+            else if (timelineTicks >= _beats[^1].Time.Ticks)
+            {
+                mappedTick = _anchorTicks[^1] + (timelineTicks - _beats[^1].Time.Ticks) *
+                    TicksPerQuarterNote / _intervalTicks[^1];
+            }
+            else
+            {
+                var lower = 0;
+                var upper = _beats.Count - 1;
+                while (upper - lower > 1)
+                {
+                    var middle = lower + (upper - lower) / 2;
+                    if (timelineTicks <= _beats[middle].Time.Ticks)
+                    {
+                        upper = middle;
+                    }
+                    else
+                    {
+                        lower = middle;
+                    }
+                }
+
+                var intervalIndex = lower;
+                mappedTick = _anchorTicks[intervalIndex] + (timelineTicks - _beats[intervalIndex].Time.Ticks) *
+                    TicksPerQuarterNote / _intervalTicks[intervalIndex];
+            }
+
+            return Math.Max(0, checked((long)decimal.Round(mappedTick, MidpointRounding.AwayFromZero)));
+        }
+    }
+
+    /// <summary>Stores one MIDI tempo event at its absolute tick.</summary>
+    /// <param name="Tick">The tempo event's tick position.</param>
+    /// <param name="MicrosecondsPerQuarterNote">The quarter-note duration in microseconds.</param>
+    private sealed record TempoChange(long Tick, int MicrosecondsPerQuarterNote);
 
     /// <summary>Writes the MIDI header and the already-sized track header.</summary>
     /// <param name="destination">The destination stream.</param>

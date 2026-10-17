@@ -26,6 +26,29 @@ public sealed class StandardMidiFileWriterTests
         Assert.Contains(events, item => item.Tick == 1440 && item.Data.SequenceEqual(new byte[] { 0x80, 43, 0 }));
     }
 
+    /// <summary>Writes a tempo change at a beat while preserving source-time spacing.</summary>
+    [Fact]
+    public void Write_BeatMarkers_WritesTempoMapAndMapsNoteTimingToBeats()
+    {
+        var track = CreateTrack("Lead", [new NoteEvent(TimeSpan.FromSeconds(0.25), TimeSpan.FromSeconds(0.5),
+            new StringNumber(1), new FretNumber(3))]);
+        var song = new Song("Song", "Artist", [track], beats:
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1),
+            new BeatMarker(TimeSpan.FromSeconds(1.5), 0, 2)
+        ]);
+
+        var events = ReadEvents(Write(song, track));
+
+        Assert.Contains(events, item => item.Tick == 0 &&
+            item.Data.SequenceEqual(new byte[] { 0xFF, 0x51, 0x07, 0xA1, 0x20 }));
+        Assert.Contains(events, item => item.Tick == 960 &&
+            item.Data.SequenceEqual(new byte[] { 0xFF, 0x51, 0x0F, 0x42, 0x40 }));
+        Assert.Contains(events, item => item.Tick == 480 && item.Data.SequenceEqual(new byte[] { 0x90, 43, 100 }));
+        Assert.Contains(events, item => item.Tick == 1200 && item.Data.SequenceEqual(new byte[] { 0x80, 43, 0 }));
+    }
+
     /// <summary>Expands chord tones as simultaneous MIDI note events.</summary>
     [Fact]
     public void Write_Chord_WritesEveryToneAtTheSameTick()

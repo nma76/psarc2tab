@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using Psarc2Tab.Domain;
 using Psarc2Tab.Formats.Rocksmith;
 
 namespace Psarc2Tab.Rocksmith.Tests;
@@ -107,6 +108,25 @@ public sealed class SngChartImporterTests
         Assert.Equal(TimeSpan.FromSeconds(12.5), section.StartTime);
     }
 
+    /// <summary>Imports beat times and source coordinates in either chart byte order.</summary>
+    /// <param name="bigEndian">Whether the synthetic chart uses Mac byte order.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Import_Beats_PreservesBeatPositions(bool bigEndian)
+    {
+        var chart = CreateChart([(12, new TestNote(0x800000, 0.25f, 0, 2, -1, 0.1f))], bigEndian: bigEndian,
+            beats: [(0.0f, 0, 0), (0.5f, 0, 1), (1.5f, 0, 2)]);
+        var archivePath = bigEndian ? "songs/bin/macos/test_lead.sng" : "songs/bin/generic/test_lead.sng";
+
+        var song = new SngChartImporter().Import(chart, CreateArrangement("Lead", archivePath: archivePath));
+
+        Assert.Collection(song.Beats,
+            beat => Assert.Equal(new BeatMarker(TimeSpan.Zero, 0, 0), beat),
+            beat => Assert.Equal(new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1), beat),
+            beat => Assert.Equal(new BeatMarker(TimeSpan.FromSeconds(1.5), 0, 2), beat));
+    }
+
     /// <summary>Rejects a truncated chart rather than reading outside the buffer.</summary>
     [Fact]
     public void Import_TruncatedChart_ThrowsInvalidDataException()
@@ -191,14 +211,26 @@ public sealed class SngChartImporterTests
     /// <param name="bigEndian">Whether to write numeric fields in big-endian order.</param>
     /// <param name="sections">Optional section records.</param>
     /// <param name="masterDifficulties">Optional full difficulties, one per phrase iteration.</param>
+    /// <param name="beats">Optional beat time and measure coordinates.</param>
     /// <returns>The chart bytes.</returns>
     private static byte[] CreateChart((int difficulty, TestNote note)[] levels, bool withChord = false, bool bigEndian = false,
-        (string name, int number, float start, float end)[]? sections = null, int[]? masterDifficulties = null)
+        (string name, int number, float start, float end)[]? sections = null, int[]? masterDifficulties = null,
+        (float time, int measure, int beat)[]? beats = null)
     {
         masterDifficulties ??= [levels.Max(level => level.difficulty)];
+        beats ??= [];
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
-        writer.Write(0);
+        WriteInt32(writer, beats.Length, bigEndian);
+        foreach (var beat in beats)
+        {
+            WriteSingle(writer, beat.time, bigEndian);
+            WriteUInt16(writer, checked((ushort)beat.measure), bigEndian);
+            WriteUInt16(writer, checked((ushort)beat.beat), bigEndian);
+            WriteInt32(writer, 0, bigEndian);
+            WriteInt32(writer, 0, bigEndian);
+        }
+
         WriteInt32(writer, masterDifficulties.Length, bigEndian);
         for (var index = 0; index < masterDifficulties.Length; index++) writer.Write(new byte[44]);
         if (withChord)
@@ -339,6 +371,17 @@ public sealed class SngChartImporterTests
     /// <param name="bigEndian">Whether to use big-endian byte order.</param>
     private static void WriteSingle(BinaryWriter writer, float value, bool bigEndian) =>
         WriteInt32(writer, BitConverter.SingleToInt32Bits(value), bigEndian);
+
+    /// <summary>Writes an unsigned 16-bit integer in the selected chart byte order.</summary>
+    /// <param name="writer">The chart writer.</param>
+    /// <param name="value">The value to encode.</param>
+    /// <param name="bigEndian">Whether to use big-endian byte order.</param>
+    private static void WriteUInt16(BinaryWriter writer, ushort value, bool bigEndian)
+    {
+        var bytes = BitConverter.GetBytes(value);
+        if (bigEndian) Array.Reverse(bytes);
+        writer.Write(bytes);
+    }
 
     /// <summary>Stores the values written into one synthetic note.</summary>
     /// <param name="Mask">The note mask.</param>

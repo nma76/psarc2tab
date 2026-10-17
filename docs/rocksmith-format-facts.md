@@ -23,6 +23,10 @@ do not establish support for every Rocksmith release or archive.
 - In a sampled Lead arrangement, note `time` and `sustain` values are
   decimal seconds (for example, `time="7.024"` and `sustain="0.146"`). The
   importer preserves them as `TimeSpan` values.
+- Arrangement XML beat entries include `time`, `measure`, and `beat`. SNG
+  beat entries are fixed 16-byte records with the same time and measure
+  coordinates plus phrase-iteration and mask fields. The importer retains the
+  timestamps and measure coordinates for MIDI tempo-map generation.
 - Instrument note `string` values use zero-based indices in the XML. The
   importer maps them to the Domain model's one-based string numbers.
 - Arrangement tuning contains six `string0` through `string5` semitone offsets.
@@ -128,8 +132,8 @@ its phrase ID, start and next-phrase times, and Easy, Medium, and Master
 difficulty indices. Notes identify their phrase iteration in the note record.
 The importer uses the Master difficulty for each iteration instead of choosing
 one difficulty for the whole song. It maps notes and chords through their
-templates and reads event time and sustain values in seconds. Common technique
-bits map to the Domain model. Tuning is calculated from the six manifest
+templates and reads event time, sustain, and beat values in seconds. Common
+technique bits map to the Domain model. Tuning is calculated from the six manifest
 offsets and the standard guitar or bass MIDI pitches. Source string indices
 are checked against those six available positions.
 

@@ -65,9 +65,10 @@ when omitted. Selecting Lyrics writes timestamped plain-text LRC output instead
 of tablature. `--format` selects the arrangement output format and defaults to
 `tab`; supported arrangement formats are `tab` and `midi`. MIDI output is a
 Standard MIDI File containing the selected arrangement's notes and chord tones.
-It uses 960 ticks per quarter note and a fixed 120 BPM tempo, converting the
-source timeline's absolute seconds to ticks. A song-level cent offset is sent
-as channel pitch bend. No time-signature metadata is emitted because the current
+It uses 960 ticks per quarter note and derives tempo changes from source beat
+times; when fewer than two beat markers are available, it falls back to 120 BPM
+and converts absolute seconds to ticks. A song-level cent offset is sent as
+channel pitch bend. No time-signature metadata is emitted because the current
 domain model does not contain it. Lead and Rhythm use the General MIDI clean
 electric guitar program; Bass uses fingered electric bass. Note articulations
 and other playing techniques are not encoded, and playback sound depends on the
