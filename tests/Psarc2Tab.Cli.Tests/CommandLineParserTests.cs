@@ -17,6 +17,17 @@ public sealed class CommandLineParserTests
         Assert.Equal(CommandKind.Convert, result.Kind);
         Assert.Equal("song.psarc", result.InputPath);
         Assert.Equal("song.tab", result.OutputPath);
+        Assert.Equal("tab", result.FormatName);
+    }
+
+    /// <summary>Parses a named output format for an arrangement.</summary>
+    [Fact]
+    public void Parse_FormatOption_ReturnsFormatName()
+    {
+        var result = _parser.Parse(["--in", "song.psarc", "--out", "song.mid", "--format", "midi"]);
+
+        Assert.Equal(CommandKind.Convert, result.Kind);
+        Assert.Equal("midi", result.FormatName);
     }
 
     /// <summary>Accepts input and output options in either order.</summary>
@@ -68,6 +79,7 @@ public sealed class CommandLineParserTests
     [InlineData("--list")]
     [InlineData("--in song.psarc --out song.tab --list")]
     [InlineData("--in song.psarc --list --arr 1")]
+    [InlineData("--in song.psarc --list --format tab")]
     [InlineData("--in song.psarc --out song.tab --arrangement 1")]
     public void Parse_InvalidArrangementCommand_IsInvalid(string arguments)
     {
@@ -81,12 +93,23 @@ public sealed class CommandLineParserTests
     [Theory]
     [InlineData("--in")]
     [InlineData("--out")]
+    [InlineData("--format")]
     public void Parse_OptionWithoutValue_IsInvalid(string option)
     {
         var result = _parser.Parse([option]);
 
         Assert.Equal(CommandKind.Invalid, result.Kind);
-        Assert.Contains("requires a path", result.Error);
+        Assert.Contains(option == "--format" ? "format name" : "path", result.Error);
+    }
+
+    /// <summary>Rejects a repeated format option.</summary>
+    [Fact]
+    public void Parse_DuplicateFormatOption_IsInvalid()
+    {
+        var result = _parser.Parse(["--in", "song.psarc", "--out", "song.tab", "--format", "tab", "--format", "midi"]);
+
+        Assert.Equal(CommandKind.Invalid, result.Kind);
+        Assert.Contains("format option can only be specified once", result.Error);
     }
 
     /// <summary>Rejects a conversion request that omits its output option.</summary>

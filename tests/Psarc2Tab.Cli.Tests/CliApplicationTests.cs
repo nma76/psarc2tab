@@ -19,10 +19,23 @@ public sealed class CliApplicationTests
         Assert.Contains("--version", output.StandardOutput);
         Assert.Contains("--list", output.StandardOutput);
         Assert.Contains("--arr <n>", output.StandardOutput);
+        Assert.Contains("--format <name>", output.StandardOutput);
         Assert.DoesNotContain("--arrangement <", output.StandardOutput);
         Assert.DoesNotContain("\n  -in ", output.StandardOutput);
         Assert.DoesNotContain("\n  -out ", output.StandardOutput);
         Assert.Empty(output.StandardError);
+    }
+
+    /// <summary>Rejects a format that has no registered writer and reports available formats.</summary>
+    [Fact]
+    public void Run_UnsupportedFormat_ReturnsInvalidArguments()
+    {
+        var output = Run("--in", "song.psarc", "--out", "song.mid", "--format", "midi");
+
+        Assert.Equal(CliApplication.InvalidArgumentsExitCode, output.ExitCode);
+        Assert.Contains("Unsupported output format 'midi'", output.StandardError);
+        Assert.Contains("Supported formats: tab", output.StandardError);
+        Assert.Empty(output.StandardOutput);
     }
 
     /// <summary>Prints version information to standard output.</summary>
@@ -142,7 +155,7 @@ public sealed class CliApplicationTests
         var output = Run("--in", inputPath, "--out", outputPath, "--arr", "2");
 
         Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
-        Assert.Contains("Wrote tablature", output.StandardOutput);
+        Assert.Contains("Wrote tab export", output.StandardOutput);
         Assert.Empty(output.StandardError);
         var tab = File.ReadAllText(outputPath);
         Assert.Equal(string.Join('\n',

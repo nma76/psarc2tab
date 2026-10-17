@@ -24,12 +24,14 @@ public enum CommandKind
 /// <param name="InputPath">The input archive path, when conversion was requested.</param>
 /// <param name="OutputPath">The output tablature path, when conversion was requested.</param>
 /// <param name="ArrangementNumber">The one-based arrangement number selected for conversion.</param>
+/// <param name="FormatName">The requested arrangement output format.</param>
 /// <param name="Error">The reason parsing failed, when the command is invalid.</param>
 public sealed record ParsedCommand(
     CommandKind Kind,
     string? InputPath = null,
     string? OutputPath = null,
     int? ArrangementNumber = null,
+    string FormatName = "tab",
     string? Error = null);
 
 /// <summary>Parses supported command-line flags without performing file or conversion work.</summary>
@@ -46,6 +48,8 @@ public sealed class CommandLineParser
         string? inputPath = null;
         string? outputPath = null;
         int? arrangementNumber = null;
+        var formatName = "tab";
+        var formatSpecified = false;
         var listArrangements = false;
         var showHelp = false;
         var showVersion = false;
@@ -72,17 +76,23 @@ public sealed class CommandLineParser
                 case "--in":
                 case "--out":
                 case "--arr":
+                case "--format":
                     if (index + 1 >= args.Count || args[index + 1].StartsWith("--", StringComparison.Ordinal))
                     {
-                        return Invalid(argument == "--arr"
-                            ? "Option '--arr' requires a positive number."
-                            : $"Option '{argument}' requires a path.");
+                        return Invalid(argument switch
+                        {
+                            "--arr" => "Option '--arr' requires a positive number.",
+                            "--format" => "Option '--format' requires a format name.",
+                            _ => $"Option '{argument}' requires a path."
+                        });
                     }
 
-                    var path = args[++index];
-                    if (string.IsNullOrWhiteSpace(path))
+                    var value = args[++index];
+                    if (string.IsNullOrWhiteSpace(value))
                     {
-                        return Invalid($"Option '{argument}' requires a non-empty path.");
+                        return Invalid(argument == "--format"
+                            ? "Option '--format' requires a non-empty format name."
+                            : $"Option '{argument}' requires a non-empty path.");
                     }
 
                     if (argument == "--arr")
@@ -92,7 +102,7 @@ public sealed class CommandLineParser
                             return Invalid("The arrangement option can only be specified once.");
                         }
 
-                        if (!int.TryParse(path, System.Globalization.NumberStyles.None,
+                        if (!int.TryParse(value, System.Globalization.NumberStyles.None,
                                 System.Globalization.CultureInfo.InvariantCulture, out var parsedNumber) || parsedNumber <= 0)
                         {
                             return Invalid("Option '--arr' requires a positive number.");
@@ -107,16 +117,26 @@ public sealed class CommandLineParser
                             return Invalid("The input option can only be specified once.");
                         }
 
-                        inputPath = path;
+                        inputPath = value;
                     }
-                    else
+                    else if (argument == "--out")
                     {
                         if (outputPath is not null)
                         {
                             return Invalid("The output option can only be specified once.");
                         }
 
-                        outputPath = path;
+                        outputPath = value;
+                    }
+                    else
+                    {
+                        if (formatSpecified)
+                        {
+                            return Invalid("The format option can only be specified once.");
+                        }
+
+                        formatName = value;
+                        formatSpecified = true;
                     }
 
                     break;
@@ -147,9 +167,9 @@ public sealed class CommandLineParser
 
         if (listArrangements)
         {
-            if (inputPath is null || outputPath is not null || arrangementNumber is not null)
+            if (inputPath is null || outputPath is not null || arrangementNumber is not null || formatSpecified)
             {
-                return Invalid("'--list' requires '--in' and cannot be combined with '--out' or '--arr'.");
+                return Invalid("'--list' requires '--in' and cannot be combined with '--out', '--arr', or '--format'.");
             }
 
             return new ParsedCommand(CommandKind.ListArrangements, InputPath: inputPath);
@@ -160,7 +180,7 @@ public sealed class CommandLineParser
             return Invalid("Both '--in' and '--out' are required.");
         }
 
-        return new ParsedCommand(CommandKind.Convert, inputPath, outputPath, arrangementNumber);
+        return new ParsedCommand(CommandKind.Convert, inputPath, outputPath, arrangementNumber, formatName);
     }
 
     /// <summary>Creates an invalid-command result with a concise diagnostic.</summary>
