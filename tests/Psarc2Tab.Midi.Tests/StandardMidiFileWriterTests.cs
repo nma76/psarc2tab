@@ -120,6 +120,41 @@ public sealed class StandardMidiFileWriterTests
         Assert.Contains(events, item => item.Tick == 1 && item.Data[0] == 0x80);
     }
 
+    /// <summary>Extends a zero-duration note to the next onset on its string.</summary>
+    [Fact]
+    public void Write_ZeroDurationNote_EndsAtNextOnsetOnSameString()
+    {
+        var track = CreateTrack("Lead",
+        [
+            new NoteEvent(TimeSpan.Zero, TimeSpan.Zero, new StringNumber(1), new FretNumber(0)),
+            new NoteEvent(TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.25), new StringNumber(1), new FretNumber(2))
+        ]);
+
+        var events = ReadEvents(Write(new Song("Song", "", [track]), track));
+
+        Assert.Contains(events, item => item.Tick == 0 && item.Data.SequenceEqual(new byte[] { 0x90, 40, 100 }));
+        Assert.Contains(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x80, 40, 0 }));
+        Assert.Contains(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x90, 42, 100 }));
+    }
+
+    /// <summary>Ends each zero-duration chord tone at the next onset on that string.</summary>
+    [Fact]
+    public void Write_ZeroDurationChord_EndsEachToneAtItsNextStringOnset()
+    {
+        var chord = new ChordEvent(TimeSpan.Zero, TimeSpan.Zero,
+        [
+            new FrettedNote(new StringNumber(1), new FretNumber(0)),
+            new FrettedNote(new StringNumber(2), new FretNumber(0))
+        ]);
+        var track = CreateTrack("Lead",
+            [new NoteEvent(TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.25), new StringNumber(1), new FretNumber(2))], [chord]);
+
+        var events = ReadEvents(Write(new Song("Song", "", [track]), track));
+
+        Assert.Contains(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x80, 40, 0 }));
+        Assert.Contains(events, item => item.Tick == 1 && item.Data.SequenceEqual(new byte[] { 0x80, 45, 0 }));
+    }
+
     /// <summary>Creates a standard guitar-tuned arrangement for focused writer tests.</summary>
     /// <param name="name">The arrangement name.</param>
     /// <param name="notes">Individual notes to include.</param>
