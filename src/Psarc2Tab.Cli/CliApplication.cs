@@ -361,8 +361,8 @@ public sealed class CliApplication
           --list             List numbered arrangements and lyrics in the archive
           --arr <n>          Select the numbered arrangement or Lyrics item (default: 1)
           --format <name>    Arrangement output format (supported: tab; default: tab)
-          --help        Show this help
-          --version     Show version information
+          --help             Show this help
+          --version          Show version information
 
         Exit codes:
           0  Help, version, or conversion completed
