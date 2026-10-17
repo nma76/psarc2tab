@@ -49,7 +49,7 @@ public sealed class StandardMidiFileWriterTests
         Assert.Contains(events, item => item.Tick == 1200 && item.Data.SequenceEqual(new byte[] { 0x80, 43, 0 }));
     }
 
-    /// <summary>Expands chord tones as simultaneous MIDI note events.</summary>
+    /// <summary>Expands chord tones as simultaneous MIDI events with the explicit source duration.</summary>
     [Fact]
     public void Write_Chord_WritesEveryToneAtTheSameTick()
     {
@@ -60,10 +60,17 @@ public sealed class StandardMidiFileWriterTests
         ]);
         var track = CreateTrack("Lead", [], [chord]);
 
-        var events = ReadEvents(Write(new Song("Song", "", [track]), track));
-        var noteOns = events.Where(item => item.Tick == 1920 && item.Data[0] == 0x90).ToArray();
+        var song = new Song("Song", "", [track], beats:
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1),
+            new BeatMarker(TimeSpan.FromSeconds(1.5), 0, 2)
+        ]);
+        var events = ReadEvents(Write(song, track));
+        var noteOns = events.Where(item => item.Tick == 1440 && item.Data[0] == 0x90).ToArray();
 
         Assert.Equal([42, 48], noteOns.Select(item => (int)item.Data[1]).Order().ToArray());
+        Assert.Equal([1920, 1920], events.Where(item => item.Data[0] == 0x80).Select(item => item.Tick).Order().ToArray());
     }
 
     /// <summary>Uses the General MIDI electric bass program for bass arrangements.</summary>

@@ -72,7 +72,10 @@ channel pitch bend. No time-signature metadata is emitted because the current
 domain model does not contain it. Lead and Rhythm use the General MIDI clean
 electric guitar program; Bass uses fingered electric bass. Note articulations
 and other playing techniques are not encoded, and playback sound depends on the
-receiving sequencer or synthesizer. MIDI export has not yet been manually
+receiving sequencer or synthesizer. Positive source sustain durations are
+preserved through tempo changes. Zero-duration events currently use a one-tick
+minimum; a musically appropriate rule for those events remains under study.
+MIDI export has not yet been manually
 validated in GarageBand or Windows Media Player. Lyrics remain LRC exports.
 Unknown formats are rejected with a list of available formats. A successful
 export prints its destination to stdout.
