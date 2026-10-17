@@ -4,13 +4,14 @@
 [![Release](https://github.com/nma76/psarc2tab/actions/workflows/release.yml/badge.svg)](https://github.com/nma76/psarc2tab/actions/workflows/release.yml)
 [![Downloads](https://img.shields.io/github/downloads/nma76/psarc2tab/latest/total)](https://github.com/nma76/psarc2tab/releases/latest)
 
-`psarc2tab` is a cross-platform .NET command-line application for converting
-Rocksmith-style PSARC song data into guitar tablature. The repository contains
-PSARC extraction support, Rocksmith XML arrangement import, SNG arrangement
-discovery through JSON manifests, a format-independent Domain model, and a
-basic ASCII tab generator. The CLI can convert a selected XML-based or SNG-based
-Lead, Bass, or Rhythm arrangement to conventional six-line ASCII tablature in a
-`.tab` file.
+## From Rocksmith archive to practice-ready tab
+
+Turn a supported Rocksmith arrangement into tablature you can read, practice
+from, and share. `psarc2tab` extracts Lead, Rhythm, or Bass parts from PSARC
+archives and renders them as classic ASCII tabs, with tuning and song sections
+alongside the notes. List the arrangements before you choose, or export timed
+lyrics as an LRC file. It runs as a cross-platform command-line tool on Windows,
+macOS, and Linux.
 
 ## Requirements
 
