@@ -79,11 +79,11 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
             AddPitchBendEvents(events, song.CentOffsetCents);
         }
 
-        var notesByString = new Dictionary<int, List<PendingNoteEvent>>();
+        var pendingNotes = new List<PendingNoteEvent>();
         foreach (var note in track.Notes)
         {
             var pitch = GetMidiPitch(track.Tuning, note.StringNumber, note.FretNumber);
-            AddPendingNote(notesByString, new PendingNoteEvent(note.Position, note.Duration, note.StringNumber.Value, pitch));
+            pendingNotes.Add(new PendingNoteEvent(note.Position, note.Duration, pitch));
         }
 
         foreach (var chord in track.Chords)
@@ -91,46 +91,41 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
             foreach (var note in chord.Notes)
             {
                 var pitch = GetMidiPitch(track.Tuning, note.StringNumber, note.FretNumber);
-                AddPendingNote(notesByString,
-                    new PendingNoteEvent(chord.Position, chord.Duration, note.StringNumber.Value, pitch));
+                pendingNotes.Add(new PendingNoteEvent(chord.Position, chord.Duration, pitch));
             }
         }
 
-        foreach (var stringEvents in notesByString.Values)
+        var orderedNotes = pendingNotes.OrderBy(item => item.Position).ToArray();
+        TimeSpan? nextPosition = null;
+        var groupEnd = orderedNotes.Length - 1;
+        while (groupEnd >= 0)
         {
-            var orderedEvents = stringEvents.OrderBy(item => item.Position).ToArray();
-            TimeSpan? nextPosition = null;
-            for (var index = orderedEvents.Length - 1; index >= 0; index--)
+            var position = orderedNotes[groupEnd].Position;
+            var groupStart = groupEnd;
+            while (groupStart > 0 && orderedNotes[groupStart - 1].Position == position)
             {
-                var note = orderedEvents[index];
+                groupStart--;
+            }
+
+            for (var index = groupStart; index <= groupEnd; index++)
+            {
+                var note = orderedNotes[index];
                 var duration = note.Duration;
-                if (duration == TimeSpan.Zero && nextPosition is { } next && next > note.Position)
+                if (duration == TimeSpan.Zero && nextPosition is { } next && next > position)
                 {
-                    duration = next - note.Position;
+                    duration = next - position;
                 }
 
                 AddNoteEvents(events, note.Position, duration, note.Pitch, tempoMap);
-                nextPosition = note.Position;
             }
+
+            nextPosition = position;
+            groupEnd = groupStart - 1;
         }
 
         var lastTick = events.Max(item => item.Tick);
         events.Add(new MidiTrackEvent(lastTick, 10, [0xFF, 0x2F, 0x00]));
         return Array.AsReadOnly(events.OrderBy(item => item.Tick).ThenBy(item => item.Priority).ToArray());
-    }
-
-    /// <summary>Adds an event to the group for its physical string.</summary>
-    /// <param name="eventsByString">The pending events grouped by string number.</param>
-    /// <param name="note">The event to add.</param>
-    private static void AddPendingNote(Dictionary<int, List<PendingNoteEvent>> eventsByString, PendingNoteEvent note)
-    {
-        if (!eventsByString.TryGetValue(note.StringNumber, out var stringEvents))
-        {
-            stringEvents = [];
-            eventsByString.Add(note.StringNumber, stringEvents);
-        }
-
-        stringEvents.Add(note);
     }
 
     /// <summary>Encodes global cents offset as a channel pitch bend and its sensitivity setting.</summary>
@@ -447,7 +442,6 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
     /// <summary>Stores a source note until its effective MIDI duration is known.</summary>
     /// <param name="Position">The note onset.</param>
     /// <param name="Duration">The explicit source duration, if positive.</param>
-    /// <param name="StringNumber">The physical string number.</param>
     /// <param name="Pitch">The resulting MIDI pitch.</param>
-    private sealed record PendingNoteEvent(TimeSpan Position, TimeSpan Duration, int StringNumber, byte Pitch);
+    private sealed record PendingNoteEvent(TimeSpan Position, TimeSpan Duration, byte Pitch);
 }

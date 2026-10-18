@@ -120,26 +120,26 @@ public sealed class StandardMidiFileWriterTests
         Assert.Contains(events, item => item.Tick == 1 && item.Data[0] == 0x80);
     }
 
-    /// <summary>Extends a zero-duration note to the next onset on its string.</summary>
+    /// <summary>Extends a zero-duration note to the next onset on any string.</summary>
     [Fact]
-    public void Write_ZeroDurationNote_EndsAtNextOnsetOnSameString()
+    public void Write_ZeroDurationNote_EndsAtNextOnsetOnDifferentString()
     {
         var track = CreateTrack("Lead",
         [
             new NoteEvent(TimeSpan.Zero, TimeSpan.Zero, new StringNumber(1), new FretNumber(0)),
-            new NoteEvent(TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.25), new StringNumber(1), new FretNumber(2))
+            new NoteEvent(TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.25), new StringNumber(2), new FretNumber(2))
         ]);
 
         var events = ReadEvents(Write(new Song("Song", "", [track]), track));
 
         Assert.Contains(events, item => item.Tick == 0 && item.Data.SequenceEqual(new byte[] { 0x90, 40, 100 }));
         Assert.Contains(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x80, 40, 0 }));
-        Assert.Contains(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x90, 42, 100 }));
+        Assert.Contains(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x90, 47, 100 }));
     }
 
-    /// <summary>Ends each zero-duration chord tone at the next onset on that string.</summary>
+    /// <summary>Ends every zero-duration chord tone at the next arrangement onset.</summary>
     [Fact]
-    public void Write_ZeroDurationChord_EndsEachToneAtItsNextStringOnset()
+    public void Write_ZeroDurationChord_EndsAtNextArrangementOnset()
     {
         var chord = new ChordEvent(TimeSpan.Zero, TimeSpan.Zero,
         [
@@ -152,7 +152,24 @@ public sealed class StandardMidiFileWriterTests
         var events = ReadEvents(Write(new Song("Song", "", [track]), track));
 
         Assert.Contains(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x80, 40, 0 }));
-        Assert.Contains(events, item => item.Tick == 1 && item.Data.SequenceEqual(new byte[] { 0x80, 45, 0 }));
+        Assert.Contains(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x80, 45, 0 }));
+    }
+
+    /// <summary>Does not let a zero-duration note ring through an intervening different-string attack.</summary>
+    [Fact]
+    public void Write_ZeroDurationNote_DoesNotRingPastInterveningDifferentStringAttack()
+    {
+        var track = CreateTrack("Lead",
+        [
+            new NoteEvent(TimeSpan.Zero, TimeSpan.Zero, new StringNumber(1), new FretNumber(0)),
+            new NoteEvent(TimeSpan.FromSeconds(0.25), TimeSpan.FromSeconds(0.25), new StringNumber(2), new FretNumber(2)),
+            new NoteEvent(TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.25), new StringNumber(1), new FretNumber(3))
+        ]);
+
+        var events = ReadEvents(Write(new Song("Song", "", [track]), track));
+
+        Assert.Contains(events, item => item.Tick == 480 && item.Data.SequenceEqual(new byte[] { 0x80, 40, 0 }));
+        Assert.DoesNotContain(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x80, 40, 0 }));
     }
 
     /// <summary>Creates a standard guitar-tuned arrangement for focused writer tests.</summary>

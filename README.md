@@ -74,8 +74,9 @@ electric guitar program; Bass uses fingered electric bass. Note articulations
 and other playing techniques are not encoded, and playback sound depends on the
 receiving sequencer or synthesizer. Positive source sustain durations are
 preserved through tempo changes. Events without a duration ring until the next
-onset on the same string; an event with no later onset uses a one-tick minimum.
-This inferred duration rule still needs comparison with Rocksmith playback.
+onset anywhere in the arrangement; an event with no later onset uses a one-tick
+minimum. This inferred duration rule still needs comparison with Rocksmith
+playback.
 MIDI export has not yet been manually
 validated in GarageBand or Windows Media Player. Lyrics remain LRC exports.
 Unknown formats are rejected with a list of available formats. A successful
