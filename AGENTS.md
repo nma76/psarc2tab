@@ -266,6 +266,9 @@ planned projects at once.
 
 - Read `TODO.txt` before starting implementation work. Use it to identify
   the next unfinished task and keep work aligned with its dependencies.
+- Add newly requested or discovered work to `TODO.txt` as an open (`[ ]`)
+  task when appropriate, even when it is not being implemented in the
+  current change. Adding a task does not require completing it first.
 - Mark a task complete (`[x]`) only after its implementation and required
   documentation are present and its relevant tests and build have actually
   passed. Do not check off work based only on intent or partial support.
