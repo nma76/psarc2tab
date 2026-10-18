@@ -92,10 +92,32 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
         var notes = ReadNotes(selectedLevel);
         var chords = ReadChords(selectedLevel, root, tuning.StringCount);
         var sections = ReadSections(root);
+        var beats = ReadBeats(root);
         var centOffsetCents = root.Element("centOffset") is { } centOffset
             ? ParseDecimalValue(centOffset.Value)
             : 0;
-        return new Song(title, artist, [new Track(arrangement, tuning, notes, chords)], sections, centOffsetCents);
+        return new Song(title, artist, [new Track(arrangement, tuning, notes, chords)], sections, centOffsetCents, beats);
+    }
+
+    /// <summary>Reads optional beat timestamps and source measure positions.</summary>
+    /// <param name="root">The song root element.</param>
+    /// <returns>Beat markers in source order.</returns>
+    private static IReadOnlyList<BeatMarker> ReadBeats(XElement root)
+    {
+        var container = root.Element("beats");
+        if (container is null)
+        {
+            return Array.Empty<BeatMarker>();
+        }
+
+        var beats = new List<BeatMarker>();
+        foreach (var element in container.Elements("beat"))
+        {
+            beats.Add(new BeatMarker(ParseSecondsAttribute(element, "time"),
+                ParseIntAttribute(element, "measure"), ParseIntAttribute(element, "beat")));
+        }
+
+        return beats.AsReadOnly();
     }
 
     /// <summary>Reads optional named section markers from the arrangement XML.</summary>

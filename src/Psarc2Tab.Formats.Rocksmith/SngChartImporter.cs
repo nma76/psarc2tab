@@ -62,7 +62,16 @@ public sealed class SngChartImporter
 
         var reader = new ChartReader(chart, SngContainerReader.GetPlatform(arrangement.ArchivePath) == SngPlatform.Mac);
         var beats = reader.ReadCount();
-        reader.SkipRecords(beats, 16);
+        var beatMarkers = new BeatMarker[beats];
+        for (var index = 0; index < beatMarkers.Length; index++)
+        {
+            beatMarkers[index] = reader.ReadBeat();
+            if (index > 0 && beatMarkers[index].Time <= beatMarkers[index - 1].Time)
+            {
+                throw new InvalidDataException("The SNG chart beat times are not strictly increasing.");
+            }
+        }
+
         var phraseCount = reader.ReadCount();
         reader.SkipRecords(phraseCount, 44);
         var chordCount = reader.ReadCount();
@@ -175,7 +184,7 @@ public sealed class SngChartImporter
 
         return new Song(metadata.Title, metadata.Artist,
             [new Track(arrangement.Instrument, tuning, notesResult, chordsResult)], sections,
-            metadata.CentOffsetCents);
+            metadata.CentOffsetCents, beatMarkers);
     }
 
     /// <summary>Reads timed lyric entries from a decoded SNG chart.</summary>
@@ -293,6 +302,23 @@ public sealed class SngChartImporter
             }
 
             return count;
+        }
+
+        /// <summary>Reads one beat marker from its fixed-size chart record.</summary>
+        /// <returns>The validated beat marker.</returns>
+        /// <exception cref="InvalidDataException">The beat time is invalid.</exception>
+        public BeatMarker ReadBeat()
+        {
+            var time = ReadSingle();
+            var measure = ReadUInt16();
+            var beat = ReadUInt16();
+            Skip(8);
+            if (!float.IsFinite(time) || time < 0)
+            {
+                throw new InvalidDataException("The SNG chart contains an invalid beat time.");
+            }
+
+            return new BeatMarker(ToTimeSpan(time, "beat time"), measure, beat);
         }
 
         /// <summary>Skips a fixed-size record array after checking the buffer bounds.</summary>
@@ -452,6 +478,14 @@ public sealed class SngChartImporter
         {
             var bytes = ReadBytes(sizeof(uint));
             return _bigEndian ? BinaryPrimitives.ReadUInt32BigEndian(bytes) : BinaryPrimitives.ReadUInt32LittleEndian(bytes);
+        }
+
+        /// <summary>Reads an unsigned 16-bit integer in chart byte order.</summary>
+        /// <returns>The integer value.</returns>
+        private ushort ReadUInt16()
+        {
+            var bytes = ReadBytes(sizeof(ushort));
+            return _bigEndian ? BinaryPrimitives.ReadUInt16BigEndian(bytes) : BinaryPrimitives.ReadUInt16LittleEndian(bytes);
         }
 
         /// <summary>Reads one signed byte.</summary>

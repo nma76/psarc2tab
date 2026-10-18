@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Psarc2Tab.Application\Psarc2Tab.Application.csproj" />
+    <ProjectReference Include="..\Psarc2Tab.Midi\Psarc2Tab.Midi.csproj" />
     <ProjectReference Include="..\Psarc2Tab.Formats.PSARC\Psarc2Tab.Formats.PSARC.csproj" />
     <ProjectReference Include="..\Psarc2Tab.Formats.Rocksmith\Psarc2Tab.Formats.Rocksmith.csproj" />
     <ProjectReference Include="..\Psarc2Tab.Tablature\Psarc2Tab.Tablature.csproj" />

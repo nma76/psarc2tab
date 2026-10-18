@@ -79,6 +79,21 @@ public sealed class RocksmithArrangementImporterTests
         Assert.Empty(song.Sections);
     }
 
+    /// <summary>Imports XML beat times and their source measure coordinates.</summary>
+    [Fact]
+    public void Import_Beats_MapsTimeMeasureAndBeat()
+    {
+        var xml = CreateXml("Lead", "").Replace("<levels>",
+            "<beats><beat time=\"0\" measure=\"0\" beat=\"0\" /><beat time=\"0.5\" measure=\"0\" beat=\"1\" /></beats><levels>",
+            StringComparison.Ordinal);
+
+        var song = Import(xml);
+
+        Assert.Collection(song.Beats,
+            beat => Assert.Equal(new BeatMarker(TimeSpan.Zero, 0, 0), beat),
+            beat => Assert.Equal(new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1), beat));
+    }
+
     /// <summary>Imports positive and negative cent offsets from arrangement XML.</summary>
     /// <param name="centOffset">The XML cent offset.</param>
     [Theory]

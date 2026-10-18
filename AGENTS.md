@@ -277,3 +277,10 @@ planned projects at once.
 - Keep tests and robustness work alongside each task. The robustness item in
   `TODO.txt` tracks broader cross-cutting and regression coverage; it does not
   replace tests required by individual tasks.
+- Tag tasks that require information, decisions, or manual work from the user
+  with `[USER]` in the task text (for example, `[ ] [USER] Compare MIDI timing
+  in Rocksmith`). Agents must not perform, infer completion of, or check off a
+  `[USER]` task. They may implement separately actionable work around it, but
+  must leave the tagged task open until the user supplies the requested result
+  or explicitly takes ownership of it. Once the user provides the result, an
+  agent may record the findings and create or continue implementation tasks.

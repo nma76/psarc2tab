@@ -3,6 +3,7 @@ using System.Text;
 using Psarc2Tab.Application;
 using Psarc2Tab.Domain;
 using Psarc2Tab.Formats.Rocksmith;
+using Psarc2Tab.Midi;
 using Psarc2Tab.Tablature;
 
 namespace Psarc2Tab.Cli;
@@ -54,7 +55,7 @@ public sealed class CliApplication
         _arrangementCatalog = arrangementCatalog ?? new RocksmithArrangementCatalog();
         _exportArrangement = exportArrangement ?? new ExportArrangementUseCase(
             new RocksmithArchiveArrangementImporter(_arrangementCatalog, new RocksmithArrangementImporter()),
-            new ArrangementFormatRegistry([new TablatureTextWriter()]));
+            new ArrangementFormatRegistry([new TablatureTextWriter(), new StandardMidiFileWriter()]));
         _exportLyrics = exportLyrics ?? new ExportLyricsUseCase(
             new RocksmithArchiveLyricsImporter(_arrangementCatalog), new LrcLyricsWriter());
     }
@@ -569,6 +570,7 @@ public sealed class CliApplication
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
           psarc2tab --in <input.psarc> --out <output.tab> --format tab
+          psarc2tab --in <input.psarc> --out <output.mid> --format midi
           psarc2tab --in <input.psarc> --out <output.lrc> --arr <lyrics-number>
           psarc2tab --in <input.psarc> --list
           psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
@@ -581,7 +583,7 @@ public sealed class CliApplication
           --out <path>       Output file (must not already exist)
           --list             List numbered arrangements and lyrics in the archive
           --arr <n|all>      Select one item, or export every instrument arrangement (default: 1)
-          --format <name>    Arrangement output format (supported: tab; default: tab)
+          --format <name>    Output format: tab or midi (beta/experimental; default: tab)
           --help             Show this help
           --version          Show version information
 

@@ -35,12 +35,29 @@ public sealed class CliApplicationTests
     [Fact]
     public void Run_UnsupportedFormat_ReturnsInvalidArguments()
     {
-        var output = Run("--in", "song.psarc", "--out", "song.mid", "--format", "midi");
+        var output = Run("--in", "song.psarc", "--out", "song.xyz", "--format", "unknown");
 
         Assert.Equal(CliApplication.InvalidArgumentsExitCode, output.ExitCode);
-        Assert.Contains("Unsupported output format 'midi'", output.StandardError);
-        Assert.Contains("Supported formats: tab", output.StandardError);
+        Assert.Contains("Unsupported output format 'unknown'", output.StandardError);
+        Assert.Contains("Supported formats: midi, tab", output.StandardError);
         Assert.Empty(output.StandardOutput);
+    }
+
+    /// <summary>Exports a selected archive arrangement as a Standard MIDI File.</summary>
+    [Fact]
+    public void Run_MidiFormat_WritesStandardMidiFile()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "song.mid");
+        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--format", "midi");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Equal("MThd", Encoding.ASCII.GetString(File.ReadAllBytes(outputPath), 0, 4));
+        Assert.Contains("Wrote midi export", output.StandardOutput);
+        Assert.Empty(output.StandardError);
     }
 
     /// <summary>Prints version information to standard output.</summary>
