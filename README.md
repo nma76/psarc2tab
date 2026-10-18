@@ -45,6 +45,7 @@ The CLI accepts:
 psarc2tab --in <input.psarc> --out <output.tab>
 psarc2tab --in <input.psarc> --list
 psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
+psarc2tab --in <input.psarc> --out <output.tab> --arr all
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
 psarc2tab --in <input.psarc> --out <output.mid> --format midi
 psarc2tab --in <input.psarc> --out <lyrics.lrc> --arr <lyrics-number>
@@ -63,24 +64,33 @@ referenced by arrangement JSON manifests. Use the displayed number with
 `--arr` to select an item; it defaults to the first listed arrangement
 when omitted. Selecting Lyrics writes timestamped plain-text LRC output instead
 of tablature. `--format` selects the arrangement output format and defaults to
-`tab`; supported arrangement formats are `tab` and `midi`. MIDI output is a
-Standard MIDI File containing the selected arrangement's notes and chord tones.
-It uses 960 ticks per quarter note and derives tempo changes from source beat
-times; when fewer than two beat markers are available, it falls back to 120 BPM
-and converts absolute seconds to ticks. A song-level cent offset is sent as
-channel pitch bend. No time-signature metadata is emitted because the current
-domain model does not contain it. Lead and Rhythm use the General MIDI clean
-electric guitar program; Bass uses fingered electric bass. Note articulations
-and other playing techniques are not encoded, and playback sound depends on the
-receiving sequencer or synthesizer. Positive source sustain durations are
-preserved through tempo changes. Events without a duration ring until the next
-onset anywhere in the arrangement; an event with no later onset uses a one-tick
-minimum. This inferred duration rule still needs comparison with Rocksmith
-playback.
-MIDI export has not yet been manually
-validated in GarageBand or Windows Media Player. Lyrics remain LRC exports.
-Unknown formats are rejected with a list of available formats. A successful
-export prints its destination to stdout.
+`tab`; supported arrangement formats are `tab` and `midi`. MIDI export is
+**beta/experimental**. It writes a Standard MIDI File containing the selected
+arrangement's notes and chord tones. It uses 960 ticks per quarter note and
+derives tempo changes from source beat times; when fewer than two beat markers
+are available, it falls back to 120 BPM and converts absolute seconds to ticks.
+A song-level cent offset is sent as channel pitch bend. No time-signature
+metadata is emitted because the current domain model does not contain it. Lead
+and Rhythm use the General MIDI clean electric guitar program; Bass uses
+fingered electric bass. Note articulations and other playing techniques are
+not encoded, and playback sound depends on the receiving sequencer or
+synthesizer. Positive source sustain durations are preserved through tempo
+changes. Events without a duration ring until the next onset anywhere in the
+arrangement; an event with no later onset uses a one-tick minimum. Duration
+inference and playback have not yet been compared with Rocksmith, GarageBand,
+or Windows Media Player. Lyrics remain LRC exports. Unknown formats are
+rejected with a list of available formats.
+
+Use `--arr all` to export every instrument arrangement as a separate file;
+Lyrics entries are excluded. The requested output filename is a base name, so
+`mysong.tab` produces files such as `mysong-lead.tab` and `mysong-bass.tab`.
+Repeated arrangements of the same instrument receive numbered suffixes such as
+`mysong-lead-2.tab`. Only the supported, named Lead, Rhythm, and Bass
+arrangements shown by `--list` are included; Lyrics and other unrecognized
+archive entries are not exported. All destination paths are checked before
+export, existing files are never overwritten, and staged files are removed if
+any import or write fails. A successful export prints each destination to
+stdout.
 
 ### Exit codes
 

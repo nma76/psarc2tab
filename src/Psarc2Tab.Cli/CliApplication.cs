@@ -133,6 +133,11 @@ public sealed class CliApplication
             return InvalidArgumentsExitCode;
         }
 
+        if (command.AllArrangements)
+        {
+            return ExportAllArrangements(command, standardOutput, standardError);
+        }
+
         try
         {
             ValidateOutputDestination(command.OutputPath!);
@@ -207,6 +212,221 @@ public sealed class CliApplication
         {
             standardError.WriteLine($"Error: Cannot write output file '{command.OutputPath}': {exception.Message}");
             return OutputErrorExitCode;
+        }
+    }
+
+    /// <summary>Imports every instrument arrangement and commits its output files as one set.</summary>
+    /// <param name="command">A request selecting all instrument arrangements.</param>
+    /// <param name="standardOutput">Writer for successful output paths.</param>
+    /// <param name="standardError">Writer for diagnostics.</param>
+    /// <returns>The success or relevant input, output, or conversion error code.</returns>
+    private int ExportAllArrangements(ParsedCommand command, TextWriter standardOutput, TextWriter standardError)
+    {
+        RocksmithArchiveItem[] arrangements;
+        try
+        {
+            using var input = File.OpenRead(command.InputPath!);
+            arrangements = _arrangementCatalog.ListItems(input).Where(item => !item.IsLyrics).ToArray();
+            if (arrangements.Length == 0)
+            {
+                throw new InvalidDataException("The archive contains no instrument arrangements to export.");
+            }
+        }
+        catch (Exception exception) when (IsInputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot read input file or list arrangements from '{command.InputPath}': {exception.Message}");
+            return InputErrorExitCode;
+        }
+
+        string[] outputPaths;
+        try
+        {
+            outputPaths = CreateArrangementOutputPaths(command.OutputPath!, arrangements);
+            ValidateOutputSet(outputPaths);
+        }
+        catch (InvalidDataException exception)
+        {
+            standardError.WriteLine($"Error: Cannot create arrangement output names: {exception.Message}");
+            return InputErrorExitCode;
+        }
+        catch (Exception exception) when (IsOutputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot prepare output files based on '{command.OutputPath}': {exception.Message}");
+            return OutputErrorExitCode;
+        }
+
+        var exports = new List<(Song Song, string OutputPath)>(arrangements.Length);
+        try
+        {
+            using var input = File.OpenRead(command.InputPath!);
+            for (var index = 0; index < arrangements.Length; index++)
+            {
+                input.Position = 0;
+                var song = _exportArrangement.Import(input, arrangements[index].Number);
+                exports.Add((song, outputPaths[index]));
+            }
+        }
+        catch (ArrangementNotFoundException exception)
+        {
+            standardError.WriteLine($"Error: {exception.Message}");
+            return InvalidArrangementSelectionExitCode;
+        }
+        catch (InvalidOperationException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export all arrangements: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (Exception exception) when (IsInputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot import arrangements from '{command.InputPath}': {exception.Message}");
+            return InputErrorExitCode;
+        }
+
+        try
+        {
+            WriteOutputSetSafely(exports, command.FormatName);
+            foreach (var export in exports)
+            {
+                standardOutput.WriteLine($"Wrote {command.FormatName} export to '{export.OutputPath}'.");
+            }
+
+            return SuccessExitCode;
+        }
+        catch (InvalidOperationException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export all arrangements: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (Exception exception) when (IsOutputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot write all arrangement outputs: {exception.Message}");
+            return OutputErrorExitCode;
+        }
+    }
+
+    /// <summary>Builds collision-free suffixed paths in archive order.</summary>
+    /// <param name="outputPath">The requested output base path.</param>
+    /// <param name="arrangements">The instrument arrangements to name.</param>
+    /// <returns>One full output path for each arrangement.</returns>
+    /// <exception cref="InvalidDataException">An arrangement name cannot be used as an output suffix.</exception>
+    private static string[] CreateArrangementOutputPaths(string outputPath,
+        IReadOnlyList<RocksmithArchiveItem> arrangements)
+    {
+        var fullBasePath = Path.GetFullPath(outputPath);
+        var directory = Path.GetDirectoryName(fullBasePath)
+            ?? throw new DirectoryNotFoundException("The output directory does not exist.");
+        var fileName = Path.GetFileName(fullBasePath);
+        var extension = Path.GetExtension(fileName);
+        if (string.IsNullOrEmpty(extension))
+        {
+            extension = ".tab";
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        var occurrences = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var paths = new string[arrangements.Count];
+        for (var index = 0; index < arrangements.Count; index++)
+        {
+            var name = arrangements[index].Name.ToLowerInvariant();
+            if (name.Length == 0 || name.Any(character => !char.IsAsciiLetterOrDigit(character) && character != '-'))
+            {
+                throw new InvalidDataException("An arrangement name cannot be used in an output filename.");
+            }
+
+            occurrences.TryGetValue(name, out var occurrence);
+            occurrence++;
+            occurrences[name] = occurrence;
+            var occurrenceSuffix = occurrence == 1 ? string.Empty : $"-{occurrence}";
+            paths[index] = Path.Combine(directory, $"{stem}-{name}{occurrenceSuffix}{extension}");
+        }
+
+        return paths;
+    }
+
+    /// <summary>Prevalidates every destination and rejects duplicate paths case-insensitively.</summary>
+    /// <param name="outputPaths">The complete output path set.</param>
+    /// <exception cref="IOException">Two outputs collide or a destination already exists.</exception>
+    private static void ValidateOutputSet(IEnumerable<string> outputPaths)
+    {
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var outputPath in outputPaths)
+        {
+            var fullPath = Path.GetFullPath(outputPath);
+            if (!seenPaths.Add(fullPath))
+            {
+                throw new IOException("Multiple arrangements resolve to the same output path.");
+            }
+
+            ValidateOutputDestination(fullPath);
+        }
+    }
+
+    /// <summary>Stages all outputs before moving them into place and removes the set on failure.</summary>
+    /// <param name="exports">The imported arrangements and their final paths.</param>
+    /// <param name="formatName">The registered output format.</param>
+    /// <exception cref="IOException">A destination cannot be written or a staged move fails.</exception>
+    /// <exception cref="UnauthorizedAccessException">A destination cannot be accessed.</exception>
+    private void WriteOutputSetSafely(IReadOnlyList<(Song Song, string OutputPath)> exports, string formatName)
+    {
+        var stagedFiles = new List<(string TemporaryPath, string OutputPath)>();
+        var committedPaths = new List<string>();
+        try
+        {
+            foreach (var export in exports)
+            {
+                var outputPath = Path.GetFullPath(export.OutputPath);
+                var directory = Path.GetDirectoryName(outputPath)
+                    ?? throw new DirectoryNotFoundException("The output directory does not exist.");
+                var temporaryPath = Path.Combine(directory, $".psarc2tab-{Guid.NewGuid():N}.tmp");
+                using var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                stagedFiles.Add((temporaryPath, outputPath));
+                _exportArrangement.Write(export.Song, formatName, stream);
+                stream.Flush(flushToDisk: true);
+            }
+
+            foreach (var stagedFile in stagedFiles)
+            {
+                File.Move(stagedFile.TemporaryPath, stagedFile.OutputPath);
+                committedPaths.Add(stagedFile.OutputPath);
+            }
+        }
+        catch (Exception exportFailure)
+        {
+            var cleanupFailures = new List<Exception>();
+            foreach (var path in committedPaths)
+            {
+                try
+                {
+                    File.Delete(path);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    cleanupFailures.Add(exception);
+                }
+            }
+
+            foreach (var stagedFile in stagedFiles)
+            {
+                try
+                {
+                    if (File.Exists(stagedFile.TemporaryPath))
+                    {
+                        File.Delete(stagedFile.TemporaryPath);
+                    }
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    cleanupFailures.Add(exception);
+                }
+            }
+
+            if (cleanupFailures.Count > 0)
+            {
+                throw new IOException("The export failed and rollback could not remove all staged outputs.",
+                    new AggregateException([exportFailure, .. cleanupFailures]));
+            }
+
+            throw;
         }
     }
 
@@ -354,6 +574,7 @@ public sealed class CliApplication
           psarc2tab --in <input.psarc> --out <output.lrc> --arr <lyrics-number>
           psarc2tab --in <input.psarc> --list
           psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
+          psarc2tab --in <input.psarc> --out <output.tab> --arr all
           psarc2tab --help
           psarc2tab --version
 
@@ -361,8 +582,8 @@ public sealed class CliApplication
           --in <path>        Input PSARC archive
           --out <path>       Output file (must not already exist)
           --list             List numbered arrangements and lyrics in the archive
-          --arr <n>          Select the numbered arrangement or Lyrics item (default: 1)
-          --format <name>    Arrangement output format (supported: tab, midi; default: tab)
+          --arr <n|all>      Select one item, or export every instrument arrangement (default: 1)
+          --format <name>    Output format: tab or midi (beta/experimental; default: tab)
           --help             Show this help
           --version          Show version information
 

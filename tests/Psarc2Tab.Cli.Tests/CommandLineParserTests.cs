@@ -71,11 +71,25 @@ public sealed class CommandLineParserTests
         Assert.Equal(2, result.ArrangementNumber);
     }
 
+    /// <summary>Parses the all-arrangements selection.</summary>
+    [Theory]
+    [InlineData("all")]
+    [InlineData("ALL")]
+    public void Parse_AllArrangements_SetsSelection(string value)
+    {
+        var result = _parser.Parse(["--in", "song.psarc", "--out", "song.tab", "--arr", value]);
+
+        Assert.Equal(CommandKind.Convert, result.Kind);
+        Assert.True(result.AllArrangements);
+        Assert.Null(result.ArrangementNumber);
+    }
+
     /// <summary>Rejects invalid arrangement numbers and incompatible list options.</summary>
     /// <param name="arguments">An invalid arrangement-related command.</param>
     [Theory]
     [InlineData("--in song.psarc --out song.tab --arr 0")]
     [InlineData("--in song.psarc --out song.tab --arr one")]
+    [InlineData("--in song.psarc --out song.tab --arr everything")]
     [InlineData("--list")]
     [InlineData("--in song.psarc --out song.tab --list")]
     [InlineData("--in song.psarc --list --arr 1")]

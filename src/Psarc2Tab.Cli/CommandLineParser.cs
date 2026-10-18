@@ -24,6 +24,7 @@ public enum CommandKind
 /// <param name="InputPath">The input archive path, when conversion was requested.</param>
 /// <param name="OutputPath">The output tablature path, when conversion was requested.</param>
 /// <param name="ArrangementNumber">The one-based arrangement number selected for conversion.</param>
+/// <param name="AllArrangements">Whether every instrument arrangement should be exported.</param>
 /// <param name="FormatName">The requested arrangement output format.</param>
 /// <param name="Error">The reason parsing failed, when the command is invalid.</param>
 public sealed record ParsedCommand(
@@ -31,6 +32,7 @@ public sealed record ParsedCommand(
     string? InputPath = null,
     string? OutputPath = null,
     int? ArrangementNumber = null,
+    bool AllArrangements = false,
     string FormatName = "tab",
     string? Error = null);
 
@@ -48,6 +50,8 @@ public sealed class CommandLineParser
         string? inputPath = null;
         string? outputPath = null;
         int? arrangementNumber = null;
+        var allArrangements = false;
+        var arrangementSpecified = false;
         var formatName = "tab";
         var formatSpecified = false;
         var listArrangements = false;
@@ -81,7 +85,7 @@ public sealed class CommandLineParser
                     {
                         return Invalid(argument switch
                         {
-                            "--arr" => "Option '--arr' requires a positive number.",
+                            "--arr" => "Option '--arr' requires a positive number or 'all'.",
                             "--format" => "Option '--format' requires a format name.",
                             _ => $"Option '{argument}' requires a path."
                         });
@@ -97,18 +101,25 @@ public sealed class CommandLineParser
 
                     if (argument == "--arr")
                     {
-                        if (arrangementNumber is not null)
+                        if (arrangementSpecified)
                         {
                             return Invalid("The arrangement option can only be specified once.");
                         }
 
-                        if (!int.TryParse(value, System.Globalization.NumberStyles.None,
+                        arrangementSpecified = true;
+                        if (string.Equals(value, "all", StringComparison.OrdinalIgnoreCase))
+                        {
+                            allArrangements = true;
+                        }
+                        else if (!int.TryParse(value, System.Globalization.NumberStyles.None,
                                 System.Globalization.CultureInfo.InvariantCulture, out var parsedNumber) || parsedNumber <= 0)
                         {
-                            return Invalid("Option '--arr' requires a positive number.");
+                            return Invalid("Option '--arr' requires a positive number or 'all'.");
                         }
-
-                        arrangementNumber = parsedNumber;
+                        else
+                        {
+                            arrangementNumber = parsedNumber;
+                        }
                     }
                     else if (argument == "--in")
                     {
@@ -150,7 +161,7 @@ public sealed class CommandLineParser
             return Invalid("Options '--help' and '--version' cannot be used together.");
         }
 
-        if ((showHelp || showVersion) && (listArrangements || arrangementNumber is not null))
+        if ((showHelp || showVersion) && (listArrangements || arrangementSpecified))
         {
             return Invalid("Help and version options cannot be combined with archive operations.");
         }
@@ -167,7 +178,7 @@ public sealed class CommandLineParser
 
         if (listArrangements)
         {
-            if (inputPath is null || outputPath is not null || arrangementNumber is not null || formatSpecified)
+            if (inputPath is null || outputPath is not null || arrangementSpecified || formatSpecified)
             {
                 return Invalid("'--list' requires '--in' and cannot be combined with '--out', '--arr', or '--format'.");
             }
@@ -180,7 +191,8 @@ public sealed class CommandLineParser
             return Invalid("Both '--in' and '--out' are required.");
         }
 
-        return new ParsedCommand(CommandKind.Convert, inputPath, outputPath, arrangementNumber, formatName);
+        return new ParsedCommand(CommandKind.Convert, inputPath, outputPath, arrangementNumber, allArrangements,
+            formatName);
     }
 
     /// <summary>Creates an invalid-command result with a concise diagnostic.</summary>
