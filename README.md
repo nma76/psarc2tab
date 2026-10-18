@@ -45,6 +45,7 @@ The CLI accepts:
 psarc2tab --in <input.psarc> --out <output.tab>
 psarc2tab --in <input.psarc> --list
 psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
+psarc2tab --in <input.psarc> --out <output.tab> --arr all
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
 psarc2tab --in <input.psarc> --out <lyrics.lrc> --arr <lyrics-number>
 psarc2tab --help
@@ -64,7 +65,16 @@ when omitted. Selecting Lyrics writes timestamped plain-text LRC output instead
 of tablature. `--format` selects the arrangement output format and defaults to
 `tab`; `tab` is currently the only supported arrangement format. Lyrics remain
 LRC exports. Unknown or not-yet-implemented formats are rejected with a list of
-available formats. A successful export prints its destination to stdout.
+available formats. Use `--arr all` to export every instrument arrangement as a
+separate file; Lyrics entries are excluded. The requested output filename is a
+base name, so `mysong.tab` produces files such as `mysong-lead.tab` and
+`mysong-bass.tab`. Repeated arrangements of the same instrument receive
+numbered suffixes such as `mysong-lead-2.tab`. Only the supported, named Lead,
+Rhythm, and Bass arrangements shown by `--list` are included; Lyrics and other
+unrecognized archive entries are not exported. All destination paths are
+checked before export, existing files are never overwritten, and staged files
+are removed if any import or write fails. A successful export prints each
+destination to stdout.
 
 ### Exit codes
 

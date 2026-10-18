@@ -1,7 +1,11 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using Psarc2Tab.Application;
 using Psarc2Tab.Cli;
+using Psarc2Tab.Domain;
+using Psarc2Tab.Formats.Rocksmith;
+using Psarc2Tab.Tablature;
 
 namespace Psarc2Tab.Cli.Tests;
 
@@ -18,7 +22,8 @@ public sealed class CliApplicationTests
         Assert.Contains("--in <path>", output.StandardOutput);
         Assert.Contains("--version", output.StandardOutput);
         Assert.Contains("--list", output.StandardOutput);
-        Assert.Contains("--arr <n>", output.StandardOutput);
+        Assert.Contains("--arr <n|all>", output.StandardOutput);
+        Assert.Contains("--arr all", output.StandardOutput);
         Assert.Contains("--format <name>", output.StandardOutput);
         Assert.DoesNotContain("--arrangement <", output.StandardOutput);
         Assert.DoesNotContain("\n  -in ", output.StandardOutput);
@@ -174,6 +179,115 @@ public sealed class CliApplicationTests
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
 
+    /// <summary>Exports all instrument arrangements and excludes the lyrics listing item.</summary>
+    [Fact]
+    public void Run_AllArrangements_WritesOneSuffixedFilePerInstrument()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "mysong.tab");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml),
+            ("songs/arr/sample_rhythm.xml", RhythmArrangementXml),
+            ("songs/arr/sample_vocals.xml", "<vocals><vocal time=\"1\" note=\"60\" length=\"1\" lyric=\"Hi\" /></vocals>")));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--arr", "all");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Empty(output.StandardError);
+        Assert.Contains("mysong-lead.tab", output.StandardOutput);
+        Assert.Contains("mysong-bass.tab", output.StandardOutput);
+        Assert.Contains("mysong-rhythm.tab", output.StandardOutput);
+        Assert.Equal(3, Directory.GetFiles(directory.Path, "mysong-*.tab").Length);
+        Assert.Contains("Song: Test Song", File.ReadAllText(Path.Combine(directory.Path, "mysong-lead.tab")));
+        Assert.Contains("Song: Test Bass", File.ReadAllText(Path.Combine(directory.Path, "mysong-bass.tab")));
+        Assert.Contains("Song: Test Rhythm", File.ReadAllText(Path.Combine(directory.Path, "mysong-rhythm.tab")));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Adds stable numeric suffixes to repeated instrument arrangement names.</summary>
+    [Fact]
+    public void Run_AllArrangements_RepeatedInstrumentNamesGetNumberedSuffixes()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "mix.tab");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/alternate_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml)));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--arr", "all");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.True(File.Exists(Path.Combine(directory.Path, "mix-lead.tab")));
+        Assert.True(File.Exists(Path.Combine(directory.Path, "mix-lead-2.tab")));
+        Assert.True(File.Exists(Path.Combine(directory.Path, "mix-bass.tab")));
+    }
+
+    /// <summary>Prevalidates every destination and leaves existing files untouched on collision.</summary>
+    [Fact]
+    public void Run_AllArrangements_ExistingDestinationPreventsWholeExport()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml)));
+        var occupiedPath = Path.Combine(directory.Path, "mix-bass.tab");
+        File.WriteAllText(occupiedPath, "keep me");
+
+        var output = Run("--in", inputPath, "--out", Path.Combine(directory.Path, "mix.tab"), "--arr", "all");
+
+        Assert.Equal(CliApplication.OutputErrorExitCode, output.ExitCode);
+        Assert.Equal("keep me", File.ReadAllText(occupiedPath));
+        Assert.False(File.Exists(Path.Combine(directory.Path, "mix-lead.tab")));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Does not leave any output when an arrangement fails to import.</summary>
+    [Fact]
+    public void Run_AllArrangements_MalformedArrangementLeavesNoOutputSet()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", "<song>")));
+
+        var output = Run("--in", inputPath, "--out", Path.Combine(directory.Path, "mix.tab"), "--arr", "all");
+
+        Assert.Equal(CliApplication.InputErrorExitCode, output.ExitCode);
+        Assert.Empty(Directory.GetFiles(directory.Path, "mix-*.tab"));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Rolls back earlier staged files when a writer fails partway through the set.</summary>
+    [Fact]
+    public void Run_AllArrangements_WriteFailureRemovesStagedFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml)));
+        var catalog = new RocksmithArrangementCatalog();
+        var importer = new RocksmithArchiveArrangementImporter(catalog, new RocksmithArrangementImporter());
+        var exportUseCase = new ExportArrangementUseCase(importer,
+            new ArrangementFormatRegistry([new FailingArrangementWriter()]));
+        using var standardOutput = new StringWriter();
+        using var standardError = new StringWriter();
+
+        var exitCode = new CliApplication(exportArrangement: exportUseCase).Run(
+            ["--in", inputPath, "--out", Path.Combine(directory.Path, "mix.tab"), "--arr", "all"],
+            standardOutput, standardError);
+
+        Assert.Equal(CliApplication.OutputErrorExitCode, exitCode);
+        Assert.Empty(Directory.GetFiles(directory.Path, "mix-*.tab"));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
     /// <summary>Exports the final listed archive item as a lyrics-only LRC file.</summary>
     [Fact]
     public void Run_SelectedLyrics_WritesLrcWithoutTablature()
@@ -320,6 +434,40 @@ public sealed class CliApplicationTests
           <levels><level difficulty="0"><notes><note time="1.25" sustain="0.5" string="0" fret="3" /></notes><chords /></level></levels>
         </song>
         """;
+
+    /// <summary>A minimal rhythm arrangement used for all-arrangement export tests.</summary>
+    private const string RhythmArrangementXml = """
+        <song version="7">
+          <title>Test Rhythm</title><arrangement>Rhythm</arrangement><artistName>Test Artist</artistName><offset>0</offset>
+          <tuning string0="0" string1="0" string2="0" string3="0" string4="0" string5="0" />
+          <chordTemplates />
+          <levels><level difficulty="0"><notes><note time="1.25" sustain="0.5" string="0" fret="3" /></notes><chords /></level></levels>
+        </song>
+        """;
+
+    /// <summary>Fails on the second write to verify rollback of a staged export set.</summary>
+    private sealed class FailingArrangementWriter : IArrangementFormatWriter
+    {
+        /// <summary>The number of writes already attempted.</summary>
+        private int _writeCount;
+
+        /// <summary>Gets the registered test format name.</summary>
+        public string FormatName => "tab";
+
+        /// <summary>Writes the first arrangement and fails on the next one.</summary>
+        /// <param name="song">The song being exported.</param>
+        /// <param name="track">The selected track.</param>
+        /// <param name="destination">The staged destination stream.</param>
+        public void Write(Song song, Track track, Stream destination)
+        {
+            if (_writeCount++ > 0)
+            {
+                throw new IOException("Synthetic writer failure.");
+            }
+
+            new TablatureTextWriter().Write(song, track, destination);
+        }
+    }
 
     /// <summary>Stores the result of a CLI invocation.</summary>
     /// <param name="ExitCode">The process exit code.</param>
