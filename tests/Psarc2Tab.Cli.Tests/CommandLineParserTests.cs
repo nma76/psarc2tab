@@ -61,6 +61,28 @@ public sealed class CommandLineParserTests
         Assert.Equal("song.psarc", result.InputPath);
     }
 
+    /// <summary>Parses archive statistics with an optional arrangement selection.</summary>
+    [Fact]
+    public void Parse_Statistics_WithArrangement_ReturnsStatisticsCommand()
+    {
+        var result = _parser.Parse(["--in", "song.psarc", "--stats", "--arr", "2"]);
+
+        Assert.Equal(CommandKind.Statistics, result.Kind);
+        Assert.True(result.ShowStatistics);
+        Assert.Equal(2, result.ArrangementNumber);
+    }
+
+    /// <summary>Rejects statistics requests that also ask for a file output.</summary>
+    [Theory]
+    [InlineData("--in song.psarc --stats --out song.tab")]
+    [InlineData("--in song.psarc --stats --format midi")]
+    [InlineData("--in song.psarc --stats --list")]
+    public void Parse_StatisticsWithOutputOrListing_IsInvalid(string arguments)
+    {
+        Assert.Equal(CommandKind.Invalid,
+            _parser.Parse(arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries)).Kind);
+    }
+
     /// <summary>Parses an arrangement number for a conversion request.</summary>
     [Fact]
     public void Parse_ArrangementSelection_ReturnsNumber()

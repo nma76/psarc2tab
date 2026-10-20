@@ -5,6 +5,7 @@ using Psarc2Tab.Domain;
 using Psarc2Tab.Formats.Rocksmith;
 using Psarc2Tab.Midi;
 using Psarc2Tab.Tablature;
+using Psarc2Tab.Formats.PSARC;
 
 namespace Psarc2Tab.Cli;
 
@@ -83,6 +84,8 @@ public sealed class CliApplication
                 return SuccessExitCode;
             case CommandKind.ListArrangements:
                 return ListArrangements(command, standardOutput, standardError);
+            case CommandKind.Statistics:
+                return ShowStatistics(command, standardOutput, standardError);
             case CommandKind.Invalid:
                 standardError.WriteLine($"Error: {command.Error}");
                 standardError.WriteLine("Run 'psarc2tab --help' for usage.");
@@ -92,6 +95,132 @@ public sealed class CliApplication
             default:
                 throw new InvalidOperationException($"Unsupported command kind: {command.Kind}.");
         }
+    }
+
+    /// <summary>Prints archive metadata and statistics for all or one selected arrangement.</summary>
+    /// <param name="command">The parsed statistics request.</param>
+    /// <param name="standardOutput">Writer for statistics.</param>
+    /// <param name="standardError">Writer for input diagnostics.</param>
+    /// <returns>The success or input-error exit code.</returns>
+    private int ShowStatistics(ParsedCommand command, TextWriter standardOutput, TextWriter standardError)
+    {
+        try
+        {
+            using var archive = File.OpenRead(command.InputPath!);
+            var details = _arrangementCatalog.Inspect(archive);
+            archive.Position = 0;
+            var items = _arrangementCatalog.ListItems(archive);
+            var instrumentItems = items.Where(item => !item.IsLyrics).ToArray();
+            var lyricsItem = items.FirstOrDefault(item => item.IsLyrics);
+            var selectedItems = command.ArrangementNumber is { } selectedNumber
+                ? [items.ElementAtOrDefault(selectedNumber - 1)
+                    ?? throw new ArrangementNotFoundException(selectedNumber)]
+                : instrumentItems;
+
+            standardOutput.WriteLine("Archive statistics");
+            standardOutput.WriteLine($"Platform: {GetPlatformName(details.ArchivePaths)}");
+            standardOutput.WriteLine($"PSARC version: {details.Header.Version}");
+            standardOutput.WriteLine($"Archive entries: {details.Header.FileCount}");
+            standardOutput.WriteLine($"Encrypted TOC: {(details.Header.ArchiveFlags == 0x4 ? "yes" : "no")}");
+            standardOutput.WriteLine();
+            standardOutput.WriteLine("Song metadata");
+            standardOutput.WriteLine("Title: available per arrangement");
+            standardOutput.WriteLine("Artist: available per arrangement");
+            standardOutput.WriteLine("Album: unavailable");
+            standardOutput.WriteLine("Year: unavailable");
+            standardOutput.WriteLine();
+            standardOutput.WriteLine("Arrangements");
+            foreach (var item in items)
+            {
+                standardOutput.WriteLine($"{item.Number}. {item.Name}{(item.IsLyrics ? " (lyrics)" : string.Empty)}");
+            }
+
+            if (lyricsItem is not null && ReferenceEquals(selectedItems.FirstOrDefault(), lyricsItem))
+            {
+                standardOutput.WriteLine();
+                standardOutput.WriteLine($"{lyricsItem.Number}. Lyrics statistics");
+                standardOutput.WriteLine("Notes, chords, sections, techniques, strings, frets, and duration: unavailable for lyrics.");
+                return SuccessExitCode;
+            }
+
+            foreach (var item in selectedItems)
+            {
+                if (item.IsLyrics)
+                {
+                    continue;
+                }
+
+                archive.Position = 0;
+                var song = _exportArrangement.Import(archive, item.Number);
+                WriteArrangementStatistics(standardOutput, item, song);
+            }
+
+            return SuccessExitCode;
+        }
+        catch (ArrangementNotFoundException exception)
+        {
+            standardError.WriteLine($"Error: {exception.Message} Run 'psarc2tab --in <input.psarc> --list' to see valid numbers.");
+            return InvalidArrangementSelectionExitCode;
+        }
+        catch (Exception exception) when (IsInputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot read statistics from '{command.InputPath}': {exception.Message}");
+            return InputErrorExitCode;
+        }
+    }
+
+    /// <summary>Writes counts derived from one successfully imported arrangement.</summary>
+    /// <param name="output">The statistics writer.</param>
+    /// <param name="item">The selected archive item.</param>
+    /// <param name="song">The imported arrangement.</param>
+    private static void WriteArrangementStatistics(TextWriter output, RocksmithArchiveItem item, Song song)
+    {
+        var track = song.Tracks[0];
+        var statistics = ArrangementStatisticsCalculator.Calculate(song);
+
+        output.WriteLine();
+        output.WriteLine($"{item.Number}. {item.Name} statistics");
+        output.WriteLine($"Title: {Available(song.Title)}");
+        output.WriteLine($"Artist: {Available(song.Artist)}");
+        output.WriteLine($"Album: unavailable");
+        output.WriteLine($"Year: unavailable");
+        output.WriteLine($"Notes: {statistics.NoteCount}");
+        output.WriteLine($"Chords: {statistics.ChordCount}");
+        output.WriteLine($"Sections: {statistics.SectionCount}");
+        output.WriteLine($"Bends: {statistics.BendCount}");
+        output.WriteLine($"Slides: {statistics.SlideCount}");
+        output.WriteLine($"Hammer-ons: {statistics.HammerOnCount}");
+        output.WriteLine($"Pull-offs: {statistics.PullOffCount}");
+        output.WriteLine($"Used strings: {(statistics.UsedStrings.Count == 0 ? "none" : string.Join(", ", statistics.UsedStrings))}");
+        output.WriteLine($"Fret range: {(statistics.MinimumFret is null ? "unavailable" : $"{statistics.MinimumFret}–{statistics.MaximumFret}")}");
+        output.WriteLine($"Length: {FormatDuration(statistics.Length)}");
+    }
+
+    /// <summary>Formats a timeline duration as hours, minutes, seconds, and milliseconds.</summary>
+    /// <param name="duration">The nonnegative duration.</param>
+    /// <returns>A fixed-width time value.</returns>
+    private static string FormatDuration(TimeSpan duration) =>
+        $"{(long)duration.TotalHours:00}:{duration.Minutes:00}:{duration.Seconds:00}.{duration.Milliseconds:000}";
+
+    /// <summary>Displays blank metadata as unavailable.</summary>
+    /// <param name="value">The optional metadata value.</param>
+    /// <returns>The value or an explicit unavailable marker.</returns>
+    private static string Available(string value) => string.IsNullOrWhiteSpace(value) ? "unavailable" : value;
+
+    /// <summary>Infers platform from recognized platform-specific SNG archive paths.</summary>
+    /// <param name="paths">The archive paths resolved from its manifest.</param>
+    /// <returns>A platform label, or unavailable when the paths do not establish it.</returns>
+    private static string GetPlatformName(IReadOnlyList<string> paths)
+    {
+        var mac = paths.Any(path => path.StartsWith("songs/bin/macos/", StringComparison.OrdinalIgnoreCase));
+        var pc = paths.Any(path => path.StartsWith("songs/bin/generic/", StringComparison.OrdinalIgnoreCase));
+        return (pc, mac) switch
+        {
+            (true, false) => "PC",
+            (false, true) => "Mac",
+            (true, true) => "Mixed",
+            _ => "unavailable"
+        };
     }
 
     /// <summary>Prints the numbered instrument arrangements in an input archive.</summary>
@@ -573,6 +702,7 @@ public sealed class CliApplication
           psarc2tab --in <input.psarc> --out <output.mid> --format midi
           psarc2tab --in <input.psarc> --out <output.lrc> --arr <lyrics-number>
           psarc2tab --in <input.psarc> --list
+          psarc2tab --in <input.psarc> --stats [--arr <number|all>]
           psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
           psarc2tab --in <input.psarc> --out <output.tab> --arr all
           psarc2tab --help
@@ -582,6 +712,7 @@ public sealed class CliApplication
           --in <path>        Input PSARC archive
           --out <path>       Output file (must not already exist)
           --list             List numbered arrangements and lyrics in the archive
+          --stats            Show archive and arrangement statistics without writing files
           --arr <n|all>      Select one item, or export every instrument arrangement (default: 1)
           --format <name>    Output format: tab or midi (beta/experimental; default: tab)
           --help             Show this help

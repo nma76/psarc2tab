@@ -44,6 +44,8 @@ The CLI accepts:
 ```sh
 psarc2tab --in <input.psarc> --out <output.tab>
 psarc2tab --in <input.psarc> --list
+psarc2tab --in <input.psarc> --stats
+psarc2tab --in <input.psarc> --stats --arr <number|all>
 psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
 psarc2tab --in <input.psarc> --out <output.tab> --arr all
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
@@ -63,7 +65,17 @@ matching vocal chart is present. It recognizes XML charts under `songs/arr/` and
 referenced by arrangement JSON manifests. Use the displayed number with
 `--arr` to select an item; it defaults to the first listed arrangement
 when omitted. Selecting Lyrics writes timestamped plain-text LRC output instead
-of tablature. `--format` selects the arrangement output format and defaults to
+of tablature. `--stats` prints archive details and statistics for every
+instrument arrangement without writing a file. Add `--arr <number>` to show
+statistics for one numbered arrangement; selecting the Lyrics number reports
+that instrument statistics do not apply. `--arr all` is equivalent to omitting
+`--arr`. With statistics, note and technique
+counts include individual note events, while chord tones contribute to used
+strings and fret range. Length is the latest imported event end, or onset when
+the source duration is zero. Missing metadata is printed as `unavailable`;
+album and year are not currently imported. Platform is inferred only when
+platform-specific SNG paths identify PC or Mac. `--format` selects the
+arrangement output format and defaults to
 `tab`; supported arrangement formats are `tab` and `midi`. MIDI export is
 **beta/experimental**. It writes a Standard MIDI File containing the selected
 arrangement's notes and chord tones. It uses 960 ticks per quarter note and
