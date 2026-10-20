@@ -17,6 +17,13 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
 
     /// <inheritdoc />
     public Song Import(Stream source)
+        => Import(source, archiveInstrument: null);
+
+    /// <summary>Imports XML while validating its instrument against archive-derived context.</summary>
+    /// <param name="source">The readable arrangement XML stream.</param>
+    /// <param name="archiveInstrument">The instrument identified from the archive path, if known.</param>
+    /// <returns>The imported song.</returns>
+    public Song Import(Stream source, string? archiveInstrument)
     {
         ArgumentNullException.ThrowIfNull(source);
         if (!source.CanRead)
@@ -34,7 +41,7 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
                 CloseInput = false
             });
             var document = XDocument.Load(reader, LoadOptions.None);
-            return ConvertDocument(document);
+            return ConvertDocument(document, archiveInstrument);
         }
         catch (XmlException exception)
         {
@@ -57,7 +64,7 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
     /// <summary>Converts the validated XML document into one domain song and track.</summary>
     /// <param name="document">The parsed arrangement document.</param>
     /// <returns>The imported song.</returns>
-    private static Song ConvertDocument(XDocument document)
+    private static Song ConvertDocument(XDocument document, string? archiveInstrument)
     {
         var root = document.Root;
         if (root?.Name != "song")
@@ -72,8 +79,12 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
             throw new InvalidDataException("Nonzero song offsets are not supported because their timeline meaning is unverified.");
         }
 
-        var arrangement = RequiredElementValue(root, "arrangement");
-        if (arrangement is not ("Lead" or "Bass" or "Rhythm"))
+        var declaredArrangement = RequiredElementValue(root, "arrangement");
+        var arrangement = declaredArrangement == "PART REAL_GUITAR_22" && archiveInstrument == "Rhythm"
+            ? "Rhythm"
+            : declaredArrangement;
+        if (arrangement is not ("Lead" or "Bass" or "Rhythm") ||
+            (archiveInstrument is not null && arrangement != archiveInstrument))
         {
             throw new InvalidDataException($"The Rocksmith arrangement '{arrangement}' is not supported.");
         }

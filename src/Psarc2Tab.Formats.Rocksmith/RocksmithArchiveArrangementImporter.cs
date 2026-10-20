@@ -55,7 +55,7 @@ public sealed class RocksmithArchiveArrangementImporter : IArchiveArrangementImp
         }
 
         arrangementPayload.Position = 0;
-        var song = _xmlImporter.Import(arrangementPayload);
+        var song = _xmlImporter.Import(arrangementPayload, selected.Instrument);
         if (song.Tracks.Count != 1 || !string.Equals(song.Tracks[0].Name, selected.Instrument, StringComparison.Ordinal))
         {
             throw new InvalidDataException(
