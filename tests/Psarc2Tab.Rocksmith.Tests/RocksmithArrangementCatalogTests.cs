@@ -194,6 +194,31 @@ public sealed class RocksmithArrangementCatalogTests
         Assert.Equal(RocksmithArrangementFormat.Xml, arrangement.DataFormat);
     }
 
+    /// <summary>Imports an internal real-guitar XML part when its archive path identifies Rhythm.</summary>
+    [Fact]
+    public void Import_RhythmArchiveEntryWithInternalPartName_UsesArchiveContext()
+    {
+        const string rhythmPath = "songs/arr/remmotm_rhythm.xml";
+        const string xml = """
+            <song><title>Example Song</title><artistName>Example Artist</artistName>
+              <arrangement>PART REAL_GUITAR_22</arrangement>
+              <tuning string0="0" string1="0" string2="0" string3="0" string4="0" string5="0" />
+              <levels><level difficulty="0"><notes /><chords /></level></levels>
+            </song>
+            """;
+        var archive = CreateArchive([rhythmPath], payloads: new Dictionary<string, byte[]>
+        {
+            [rhythmPath] = Encoding.UTF8.GetBytes(xml)
+        });
+        using var stream = new MemoryStream(archive);
+
+        var song = new RocksmithArchiveArrangementImporter(
+            new RocksmithArrangementCatalog(), new RocksmithArrangementImporter()).Import(stream, 1);
+
+        Assert.Equal("Rhythm", Assert.Single(song.Tracks).Name);
+        Assert.Empty(Assert.Single(song.Tracks).Chords);
+    }
+
     /// <summary>Builds an archive with a manifest and one raw block for each path.</summary>
     /// <param name="paths">The non-manifest archive paths.</param>
     /// <param name="manifestPaths">Optional paths to encode in the manifest.</param>

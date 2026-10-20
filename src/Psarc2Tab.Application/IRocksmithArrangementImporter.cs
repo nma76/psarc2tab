@@ -12,4 +12,10 @@ public interface IRocksmithArrangementImporter
     /// <exception cref="ArgumentException">The stream is not readable.</exception>
     /// <exception cref="InvalidDataException">The XML is malformed, unsupported, or inconsistent.</exception>
     Song Import(Stream source);
+
+    /// <summary>Imports a document with the instrument established by its archive entry.</summary>
+    /// <param name="source">The readable arrangement XML stream.</param>
+    /// <param name="archiveInstrument">The instrument identified from the archive path.</param>
+    /// <returns>The song containing the imported arrangement.</returns>
+    Song Import(Stream source, string archiveInstrument) => Import(source);
 }

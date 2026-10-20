@@ -153,3 +153,10 @@ Synthetic tests verify both little-endian and big-endian numeric fields; the
 observed PC charts confirm the 88-byte record stride and plausible ordered
 section timing. No SNG-based Mac archive is available for end-to-end
 verification.
+
+One observed XML Rhythm entry declares `PART REAL_GUITAR_22` in its
+`<arrangement>` field even though the archive path identifies it as Rhythm.
+The importer maps this value to Rhythm only when the archive catalog has
+identified the selected entry as Rhythm; standalone XML and mismatched archive
+context remain unsupported. A repository search found no other `PART REAL_*`
+values, which is not an exhaustive inventory of Rocksmith part names.

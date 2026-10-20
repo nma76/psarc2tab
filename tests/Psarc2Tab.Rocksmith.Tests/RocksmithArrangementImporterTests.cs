@@ -70,6 +70,20 @@ public sealed class RocksmithArrangementImporterTests
         Assert.Equal(1, Assert.Single(Assert.Single(song.Tracks).Notes).StringNumber.Value);
     }
 
+    /// <summary>Normalizes the verified internal guitar part name only in Rhythm archive context.</summary>
+    [Fact]
+    public void Import_InternalRealGuitarPart_NormalizesOnlyForRhythmArchiveEntry()
+    {
+        using var rhythmXml = new MemoryStream(Encoding.UTF8.GetBytes(CreateXml("PART REAL_GUITAR_22", "")));
+        var rhythmSong = new RocksmithArrangementImporter().Import(rhythmXml, "Rhythm");
+
+        Assert.Equal("Rhythm", Assert.Single(rhythmSong.Tracks).Name);
+        using var standaloneXml = new MemoryStream(Encoding.UTF8.GetBytes(CreateXml("PART REAL_GUITAR_22", "")));
+        Assert.Throws<InvalidDataException>(() => new RocksmithArrangementImporter().Import(standaloneXml));
+        using var leadXml = new MemoryStream(Encoding.UTF8.GetBytes(CreateXml("PART REAL_GUITAR_22", "")));
+        Assert.Throws<InvalidDataException>(() => new RocksmithArrangementImporter().Import(leadXml, "Lead"));
+    }
+
     /// <summary>Allows arrangements without a sections element.</summary>
     [Fact]
     public void Import_MissingSections_ReturnsNoSectionMarkers()
