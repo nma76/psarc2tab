@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using Psarc2Tab.Application;
 using Psarc2Tab.Domain;
 using Psarc2Tab.Formats.Rocksmith;
 
@@ -30,6 +31,30 @@ public sealed class SngChartImporterTests
         Assert.Equal(TimeSpan.FromSeconds(1.25), note.Duration);
         Assert.True(note.Techniques.HasFlag(Psarc2Tab.Domain.NoteTechnique.HammerOn));
         Assert.True(note.Techniques.HasFlag(Psarc2Tab.Domain.NoteTechnique.Slide));
+    }
+
+    /// <summary>Calculates the same arrangement statistics from an imported SNG song model.</summary>
+    [Fact]
+    public void Import_ChartStatistics_UsesImportedSngEvents()
+    {
+        var arrangement = CreateArrangement();
+        var chart = CreateChart(
+            [(difficulty: 12, note: new TestNote(0x800000 | 0x200 | 0x800 | 0x1000, 3.5f, 4, 7, -1, 1.25f))],
+            sections: [("verse", 1, 1.0f, 5.0f)]);
+        var song = new SngChartImporter().Import(chart, arrangement);
+
+        var statistics = ArrangementStatisticsCalculator.Calculate(song);
+
+        Assert.Equal(1, statistics.NoteCount);
+        Assert.Equal(0, statistics.ChordCount);
+        Assert.Equal(1, statistics.SectionCount);
+        Assert.Equal(1, statistics.BendCount);
+        Assert.Equal(1, statistics.SlideCount);
+        Assert.Equal(1, statistics.HammerOnCount);
+        Assert.Equal(new[] { 5 }, statistics.UsedStrings);
+        Assert.Equal(7, statistics.MinimumFret);
+        Assert.Equal(7, statistics.MaximumFret);
+        Assert.Equal(TimeSpan.FromSeconds(4.75), statistics.Length);
     }
 
     /// <summary>Copies the arrangement cent offset from its manifest metadata into the song model.</summary>

@@ -60,6 +60,74 @@ public sealed class CliApplicationTests
         Assert.Empty(output.StandardError);
     }
 
+    /// <summary>Prints archive and imported arrangement statistics without creating an export file.</summary>
+    [Fact]
+    public void Run_Statistics_PrintsCountsAndMissingMetadataWithoutWritingFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        File.WriteAllBytes(inputPath, CreateArchive(StatisticsArrangementXml));
+
+        var output = Run("--in", inputPath, "--stats");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Contains("PSARC version: 1.4", output.StandardOutput);
+        Assert.Contains("Platform: unavailable", output.StandardOutput);
+        Assert.Contains("Archive entries: 2", output.StandardOutput);
+        Assert.Contains("Encrypted TOC: no", output.StandardOutput);
+        Assert.Contains("Title: Test Stats", output.StandardOutput);
+        Assert.Contains("Artist: Test Artist", output.StandardOutput);
+        Assert.Contains("Album: unavailable", output.StandardOutput);
+        Assert.Contains("Year: unavailable", output.StandardOutput);
+        Assert.Contains("Notes: 1", output.StandardOutput);
+        Assert.Contains("Bends: 1", output.StandardOutput);
+        Assert.Contains("Slides: 1", output.StandardOutput);
+        Assert.Contains("Hammer-ons: 1", output.StandardOutput);
+        Assert.Contains("Pull-offs: 1", output.StandardOutput);
+        Assert.Contains("Used strings: 2", output.StandardOutput);
+        Assert.Contains("Fret range: 5–5", output.StandardOutput);
+        Assert.Contains("Length: 00:01:02.000", output.StandardOutput);
+        Assert.Empty(output.StandardError);
+        Assert.Single(Directory.GetFiles(directory.Path));
+    }
+
+    /// <summary>Limits arrangement statistics to the requested numbered item.</summary>
+    [Fact]
+    public void Run_StatisticsWithArrangement_ImportsOnlySelectedArrangement()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml)));
+
+        var output = Run("--in", inputPath, "--stats", "--arr", "2");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Contains("2. Bass statistics", output.StandardOutput);
+        Assert.DoesNotContain("1. Lead statistics", output.StandardOutput);
+        Assert.Contains("1. Lead", output.StandardOutput);
+        Assert.Empty(output.StandardError);
+    }
+
+    /// <summary>Shows a clear unavailable-metrics message for a selected Lyrics item.</summary>
+    [Fact]
+    public void Run_StatisticsWithLyricsSelection_ReportsUnavailableInstrumentMetrics()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_vocals.xml", "<vocals />")));
+
+        var output = Run("--in", inputPath, "--stats", "--arr", "2");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Contains("2. Lyrics statistics", output.StandardOutput);
+        Assert.Contains("unavailable for lyrics", output.StandardOutput);
+        Assert.Empty(output.StandardError);
+    }
+
     /// <summary>Prints version information to standard output.</summary>
     [Fact]
     public void Run_Version_PrintsVersionAndReturnsSuccess()
@@ -439,6 +507,19 @@ public sealed class CliApplicationTests
           <tuning string0="0" string1="0" string2="0" string3="0" string4="0" string5="0" />
           <chordTemplates />
           <levels><level difficulty="0"><notes><note time="1.25" sustain="0.5" string="0" fret="3" /></notes><chords /></level></levels>
+        </song>
+        """;
+
+    /// <summary>A chart fixture with measurable events, techniques, and section timing.</summary>
+    private const string StatisticsArrangementXml = """
+        <song version="7">
+          <title>Test Stats</title><arrangement>Lead</arrangement><artistName>Test Artist</artistName><offset>0</offset>
+          <tuning string0="0" string1="0" string2="0" string3="0" string4="0" string5="0" />
+          <sections><section name="verse" number="1" startTime="0" /></sections>
+          <chordTemplates />
+          <levels><level difficulty="0"><notes>
+            <note time="61.5" sustain="0.5" string="1" fret="5" bend="1" slideTo="7" hammerOn="1" pullOff="1" />
+          </notes><chords /></level></levels>
         </song>
         """;
 

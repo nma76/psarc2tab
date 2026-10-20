@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Psarc2Tab.Application\Psarc2Tab.Application.csproj" />
     <ProjectReference Include="..\..\src\Psarc2Tab.Formats.Rocksmith\Psarc2Tab.Formats.Rocksmith.csproj" />
   </ItemGroup>
 

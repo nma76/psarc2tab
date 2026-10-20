@@ -26,6 +26,15 @@ public sealed class RocksmithArrangementCatalog
         return Array.AsReadOnly(archive.Arrangements.Select(item => item.Arrangement).ToArray());
     }
 
+    /// <summary>Inspects archive metadata and manifest paths without extracting chart payloads.</summary>
+    /// <param name="archiveStream">The readable, seekable PSARC archive.</param>
+    /// <returns>The validated header and resolved archive paths.</returns>
+    public RocksmithArchiveDetails Inspect(Stream archiveStream)
+    {
+        var archive = ReadArchive(archiveStream);
+        return new RocksmithArchiveDetails(archive.Header, Array.AsReadOnly(archive.Paths));
+    }
+
     /// <summary>Lists instrument arrangements and appends a lyric export when vocal data exists.</summary>
     /// <param name="archiveStream">The readable, seekable PSARC archive.</param>
     /// <returns>Selectable export items in archive arrangement order, with lyrics last when available.</returns>

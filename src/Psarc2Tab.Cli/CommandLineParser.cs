@@ -15,6 +15,9 @@ public enum CommandKind
     /// <summary>Requests version information.</summary>
     Version,
 
+    /// <summary>Requests archive and arrangement statistics.</summary>
+    Statistics,
+
     /// <summary>Represents invalid or incomplete arguments.</summary>
     Invalid
 }
@@ -26,6 +29,7 @@ public enum CommandKind
 /// <param name="ArrangementNumber">The one-based arrangement number selected for conversion.</param>
 /// <param name="AllArrangements">Whether every instrument arrangement should be exported.</param>
 /// <param name="FormatName">The requested arrangement output format.</param>
+/// <param name="ShowStatistics">Whether archive statistics were requested.</param>
 /// <param name="Error">The reason parsing failed, when the command is invalid.</param>
 public sealed record ParsedCommand(
     CommandKind Kind,
@@ -34,7 +38,8 @@ public sealed record ParsedCommand(
     int? ArrangementNumber = null,
     bool AllArrangements = false,
     string FormatName = "tab",
-    string? Error = null);
+    string? Error = null,
+    bool ShowStatistics = false);
 
 /// <summary>Parses supported command-line flags without performing file or conversion work.</summary>
 public sealed class CommandLineParser
@@ -57,6 +62,7 @@ public sealed class CommandLineParser
         var listArrangements = false;
         var showHelp = false;
         var showVersion = false;
+        var showStatistics = false;
 
         for (var index = 0; index < args.Count; index++)
         {
@@ -68,6 +74,14 @@ public sealed class CommandLineParser
                     break;
                 case "--version":
                     showVersion = true;
+                    break;
+                case "--stats":
+                    if (showStatistics)
+                    {
+                        return Invalid("The '--stats' option can only be specified once.");
+                    }
+
+                    showStatistics = true;
                     break;
                 case "--list":
                     if (listArrangements)
@@ -161,7 +175,7 @@ public sealed class CommandLineParser
             return Invalid("Options '--help' and '--version' cannot be used together.");
         }
 
-        if ((showHelp || showVersion) && (listArrangements || arrangementSpecified))
+        if ((showHelp || showVersion) && (listArrangements || arrangementSpecified || showStatistics))
         {
             return Invalid("Help and version options cannot be combined with archive operations.");
         }
@@ -178,12 +192,23 @@ public sealed class CommandLineParser
 
         if (listArrangements)
         {
-            if (inputPath is null || outputPath is not null || arrangementSpecified || formatSpecified)
+            if (inputPath is null || outputPath is not null || arrangementSpecified || formatSpecified || showStatistics)
             {
                 return Invalid("'--list' requires '--in' and cannot be combined with '--out', '--arr', or '--format'.");
             }
 
             return new ParsedCommand(CommandKind.ListArrangements, InputPath: inputPath);
+        }
+
+        if (showStatistics)
+        {
+            if (inputPath is null || outputPath is not null || formatSpecified)
+            {
+                return Invalid("'--stats' requires '--in' and cannot be combined with '--out' or '--format'.");
+            }
+
+            return new ParsedCommand(CommandKind.Statistics, inputPath, ArrangementNumber: arrangementNumber,
+                AllArrangements: allArrangements, ShowStatistics: true);
         }
 
         if (inputPath is null || outputPath is null)
