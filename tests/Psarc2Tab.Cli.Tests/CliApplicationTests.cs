@@ -77,8 +77,8 @@ public sealed class CliApplicationTests
         Assert.Contains("Encrypted TOC: no", output.StandardOutput);
         Assert.Contains("Title: Test Stats", output.StandardOutput);
         Assert.Contains("Artist: Test Artist", output.StandardOutput);
-        Assert.Contains("Album: unavailable", output.StandardOutput);
-        Assert.Contains("Year: unavailable", output.StandardOutput);
+        Assert.Contains("Album: Test Album", output.StandardOutput);
+        Assert.Contains("Year: 1998", output.StandardOutput);
         Assert.Contains("Notes: 1", output.StandardOutput);
         Assert.Contains("Bends: 1", output.StandardOutput);
         Assert.Contains("Slides: 1", output.StandardOutput);
@@ -107,6 +107,9 @@ public sealed class CliApplicationTests
         Assert.Contains("2. Bass statistics", output.StandardOutput);
         Assert.DoesNotContain("1. Lead statistics", output.StandardOutput);
         Assert.Contains("1. Lead", output.StandardOutput);
+        Assert.Contains("Title: Test Song", output.StandardOutput);
+        Assert.DoesNotContain("Title: Test Bass", output.StandardOutput);
+        Assert.DoesNotContain("Artist: Test Artist", output.StandardOutput.Split("Arrangements", StringSplitOptions.None).Last());
         Assert.Empty(output.StandardError);
     }
 
@@ -513,7 +516,8 @@ public sealed class CliApplicationTests
     /// <summary>A chart fixture with measurable events, techniques, and section timing.</summary>
     private const string StatisticsArrangementXml = """
         <song version="7">
-          <title>Test Stats</title><arrangement>Lead</arrangement><artistName>Test Artist</artistName><offset>0</offset>
+          <title>Test Stats</title><arrangement>Lead</arrangement><artistName>Test Artist</artistName>
+          <albumName>Test Album</albumName><albumYear>1998</albumYear><offset>0</offset>
           <tuning string0="0" string1="0" string2="0" string3="0" string4="0" string5="0" />
           <sections><section name="verse" number="1" startTime="0" /></sections>
           <chordTemplates />

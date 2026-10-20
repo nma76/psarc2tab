@@ -13,12 +13,14 @@ public sealed class SngChartImporterTests
     [Fact]
     public void Import_ChartWithLevels_UsesPhraseIterationMasterDifficultyAndMapsNote()
     {
-        var arrangement = CreateArrangement();
+        var arrangement = CreateArrangement(albumName: "Example Album", albumYear: "1998");
         var chart = CreateChart([
             (difficulty: 0, note: new TestNote(0x800000, 1.0f, 0, 2, -1, 0.25f)),
             (difficulty: 12, note: new TestNote(0x800000 | 0x200 | 0x800, 3.5f, 4, 7, -1, 1.25f))]);
 
         var song = new SngChartImporter().Import(chart, arrangement);
+        Assert.Equal("Example Album", song.AlbumName);
+        Assert.Equal("1998", song.AlbumYear);
         var track = Assert.Single(song.Tracks);
         var note = Assert.Single(track.Notes);
 
@@ -226,9 +228,11 @@ public sealed class SngChartImporterTests
     /// <param name="centOffsetCents">The arrangement pitch offset.</param>
     /// <returns>An SNG arrangement descriptor.</returns>
     private static RocksmithArrangement CreateArrangement(string instrument = "Lead", int[]? tuning = null,
-        string archivePath = "songs/bin/generic/test_lead.sng", decimal centOffsetCents = 0) =>
+        string archivePath = "songs/bin/generic/test_lead.sng", decimal centOffsetCents = 0,
+        string albumName = "", string albumYear = "") =>
         new(1, instrument, archivePath, RocksmithArrangementFormat.Sng, "manifests/test.json",
-            new RocksmithSngMetadata("Example Song", "Example Artist", tuning ?? [0, 0, 0, 0, 0, 0], centOffsetCents));
+            new RocksmithSngMetadata("Example Song", "Example Artist", tuning ?? [0, 0, 0, 0, 0, 0],
+                centOffsetCents, albumName, albumYear));
 
     /// <summary>Builds a small SNG chart containing the requested levels and sections.</summary>
     /// <param name="levels">Difficulty and note pairs.</param>

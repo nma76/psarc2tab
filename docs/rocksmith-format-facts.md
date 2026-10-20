@@ -154,6 +154,13 @@ observed PC charts confirm the 88-byte record stride and plausible ordered
 section timing. No SNG-based Mac archive is available for end-to-end
 verification.
 
+Rocksmith arrangement XML can include optional `albumName` and `albumYear`
+elements alongside the title and artist metadata. The importer preserves these
+values when present. Rocksmith Toolkit's XML update path writes album and year
+back into the arrangement document; supported arrangements may still omit
+them. The stats display takes song-level metadata from the first instrument
+arrangement and does not repeat it under each arrangement's event counts.
+
 One observed XML Rhythm entry declares `PART REAL_GUITAR_22` in its
 `<arrangement>` field even though the archive path identifies it as Rhythm.
 The importer maps this value to Rhythm only when the archive catalog has

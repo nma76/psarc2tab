@@ -79,7 +79,7 @@ public sealed class RocksmithArrangementCatalogTests
     {
         const string jsonPath = "manifests/songs_dlc_example/example_bass.json";
         const string chartPath = "songs/bin/generic/example_bass.sng";
-        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass","SongName":"Example Song","ArtistName":"Example Artist","CentOffset":-33.5,"Tuning":{"string0":0,"string1":0,"string2":0,"string3":0,"string4":0,"string5":0}}}}}""";
+        var metadata = """{"Entries":{"id":{"Attributes":{"ArrangementName":"Bass","SongXml":"urn:application:xml:example_bass","SongName":"Example Song","ArtistName":"Example Artist","AlbumName":"Example Album","AlbumYear":1998,"CentOffset":-33.5,"Tuning":{"string0":0,"string1":0,"string2":0,"string3":0,"string4":0,"string5":0}}}}}""";
         var chart = new byte[] { 0x4A, 0x00, 0x00, 0x00 };
         var archive = CreateArchive([chartPath, jsonPath], payloads: new Dictionary<string, byte[]>
         {
@@ -97,6 +97,8 @@ public sealed class RocksmithArrangementCatalogTests
         Assert.Equal(RocksmithArrangementFormat.Sng, arrangement.DataFormat);
         Assert.Equal("Example Song", arrangement.SngMetadata?.Title);
         Assert.Equal("Example Artist", arrangement.SngMetadata?.Artist);
+        Assert.Equal("Example Album", arrangement.SngMetadata?.AlbumName);
+        Assert.Equal("1998", arrangement.SngMetadata?.AlbumYear);
         Assert.Equal(new[] { 0, 0, 0, 0, 0, 0 }, arrangement.SngMetadata?.TuningOffsets);
         Assert.Equal(-33.5m, arrangement.SngMetadata?.CentOffsetCents);
     }

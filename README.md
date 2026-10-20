@@ -69,12 +69,14 @@ of tablature. `--stats` prints archive details and statistics for every
 instrument arrangement without writing a file. Add `--arr <number>` to show
 statistics for one numbered arrangement; selecting the Lyrics number reports
 that instrument statistics do not apply. `--arr all` is equivalent to omitting
-`--arr`. With statistics, note and technique
-counts include individual note events, while chord tones contribute to used
+`--arr`. Song title, artist, album, and year are shown once using metadata from
+the first instrument arrangement. Rocksmith XML can contain album name and
+year, while SNG JSON metadata may omit them; missing values display as
+`unavailable`. With statistics, note and technique counts include individual
+note events, while chord tones contribute to used
 strings and fret range. Length is the latest imported event end, or onset when
-the source duration is zero. Missing metadata is printed as `unavailable`;
-album and year are not currently imported. Platform is inferred only when
-platform-specific SNG paths identify PC or Mac. `--format` selects the
+the source duration is zero. Platform is inferred only when platform-specific
+SNG paths identify PC or Mac. `--format` selects the
 arrangement output format and defaults to
 `tab`; supported arrangement formats are `tab` and `midi`. MIDI export is
 **beta/experimental**. It writes a Standard MIDI File containing the selected

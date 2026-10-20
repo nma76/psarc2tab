@@ -20,8 +20,10 @@ public sealed record RocksmithArrangement(
 /// <param name="Artist">The displayed artist name.</param>
 /// <param name="TuningOffsets">The six semitone offsets in low-to-high string order.</param>
 /// <param name="CentOffsetCents">The arrangement pitch offset in cents.</param>
+/// <param name="AlbumName">The optional album name declared by the manifest.</param>
+/// <param name="AlbumYear">The optional album year declared by the manifest.</param>
 public sealed record RocksmithSngMetadata(string Title, string Artist, IReadOnlyList<int> TuningOffsets,
-    decimal CentOffsetCents = 0);
+    decimal CentOffsetCents = 0, string AlbumName = "", string AlbumYear = "");
 
 /// <summary>Identifies the chart payload format used by a Rocksmith arrangement.</summary>
 public enum RocksmithArrangementFormat
