@@ -86,7 +86,7 @@ public sealed class CliApplicationTests
         Assert.Contains("Pull-offs: 1", output.StandardOutput);
         Assert.Contains("Used strings: 2", output.StandardOutput);
         Assert.Contains("Fret range: 5–5", output.StandardOutput);
-        Assert.Contains("Length: 00:01:02.000", output.StandardOutput);
+        Assert.Contains("Length: 00:01:01.500", output.StandardOutput);
         Assert.Empty(output.StandardError);
         Assert.Single(Directory.GetFiles(directory.Path));
     }
@@ -522,7 +522,7 @@ public sealed class CliApplicationTests
           <sections><section name="verse" number="1" startTime="0" /></sections>
           <chordTemplates />
           <levels><level difficulty="0"><notes>
-            <note time="61.5" sustain="0.5" string="1" fret="5" bend="1" slideTo="7" hammerOn="1" pullOff="1" />
+            <note time="61.5" string="1" fret="5" bend="1" slideTo="7" hammerOn="1" pullOff="1" />
           </notes><chords /></level></levels>
         </song>
         """;

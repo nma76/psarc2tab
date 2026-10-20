@@ -70,6 +70,15 @@ public sealed class RocksmithArrangementImporterTests
         Assert.Equal(1, Assert.Single(Assert.Single(song.Tracks).Notes).StringNumber.Value);
     }
 
+    /// <summary>Treats an omitted XML sustain as an event without explicit duration.</summary>
+    [Fact]
+    public void Import_NoteWithoutSustain_UsesZeroDuration()
+    {
+        var song = Import(CreateXml("Lead", "<note time=\"1.25\" string=\"0\" fret=\"3\" />"));
+
+        Assert.Equal(TimeSpan.Zero, Assert.Single(Assert.Single(song.Tracks).Notes).Duration);
+    }
+
     /// <summary>Normalizes the verified internal guitar part name only in Rhythm archive context.</summary>
     [Fact]
     public void Import_InternalRealGuitarPart_NormalizesOnlyForRhythmArchiveEntry()

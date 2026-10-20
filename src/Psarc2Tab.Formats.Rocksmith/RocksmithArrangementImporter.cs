@@ -203,7 +203,9 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
             }
 
             var position = ParseSecondsAttribute(element, "time");
-            var duration = ParseSecondsAttribute(element, "sustain");
+            var duration = element.Attribute("sustain") is null
+                ? TimeSpan.Zero
+                : ParseSecondsAttribute(element, "sustain");
             notes.Add(new NoteEvent(position, duration, new StringNumber(sourceString + 1), new FretNumber(fret), ReadTechniques(element)));
         }
 

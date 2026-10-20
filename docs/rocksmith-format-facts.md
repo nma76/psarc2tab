@@ -22,7 +22,10 @@ do not establish support for every Rocksmith release or archive.
   Note elements expose fields including `time`, `fret`, `string`, and `sustain`.
 - In a sampled Lead arrangement, note `time` and `sustain` values are
   decimal seconds (for example, `time="7.024"` and `sustain="0.146"`). The
-  importer preserves them as `TimeSpan` values.
+  importer preserves them as `TimeSpan` values. Some note elements omit
+  `sustain`; the importer treats an omitted value as zero explicit duration,
+  matching the existing implicit-duration handling for notes without a
+  positive duration.
 - Arrangement XML beat entries include `time`, `measure`, and `beat`. SNG
   beat entries are fixed 16-byte records with the same time and measure
   coordinates plus phrase-iteration and mask fields. The importer retains the
