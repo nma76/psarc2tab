@@ -74,6 +74,8 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
 
         var title = RequiredElementValue(root, "title");
         var artist = root.Element("artistName")?.Value ?? string.Empty;
+        var albumName = root.Element("albumName")?.Value ?? string.Empty;
+        var albumYear = root.Element("albumYear")?.Value ?? string.Empty;
         if (root.Element("offset") is { } offset && ParseDecimalValue(offset.Value) != 0)
         {
             throw new InvalidDataException("Nonzero song offsets are not supported because their timeline meaning is unverified.");
@@ -107,7 +109,8 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
         var centOffsetCents = root.Element("centOffset") is { } centOffset
             ? ParseDecimalValue(centOffset.Value)
             : 0;
-        return new Song(title, artist, [new Track(arrangement, tuning, notes, chords)], sections, centOffsetCents, beats);
+        return new Song(title, artist, [new Track(arrangement, tuning, notes, chords)], sections,
+            centOffsetCents, beats, albumName, albumYear);
     }
 
     /// <summary>Reads optional beat timestamps and source measure positions.</summary>

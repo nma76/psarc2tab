@@ -184,7 +184,7 @@ public sealed class SngChartImporter
 
         return new Song(metadata.Title, metadata.Artist,
             [new Track(arrangement.Instrument, tuning, notesResult, chordsResult)], sections,
-            metadata.CentOffsetCents, beatMarkers);
+            metadata.CentOffsetCents, beatMarkers, metadata.AlbumName, metadata.AlbumYear);
     }
 
     /// <summary>Reads timed lyric entries from a decoded SNG chart.</summary>

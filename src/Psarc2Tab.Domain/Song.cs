@@ -10,14 +10,19 @@ public sealed class Song
     /// <param name="sections">Optional section markers in source order.</param>
     /// <param name="centOffsetCents">The arrangement's pitch offset from A4=440 Hz, in cents.</param>
     /// <param name="beats">Optional beat markers in chronological order.</param>
+/// <param name="albumName">The optional album name from source metadata.</param>
+/// <param name="albumYear">The optional album year from source metadata.</param>
     /// <exception cref="ArgumentException">The title is blank, no tracks are supplied, or beats are unordered.</exception>
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
     public Song(string title, string artist, IEnumerable<Track> tracks, IEnumerable<SongSection>? sections = null,
-        decimal centOffsetCents = 0, IEnumerable<BeatMarker>? beats = null)
+        decimal centOffsetCents = 0, IEnumerable<BeatMarker>? beats = null,
+        string albumName = "", string albumYear = "")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(artist);
         ArgumentNullException.ThrowIfNull(tracks);
+        ArgumentNullException.ThrowIfNull(albumName);
+        ArgumentNullException.ThrowIfNull(albumYear);
 
         var trackArray = tracks.ToArray();
         if (trackArray.Length == 0)
@@ -32,6 +37,8 @@ public sealed class Song
 
         Title = title;
         Artist = artist;
+        AlbumName = albumName;
+        AlbumYear = albumYear;
         Tracks = Array.AsReadOnly(trackArray);
         var sectionArray = (sections ?? []).ToArray();
         if (sectionArray.Any(section => section is null))
@@ -60,6 +67,12 @@ public sealed class Song
 
     /// <summary>Gets the artist name, which may be empty when unknown.</summary>
     public string Artist { get; }
+
+    /// <summary>Gets the album name, or an empty string when the source omits it.</summary>
+    public string AlbumName { get; }
+
+    /// <summary>Gets the album year, or an empty string when the source omits it.</summary>
+    public string AlbumYear { get; }
 
     /// <summary>Gets the tracks in presentation order.</summary>
     public IReadOnlyList<Track> Tracks { get; }

@@ -5,7 +5,6 @@ using Psarc2Tab.Domain;
 using Psarc2Tab.Formats.Rocksmith;
 using Psarc2Tab.Midi;
 using Psarc2Tab.Tablature;
-using Psarc2Tab.Formats.PSARC;
 
 namespace Psarc2Tab.Cli;
 
@@ -116,6 +115,12 @@ public sealed class CliApplication
                 ? [items.ElementAtOrDefault(selectedNumber - 1)
                     ?? throw new ArrangementNotFoundException(selectedNumber)]
                 : instrumentItems;
+            Song? firstArrangementSong = null;
+            if (instrumentItems.Length > 0)
+            {
+                archive.Position = 0;
+                firstArrangementSong = _exportArrangement.Import(archive, instrumentItems[0].Number);
+            }
 
             standardOutput.WriteLine("Archive statistics");
             standardOutput.WriteLine($"Platform: {GetPlatformName(details.ArchivePaths)}");
@@ -124,10 +129,10 @@ public sealed class CliApplication
             standardOutput.WriteLine($"Encrypted TOC: {(details.Header.ArchiveFlags == 0x4 ? "yes" : "no")}");
             standardOutput.WriteLine();
             standardOutput.WriteLine("Song metadata");
-            standardOutput.WriteLine("Title: available per arrangement");
-            standardOutput.WriteLine("Artist: available per arrangement");
-            standardOutput.WriteLine("Album: unavailable");
-            standardOutput.WriteLine("Year: unavailable");
+            standardOutput.WriteLine($"Title: {Available(firstArrangementSong?.Title ?? string.Empty)}");
+            standardOutput.WriteLine($"Artist: {Available(firstArrangementSong?.Artist ?? string.Empty)}");
+            standardOutput.WriteLine($"Album: {Available(firstArrangementSong?.AlbumName ?? string.Empty)}");
+            standardOutput.WriteLine($"Year: {Available(firstArrangementSong?.AlbumYear ?? string.Empty)}");
             standardOutput.WriteLine();
             standardOutput.WriteLine("Arrangements");
             foreach (var item in items)
@@ -150,13 +155,15 @@ public sealed class CliApplication
                     continue;
                 }
 
-                archive.Position = 0;
-                var song = _exportArrangement.Import(archive, item.Number);
+                var song = firstArrangementSong is not null && item.Number == instrumentItems[0].Number
+                    ? firstArrangementSong
+                    : ImportArrangement(archive, item.Number);
                 WriteArrangementStatistics(standardOutput, item, song);
             }
 
             return SuccessExitCode;
         }
+
         catch (ArrangementNotFoundException exception)
         {
             standardError.WriteLine($"Error: {exception.Message} Run 'psarc2tab --in <input.psarc> --list' to see valid numbers.");
@@ -169,21 +176,26 @@ public sealed class CliApplication
         }
     }
 
+    /// <summary>Imports one arrangement after rewinding the shared archive stream.</summary>
+    /// <param name="input">The readable archive stream.</param>
+    /// <param name="arrangementNumber">The one-based arrangement number.</param>
+    /// <returns>The imported arrangement song.</returns>
+    private Song ImportArrangement(Stream input, int arrangementNumber)
+    {
+        input.Position = 0;
+        return _exportArrangement.Import(input, arrangementNumber);
+    }
+
     /// <summary>Writes counts derived from one successfully imported arrangement.</summary>
     /// <param name="output">The statistics writer.</param>
     /// <param name="item">The selected archive item.</param>
     /// <param name="song">The imported arrangement.</param>
     private static void WriteArrangementStatistics(TextWriter output, RocksmithArchiveItem item, Song song)
     {
-        var track = song.Tracks[0];
         var statistics = ArrangementStatisticsCalculator.Calculate(song);
 
         output.WriteLine();
         output.WriteLine($"{item.Number}. {item.Name} statistics");
-        output.WriteLine($"Title: {Available(song.Title)}");
-        output.WriteLine($"Artist: {Available(song.Artist)}");
-        output.WriteLine($"Album: unavailable");
-        output.WriteLine($"Year: unavailable");
         output.WriteLine($"Notes: {statistics.NoteCount}");
         output.WriteLine($"Chords: {statistics.ChordCount}");
         output.WriteLine($"Sections: {statistics.SectionCount}");
