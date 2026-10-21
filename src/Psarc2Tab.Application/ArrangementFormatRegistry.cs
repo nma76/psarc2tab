@@ -41,4 +41,16 @@ public sealed class ArrangementFormatRegistry
     /// <returns><see langword="true"/> when the format is supported.</returns>
     public bool TryGetWriter(string formatName, out IArrangementFormatWriter? writer) =>
         _writers.TryGetValue(formatName, out writer);
+
+    /// <summary>Finds the registered writer when it supports a combined multi-track export.</summary>
+    /// <param name="formatName">The requested format name.</param>
+    /// <param name="writer">The matching multi-track writer, when available.</param>
+    /// <returns><see langword="true"/> when the format supports combined output.</returns>
+    public bool TryGetMultiTrackWriter(string formatName, out IMultiTrackArrangementFormatWriter? writer)
+    {
+        writer = _writers.TryGetValue(formatName, out var registeredWriter)
+            ? registeredWriter as IMultiTrackArrangementFormatWriter
+            : null;
+        return writer is not null;
+    }
 }

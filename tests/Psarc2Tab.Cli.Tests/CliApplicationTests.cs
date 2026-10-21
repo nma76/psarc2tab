@@ -294,6 +294,78 @@ public sealed class CliApplicationTests
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
 
+    /// <summary>Writes all MIDI arrangements to one type-one file in archive order.</summary>
+    [Fact]
+    public void Run_AllArrangements_MidiWritesOneMultiTrackFile()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "mysong.mid");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_rhythm.xml", RhythmArrangementXml),
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml),
+            ("songs/arr/sample_vocals.xml", "<vocals><vocal time=\"1\" note=\"60\" length=\"1\" lyric=\"Hi\" /></vocals>")));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--format", "midi", "--arr", "all");
+
+        var midi = File.ReadAllBytes(outputPath);
+        var text = Encoding.UTF8.GetString(midi);
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Empty(output.StandardError);
+        Assert.Contains("Wrote midi export to", output.StandardOutput);
+        Assert.Equal((ushort)1, System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(midi.AsSpan(8, 2)));
+        Assert.Equal((ushort)4, System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(midi.AsSpan(10, 2)));
+        var conductorPosition = text.IndexOf("psarc2tab tempo map", StringComparison.Ordinal);
+        var rhythmPosition = text.IndexOf("psarc2tab Rhythm", StringComparison.Ordinal);
+        var leadPosition = text.IndexOf("psarc2tab Lead", StringComparison.Ordinal);
+        var bassPosition = text.IndexOf("psarc2tab Bass", StringComparison.Ordinal);
+        Assert.True(conductorPosition >= 0 && conductorPosition < rhythmPosition &&
+            rhythmPosition < leadPosition && leadPosition < bassPosition);
+        Assert.Single(Directory.GetFiles(directory.Path, "mysong*.mid"));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Rejects mismatched beat maps without leaving a partial combined MIDI file.</summary>
+    [Fact]
+    public void Run_AllArrangements_MidiWithDifferentBeatMapsLeavesNoOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "mysong.mid");
+        var leadXml = AddBeatTimeline(ArrangementXml, "0.5");
+        var bassXml = AddBeatTimeline(BassArrangementXml, "0.6");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", leadXml),
+            ("songs/arr/sample_bass.xml", bassXml)));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--format", "midi", "--arr", "all");
+
+        Assert.Equal(CliApplication.ConversionErrorExitCode, output.ExitCode);
+        Assert.Contains("requires identical beat markers", output.StandardError);
+        Assert.False(File.Exists(outputPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Preserves an existing combined MIDI destination on collision.</summary>
+    [Fact]
+    public void Run_AllArrangements_MidiExistingDestinationIsNotOverwritten()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "mysong.mid");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml)));
+        File.WriteAllText(outputPath, "keep me");
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--format", "midi", "--arr", "all");
+
+        Assert.Equal(CliApplication.OutputErrorExitCode, output.ExitCode);
+        Assert.Equal("keep me", File.ReadAllText(outputPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
     /// <summary>Adds stable numeric suffixes to repeated instrument arrangement names.</summary>
     [Fact]
     public void Run_AllArrangements_RepeatedInstrumentNamesGetNumberedSuffixes()
@@ -442,6 +514,15 @@ public sealed class CliApplicationTests
         var exitCode = new CliApplication().Run(args, standardOutput, standardError);
         return new RunResult(exitCode, standardOutput.ToString(), standardError.ToString());
     }
+
+    /// <summary>Adds a two-beat timing map to an arrangement fixture.</summary>
+    /// <param name="xml">The arrangement XML document.</param>
+    /// <param name="secondBeatTime">The time of the second beat.</param>
+    /// <returns>The arrangement with beat markers preceding its levels.</returns>
+    private static string AddBeatTimeline(string xml, string secondBeatTime) =>
+        xml.Replace("<levels>",
+            $"<beats><beat time=\"0\" measure=\"0\" beat=\"0\" /><beat time=\"{secondBeatTime}\" measure=\"0\" beat=\"1\" /></beats><levels>",
+            StringComparison.Ordinal);
 
     /// <summary>Builds a minimal PSARC archive with one arrangement XML entry.</summary>
     /// <param name="arrangementXml">The XML payload stored in the archive.</param>

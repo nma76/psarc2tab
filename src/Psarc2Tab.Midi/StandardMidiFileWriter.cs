@@ -6,7 +6,7 @@ using Psarc2Tab.Domain;
 namespace Psarc2Tab.Midi;
 
 /// <summary>Writes one arrangement as a type-zero Standard MIDI File.</summary>
-public sealed class StandardMidiFileWriter : IArrangementFormatWriter
+public sealed class StandardMidiFileWriter : IMultiTrackArrangementFormatWriter
 {
     /// <summary>The MIDI ticks per quarter note in exported files.</summary>
     private const ushort TicksPerQuarterNote = 960;
@@ -19,6 +19,9 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
 
     /// <summary>The maximum number of note events expanded into one MIDI track.</summary>
     private const int MaximumNoteCount = 1_000_000;
+
+    /// <summary>The number of melodic MIDI channels, excluding the GM percussion channel.</summary>
+    private const int MaximumArrangementTracks = 15;
 
     /// <inheritdoc />
     public string FormatName => "midi";
@@ -51,32 +54,81 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
             throw new InvalidDataException($"The arrangement exceeds the supported {MaximumNoteCount} MIDI note limit.");
         }
 
-        var events = CreateEvents(song, track);
-        using var trackStream = new MemoryStream();
-        WriteTrack(trackStream, events);
-        WriteHeader(destination, checked((uint)trackStream.Length));
-        trackStream.Position = 0;
-        trackStream.CopyTo(destination);
+        var trackBytes = CreateTrackBytes(CreateEvents(song, track, channel: 0, includeTempo: true,
+            $"psarc2tab {track.Name}"));
+        WriteFile(destination, 0, [trackBytes]);
+    }
+
+    /// <inheritdoc />
+    public void WriteMultiple(IReadOnlyList<Song> songs, Stream destination)
+    {
+        ArgumentNullException.ThrowIfNull(songs);
+        ArgumentNullException.ThrowIfNull(destination);
+        if (!destination.CanWrite)
+        {
+            throw new ArgumentException("The MIDI destination stream must be writable.", nameof(destination));
+        }
+
+        if (songs.Count == 0 || songs.Any(song => song is null || song.Tracks.Count != 1))
+        {
+            throw new ArgumentException("Combined MIDI export requires one or more single-track arrangements.", nameof(songs));
+        }
+
+        if (songs.Count > MaximumArrangementTracks)
+        {
+            throw new InvalidDataException($"Combined MIDI export supports at most {MaximumArrangementTracks} arrangements because each needs an independent melodic channel.");
+        }
+
+        var referenceBeats = songs[0].Beats;
+        if (songs.Skip(1).Any(song => !HaveSameBeatTimeline(referenceBeats, song.Beats)))
+        {
+            throw new InvalidDataException("Combined MIDI export requires identical beat markers for every arrangement so all tracks share one timeline.");
+        }
+
+        var trackBytes = new List<byte[]>(songs.Count + 1)
+        {
+            CreateTrackBytes(CreateConductorEvents(songs[0]))
+        };
+        for (var index = 0; index < songs.Count; index++)
+        {
+            var song = songs[index];
+            var track = song.Tracks[0];
+            var noteCount = track.Notes.Count + track.Chords.Sum(chord => chord.Notes.Count);
+            if (noteCount > MaximumNoteCount)
+            {
+                throw new InvalidDataException($"The '{track.Name}' arrangement exceeds the supported {MaximumNoteCount} MIDI note limit.");
+            }
+
+            var channel = ToMelodicChannel(index);
+            trackBytes.Add(CreateTrackBytes(CreateEvents(song, track, channel, includeTempo: false,
+                $"psarc2tab {track.Name}")));
+        }
+
+        WriteFile(destination, 1, trackBytes);
     }
 
     /// <summary>Builds sorted metadata, note, and end-of-track events.</summary>
     /// <param name="song">The song containing the arrangement cent offset.</param>
     /// <param name="track">The arrangement to convert.</param>
     /// <returns>MIDI events ordered by absolute tick and event priority.</returns>
-    private static IReadOnlyList<MidiTrackEvent> CreateEvents(Song song, Track track)
+    private static IReadOnlyList<MidiTrackEvent> CreateEvents(Song song, Track track, int channel,
+        bool includeTempo, string trackName)
     {
         var events = new List<MidiTrackEvent>();
         var tempoMap = TempoMap.Create(song.Beats);
-        events.Add(new MidiTrackEvent(0, 0, CreateTextMetaEvent(0x03, $"psarc2tab {track.Name}")));
-        foreach (var tempoChange in tempoMap.TempoChanges)
+        events.Add(new MidiTrackEvent(0, 0, CreateTextMetaEvent(0x03, trackName)));
+        if (includeTempo)
         {
-            events.Add(new MidiTrackEvent(tempoChange.Tick, 1, CreateTempoMetaEvent(tempoChange.MicrosecondsPerQuarterNote)));
+            foreach (var tempoChange in tempoMap.TempoChanges)
+            {
+                events.Add(new MidiTrackEvent(tempoChange.Tick, 1, CreateTempoMetaEvent(tempoChange.MicrosecondsPerQuarterNote)));
+            }
         }
 
-        events.Add(new MidiTrackEvent(0, 2, [0xC0, GetProgramNumber(track.Name)]));
+        events.Add(new MidiTrackEvent(0, 2, [(byte)(0xC0 | channel), GetProgramNumber(track.Name)]));
         if (song.CentOffsetCents != 0)
         {
-            AddPitchBendEvents(events, song.CentOffsetCents);
+            AddPitchBendEvents(events, song.CentOffsetCents, channel);
         }
 
         var pendingNotes = new List<PendingNoteEvent>();
@@ -116,7 +168,7 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
                     duration = next - position;
                 }
 
-                AddNoteEvents(events, note.Position, duration, note.Pitch, tempoMap);
+                AddNoteEvents(events, note.Position, duration, note.Pitch, tempoMap, channel);
             }
 
             nextPosition = position;
@@ -128,11 +180,44 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
         return Array.AsReadOnly(events.OrderBy(item => item.Tick).ThenBy(item => item.Priority).ToArray());
     }
 
+    /// <summary>Builds the shared tempo track used by a type-one MIDI file.</summary>
+    /// <param name="song">The first arrangement, whose beat timeline has been checked against all others.</param>
+    /// <returns>Sorted conductor-track events.</returns>
+    private static IReadOnlyList<MidiTrackEvent> CreateConductorEvents(Song song)
+    {
+        var tempoMap = TempoMap.Create(song.Beats);
+        var events = new List<MidiTrackEvent>
+        {
+            new(0, 0, CreateTextMetaEvent(0x03, "psarc2tab tempo map"))
+        };
+        events.AddRange(tempoMap.TempoChanges.Select(change => new MidiTrackEvent(change.Tick, 1,
+            CreateTempoMetaEvent(change.MicrosecondsPerQuarterNote))));
+        var lastTick = events.Max(item => item.Tick);
+        events.Add(new MidiTrackEvent(lastTick, 10, [0xFF, 0x2F, 0x00]));
+        return Array.AsReadOnly(events.OrderBy(item => item.Tick).ThenBy(item => item.Priority).ToArray());
+    }
+
+    /// <summary>Checks that two arrangements preserve the same beat times and source coordinates.</summary>
+    /// <param name="left">The reference timeline.</param>
+    /// <param name="right">The timeline being compared.</param>
+    /// <returns><see langword="true"/> when both timelines match exactly.</returns>
+    private static bool HaveSameBeatTimeline(IReadOnlyList<BeatMarker> left, IReadOnlyList<BeatMarker> right) =>
+        left.Count == right.Count && left.Zip(right).All(pair =>
+            pair.First.Time == pair.Second.Time && pair.First.Measure == pair.Second.Measure &&
+            pair.First.Beat == pair.Second.Beat);
+
+    /// <summary>Assigns a distinct melodic channel while skipping General MIDI's percussion channel.</summary>
+    /// <param name="arrangementIndex">The zero-based arrangement position.</param>
+    /// <returns>A zero-based melodic channel number.</returns>
+    private static int ToMelodicChannel(int arrangementIndex) => arrangementIndex < 9
+        ? arrangementIndex
+        : arrangementIndex + 1;
+
     /// <summary>Encodes global cents offset as a channel pitch bend and its sensitivity setting.</summary>
     /// <param name="events">The event list receiving the setup messages.</param>
     /// <param name="centOffset">The arrangement pitch offset in cents.</param>
     /// <exception cref="InvalidDataException">The offset exceeds the supported 127-semitone bend range.</exception>
-    private static void AddPitchBendEvents(List<MidiTrackEvent> events, decimal centOffset)
+    private static void AddPitchBendEvents(List<MidiTrackEvent> events, decimal centOffset, int channel)
     {
         if (centOffset is < -12_700 or > 12_700)
         {
@@ -141,19 +226,20 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
 
         var absoluteOffset = decimal.Abs(centOffset);
         var bendRangeSemitones = Math.Max(2, (int)decimal.Ceiling(absoluteOffset / 100));
-        events.Add(new MidiTrackEvent(0, 3, [0xB0, 0x65, 0x00]));
-        events.Add(new MidiTrackEvent(0, 3, [0xB0, 0x64, 0x00]));
-        events.Add(new MidiTrackEvent(0, 3, [0xB0, 0x06, (byte)bendRangeSemitones]));
-        events.Add(new MidiTrackEvent(0, 3, [0xB0, 0x26, 0x00]));
-        events.Add(new MidiTrackEvent(0, 3, [0xB0, 0x65, 0x7F]));
-        events.Add(new MidiTrackEvent(0, 3, [0xB0, 0x64, 0x7F]));
+        var controlChangeStatus = (byte)(0xB0 | channel);
+        events.Add(new MidiTrackEvent(0, 3, [controlChangeStatus, 0x65, 0x00]));
+        events.Add(new MidiTrackEvent(0, 3, [controlChangeStatus, 0x64, 0x00]));
+        events.Add(new MidiTrackEvent(0, 3, [controlChangeStatus, 0x06, (byte)bendRangeSemitones]));
+        events.Add(new MidiTrackEvent(0, 3, [controlChangeStatus, 0x26, 0x00]));
+        events.Add(new MidiTrackEvent(0, 3, [controlChangeStatus, 0x65, 0x7F]));
+        events.Add(new MidiTrackEvent(0, 3, [controlChangeStatus, 0x64, 0x7F]));
 
         var bendDistance = centOffset >= 0 ? 8191m : 8192m;
         var bendValue = 8192 + (int)decimal.Round(centOffset / (bendRangeSemitones * 100m) * bendDistance,
             MidpointRounding.AwayFromZero);
         bendValue = Math.Clamp(bendValue, 0, 16_383);
         events.Add(new MidiTrackEvent(0, 4,
-            [0xE0, (byte)(bendValue & 0x7F), (byte)((bendValue >> 7) & 0x7F)]));
+            [(byte)(0xE0 | channel), (byte)(bendValue & 0x7F), (byte)((bendValue >> 7) & 0x7F)]));
     }
 
     /// <summary>Adds note-on and note-off events for one pitch.</summary>
@@ -162,7 +248,7 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
     /// <param name="duration">The note duration.</param>
     /// <param name="pitch">The MIDI pitch number.</param>
     private static void AddNoteEvents(List<MidiTrackEvent> events, TimeSpan position, TimeSpan duration, byte pitch,
-        TempoMap tempoMap)
+        TempoMap tempoMap, int channel)
     {
         var startTick = tempoMap.ToMidiTick(position.Ticks);
         var endTick = tempoMap.ToMidiTick((decimal)position.Ticks + duration.Ticks);
@@ -171,8 +257,8 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
             endTick = checked(startTick + 1);
         }
 
-        events.Add(new MidiTrackEvent(startTick, 6, [0x90, pitch, 100]));
-        events.Add(new MidiTrackEvent(endTick, 5, [0x80, pitch, 0]));
+        events.Add(new MidiTrackEvent(startTick, 6, [(byte)(0x90 | channel), pitch, 100]));
+        events.Add(new MidiTrackEvent(endTick, 5, [(byte)(0x80 | channel), pitch, 0]));
     }
 
     /// <summary>Converts a string and fret position into a MIDI pitch.</summary>
@@ -340,18 +426,33 @@ public sealed class StandardMidiFileWriter : IArrangementFormatWriter
     /// <param name="MicrosecondsPerQuarterNote">The quarter-note duration in microseconds.</param>
     private sealed record TempoChange(long Tick, int MicrosecondsPerQuarterNote);
 
-    /// <summary>Writes the MIDI header and the already-sized track header.</summary>
+    /// <summary>Serializes sorted MIDI events to a sized track chunk.</summary>
+    /// <param name="events">The track events in tick order.</param>
+    /// <returns>The encoded track body, including end-of-track.</returns>
+    private static byte[] CreateTrackBytes(IReadOnlyList<MidiTrackEvent> events)
+    {
+        using var trackStream = new MemoryStream();
+        WriteTrack(trackStream, events);
+        return trackStream.ToArray();
+    }
+
+    /// <summary>Writes an SMF header followed by each already-encoded track chunk.</summary>
     /// <param name="destination">The destination stream.</param>
-    /// <param name="trackLength">The encoded track length.</param>
-    private static void WriteHeader(Stream destination, uint trackLength)
+    /// <param name="format">The SMF format number.</param>
+    /// <param name="tracks">The encoded track bodies.</param>
+    private static void WriteFile(Stream destination, ushort format, IReadOnlyList<byte[]> tracks)
     {
         destination.Write("MThd"u8);
         WriteUInt32(destination, 6);
-        WriteUInt16(destination, 0);
-        WriteUInt16(destination, 1);
+        WriteUInt16(destination, format);
+        WriteUInt16(destination, checked((ushort)tracks.Count));
         WriteUInt16(destination, TicksPerQuarterNote);
-        destination.Write("MTrk"u8);
-        WriteUInt32(destination, trackLength);
+        foreach (var track in tracks)
+        {
+            destination.Write("MTrk"u8);
+            WriteUInt32(destination, checked((uint)track.Length));
+            destination.Write(track);
+        }
     }
 
     /// <summary>Writes sorted track events with delta-time variable-length quantities.</summary>

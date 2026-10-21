@@ -48,6 +48,7 @@ psarc2tab --in <input.psarc> --stats
 psarc2tab --in <input.psarc> --stats --arr <number|all>
 psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
 psarc2tab --in <input.psarc> --out <output.tab> --arr all
+psarc2tab --in <input.psarc> --out <song.mid> --format midi --arr all
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
 psarc2tab --in <input.psarc> --out <output.mid> --format midi
 psarc2tab --in <input.psarc> --out <lyrics.lrc> --arr <lyrics-number>
@@ -95,16 +96,23 @@ inference and playback have not yet been compared with Rocksmith, GarageBand,
 or Windows Media Player. Lyrics remain LRC exports. Unknown formats are
 rejected with a list of available formats.
 
-Use `--arr all` to export every instrument arrangement as a separate file;
-Lyrics entries are excluded. The requested output filename is a base name, so
-`mysong.tab` produces files such as `mysong-lead.tab` and `mysong-bass.tab`.
-Repeated arrangements of the same instrument receive numbered suffixes such as
-`mysong-lead-2.tab`. Only the supported, named Lead, Rhythm, and Bass
-arrangements shown by `--list` are included; Lyrics and other unrecognized
-archive entries are not exported. All destination paths are checked before
-export, existing files are never overwritten, and staged files are removed if
-any import or write fails. A successful export prints each destination to
-stdout.
+Use `--arr all` with the default `tab` format to export every instrument
+arrangement as a separate file; Lyrics entries are excluded. The requested
+output filename is a base name, so `mysong.tab` produces files such as
+`mysong-lead.tab` and `mysong-bass.tab`. Repeated arrangements of the same
+instrument receive numbered suffixes such as `mysong-lead-2.tab`. With
+`--format midi`, `--arr all` writes one Standard MIDI type-one file to the
+requested output path. It contains a conductor track with the shared tempo map,
+followed by one named track per arrangement in archive order. Each arrangement
+uses its own melodic MIDI channel so overlapping parts do not share program or
+pitch-bend state; the percussion channel is left unused. Combined export
+requires every arrangement to have identical beat markers, and supports up to
+15 arrangements so each can use an independent melodic channel. Only the
+supported, named Lead, Rhythm, and Bass arrangements shown by `--list` are
+included; Lyrics and other unrecognized archive entries are not exported. All
+destination paths are checked before export, existing files are never
+overwritten, and staged files are removed if any import or write fails. A
+successful export prints each destination to stdout.
 
 ### Exit codes
 
