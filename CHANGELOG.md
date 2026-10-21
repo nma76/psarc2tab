@@ -4,6 +4,14 @@ This changelog records user-facing changes for each repository release.
 Entries are listed from newest to oldest and describe user-facing changes since
 the preceding version tag.
 
+## [Unreleased]
+
+### Changed
+
+- Export all supported instrument arrangements by default; use `--arr <number>`
+  to export only one arrangement.
+- Present MIDI as a supported output format without a preview label.
+
 ## [1.5.0] - 2026-10-21
 
 ### Added
@@ -31,7 +39,6 @@ the preceding version tag.
 - Combined MIDI export requires a shared beat timeline and supports up to 15
   arrangements. Arrangements with different beat timestamps can be exported
   separately.
-- MIDI export remains beta/experimental.
 
 ## [1.3.5] - 2026-10-20
 
@@ -52,7 +59,7 @@ the preceding version tag.
 
 ### Added
 
-- Export arrangements as beta Standard MIDI files with notes, chord tones,
+- Export arrangements as Standard MIDI files with notes, chord tones,
   tuning-based pitches, beat-derived tempo, and song pitch offset.
 - Export all supported instrument arrangements from an archive as separate
   output files with instrument-specific filenames.

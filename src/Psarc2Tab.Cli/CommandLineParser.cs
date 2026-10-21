@@ -55,7 +55,7 @@ public sealed class CommandLineParser
         string? inputPath = null;
         string? outputPath = null;
         int? arrangementNumber = null;
-        var allArrangements = false;
+        var allArrangements = true;
         var arrangementSpecified = false;
         var formatName = "tab";
         var formatSpecified = false;
@@ -132,6 +132,7 @@ public sealed class CommandLineParser
                         }
                         else
                         {
+                            allArrangements = false;
                             arrangementNumber = parsedNumber;
                         }
                     }

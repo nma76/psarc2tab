@@ -64,10 +64,12 @@ only after writing completes. `--list` extracts the archive manifest and
 displays numbered Lead, Bass, and Rhythm arrangements, followed by Lyrics when a
 matching vocal chart is present. It recognizes XML charts under `songs/arr/` and SNG charts
 referenced by arrangement JSON manifests. Use the displayed number with
-`--arr` to select an item; it defaults to the first listed arrangement
-when omitted. Selecting Lyrics writes timestamped plain-text LRC output instead
-of tablature. `--stats` prints archive details and statistics for every
-instrument arrangement without writing a file. Add `--arr <number>` to show
+`--arr` to select an item. By default, conversion exports all supported Lead,
+Bass, and Rhythm arrangements; tab files receive instrument-specific suffixes.
+Use `--arr <number>` to export one item. Selecting a Lyrics number writes
+timestamped plain-text LRC output instead of tablature. `--stats` prints archive
+details and statistics for every instrument arrangement without writing a
+file. Add `--arr <number>` to show
 statistics for one numbered arrangement; selecting the Lyrics number reports
 that instrument statistics do not apply. `--arr all` is equivalent to omitting
 `--arr`. Song title, artist, album, and year are shown once using metadata from
@@ -79,10 +81,10 @@ strings and fret range. Length is the latest imported event end, or onset when
 the source duration is zero. Platform is inferred only when platform-specific
 SNG paths identify PC or Mac. `--format` selects the
 arrangement output format and defaults to
-`tab`; supported arrangement formats are `tab` and `midi`. MIDI export is
-**beta/experimental**. It writes a Standard MIDI File containing the selected
-arrangement's notes and chord tones. It uses 960 ticks per quarter note and
-derives tempo changes from Rocksmith XML `ebeats` or decoded SNG beat times;
+`tab`; supported arrangement formats are `tab` and `midi`. MIDI export writes
+notes and chord tones from the selected arrangement(s) to a Standard MIDI File.
+It uses 960 ticks per quarter note and derives tempo changes from Rocksmith XML
+`ebeats` or decoded SNG beat times;
 when fewer than two beat markers are available, it falls back to 120 BPM and
 converts absolute seconds to ticks.
 A song-level cent offset is sent as channel pitch bend. No time-signature
@@ -97,12 +99,13 @@ inference and playback have not yet been compared with Rocksmith, GarageBand,
 or Windows Media Player. Lyrics remain LRC exports. Unknown formats are
 rejected with a list of available formats.
 
-Use `--arr all` with the default `tab` format to export every instrument
-arrangement as a separate file; Lyrics entries are excluded. The requested
-output filename is a base name, so `mysong.tab` produces files such as
-`mysong-lead.tab` and `mysong-bass.tab`. Repeated arrangements of the same
-instrument receive numbered suffixes such as `mysong-lead-2.tab`. With
-`--format midi`, `--arr all` writes one Standard MIDI type-one file to the
+With the default `tab` format, every instrument arrangement is exported as a
+separate file; Lyrics entries are excluded. The requested output filename is a
+base name, so `mysong.tab` produces files such as `mysong-lead.tab` and
+`mysong-bass.tab`. Repeated arrangements of the same instrument receive
+numbered suffixes such as `mysong-lead-2.tab`. `--arr all` may be supplied
+explicitly for the same behavior. With `--format midi`, the default selection
+writes one Standard MIDI type-one file to the
 requested output path. It contains a conductor track with the shared tempo map,
 followed by one named track per arrangement in archive order. Each arrangement
 uses its own melodic MIDI channel so overlapping parts do not share program or
