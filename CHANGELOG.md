@@ -6,11 +6,16 @@ the preceding version tag.
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-21
+
 ### Changed
 
 - Export all supported instrument arrangements by default; use `--arr <number>`
   to export only one arrangement.
 - Present MIDI as a supported output format without a preview label.
+
+### Fixed
+
 - Select the full Rocksmith difficulty separately for each XML phrase iteration,
   preserving notes and chords across the complete song.
 
