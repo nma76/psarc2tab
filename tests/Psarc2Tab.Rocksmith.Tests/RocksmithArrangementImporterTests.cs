@@ -7,7 +7,7 @@ namespace Psarc2Tab.Rocksmith.Tests;
 /// <summary>Tests conversion from Rocksmith arrangement XML into the domain model.</summary>
 public sealed class RocksmithArrangementImporterTests
 {
-    /// <summary>Imports metadata, notes, techniques, chords, and the highest difficulty.</summary>
+    /// <summary>Imports metadata, notes, techniques, chords, and the selected phrase difficulty.</summary>
     [Fact]
     public void Import_ValidArrangement_MapsDataToDomainModel()
     {
@@ -58,6 +58,41 @@ public sealed class RocksmithArrangementImporterTests
             section => Assert.Equal(new SongSection("intro", 1, TimeSpan.Zero), section),
             section => Assert.Equal(new SongSection("verse", 1, TimeSpan.FromSeconds(14.89)), section),
             section => Assert.Equal(new SongSection("verse", 2, TimeSpan.FromSeconds(24.219)), section));
+    }
+
+    /// <summary>Uses the full difficulty selected for each phrase iteration.</summary>
+    [Fact]
+    public void Import_PhraseIterations_SelectsHighestActiveDifficultyForNotesAndChords()
+    {
+        var xml = CreateXml("Lead", "")
+            .Replace("<chordTemplates />",
+                "<chordTemplates><chordTemplate displayName=\"A\" fret0=\"0\" fret1=\"-1\" fret2=\"-1\" fret3=\"-1\" fret4=\"-1\" fret5=\"-1\" /></chordTemplates>",
+                StringComparison.Ordinal)
+            .Replace("<levels><level difficulty=\"0\"><notes></notes><chords /></level></levels>", """
+                <phrases><phrase maxDifficulty="0" /><phrase maxDifficulty="1" /><phrase maxDifficulty="2" /></phrases>
+                <phraseIterations>
+                  <phraseIteration time="0" phraseId="1"><heroLevels><heroLevel hero="3" difficulty="1" /></heroLevels></phraseIteration>
+                  <phraseIteration time="2" phraseId="2"><heroLevels><heroLevel hero="3" difficulty="2" /></heroLevels></phraseIteration>
+                  <phraseIteration time="4" phraseId="1"><heroLevels><heroLevel hero="3" difficulty="1" /></heroLevels></phraseIteration>
+                </phraseIterations>
+                <levels>
+                  <level difficulty="0"><notes /><chords /></level>
+                  <level difficulty="1">
+                    <notes><note time="1" string="0" fret="1" /><note time="3" string="0" fret="2" /><note time="4" string="0" fret="3" /></notes>
+                    <chords><chord time="1" chordId="0" /><chord time="3" chordId="0" /><chord time="4" chordId="0" /></chords>
+                  </level>
+                  <level difficulty="2">
+                    <notes><note time="2" string="0" fret="4" /><note time="3" string="0" fret="5" /><note time="4" string="0" fret="6" /></notes>
+                    <chords><chord time="2" chordId="0" /><chord time="3" chordId="0" /><chord time="4" chordId="0" /></chords>
+                  </level>
+                </levels>
+                """, StringComparison.Ordinal);
+
+        var track = Assert.Single(Import(xml).Tracks);
+
+        Assert.Equal([1d, 2d, 3d, 4d], track.Notes.Select(note => note.Position.TotalSeconds));
+        Assert.Equal([1d, 2d, 3d, 4d], track.Chords.Select(chord => chord.Position.TotalSeconds));
+        Assert.Equal([1, 4, 5, 3], track.Notes.Select(note => note.FretNumber.Value));
     }
 
     /// <summary>Imports bass tuning using bass-register MIDI pitches and the XML string numbering.</summary>

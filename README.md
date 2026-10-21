@@ -132,8 +132,8 @@ successful export prints each destination to stdout.
 
 ## Known limitations
 
-- XML imports select the highest declared level. SNG imports select the full
-  difficulty independently for each phrase iteration. Both skip notes marked
+- XML and SNG imports select the full difficulty independently for each phrase
+  iteration. Both skip notes marked
   `ignore` and import section headings, but not phrase structure, anchors, or
   hand shapes. Section headings are omitted when no note or chord starts in
   their time interval; names such as `NoGuitar1` alone never suppress content.

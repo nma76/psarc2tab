@@ -99,11 +99,22 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
             throw new InvalidDataException("The arrangement contains no difficulty levels.");
         }
 
-        var selectedLevel = levels
-            .OrderByDescending(level => ParseIntAttribute(level, "difficulty"))
-            .First();
-        var notes = ReadNotes(selectedLevel);
-        var chords = ReadChords(selectedLevel, root, tuning.StringCount);
+        var phraseDifficulties = ReadPhraseDifficulties(root, levels);
+        IReadOnlyList<NoteEvent> notes;
+        IReadOnlyList<ChordEvent> chords;
+        if (phraseDifficulties.Count == 0)
+        {
+            var selectedLevel = levels
+                .OrderByDescending(level => ParseIntAttribute(level, "difficulty"))
+                .First();
+            notes = ReadNotes([selectedLevel], phraseDifficulties);
+            chords = ReadChords([selectedLevel], root, tuning.StringCount, phraseDifficulties);
+        }
+        else
+        {
+            notes = ReadNotes(levels, phraseDifficulties);
+            chords = ReadChords(levels, root, tuning.StringCount, phraseDifficulties);
+        }
         var sections = ReadSections(root);
         var beats = ReadBeats(root);
         var centOffsetCents = root.Element("centOffset") is { } centOffset
@@ -213,86 +224,203 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
         return new GuitarTuning(pitches);
     }
 
-    /// <summary>Reads note events from the selected difficulty level.</summary>
-    /// <param name="level">The selected level element.</param>
-    /// <returns>The non-ignored note events in source order.</returns>
-    private static IReadOnlyList<NoteEvent> ReadNotes(XElement level)
+    /// <summary>Reads notes from the level selected for each phrase iteration.</summary>
+    /// <param name="levels">The available difficulty levels.</param>
+    /// <param name="phraseDifficulties">The expert difficulty active in each phrase interval.</param>
+    /// <returns>The non-ignored note events in timeline order.</returns>
+    private static IReadOnlyList<NoteEvent> ReadNotes(IReadOnlyList<XElement> levels,
+        IReadOnlyList<PhraseDifficulty> phraseDifficulties)
     {
-        var notesElement = level.Element("notes")
-            ?? throw new InvalidDataException("The selected difficulty level has no notes element.");
         var notes = new List<NoteEvent>();
-        foreach (var element in notesElement.Elements("note"))
+        foreach (var level in levels)
         {
-            if (ParseOptionalIntAttribute(element, "ignore", 0) != 0)
+            var difficulty = ParseIntAttribute(level, "difficulty");
+            var notesElement = level.Element("notes")
+                ?? throw new InvalidDataException("A difficulty level has no notes element.");
+            foreach (var element in notesElement.Elements("note"))
             {
-                continue;
-            }
+                if (ParseOptionalIntAttribute(element, "ignore", 0) != 0)
+                {
+                    continue;
+                }
 
-            var sourceString = ParseIntAttribute(element, "string");
-            var fret = ParseIntAttribute(element, "fret");
-            if (sourceString is < 0 or >= 6 || fret < 0)
-            {
-                throw new InvalidDataException("A note has a string or fret value outside the supported range.");
-            }
+                var position = ParseSecondsAttribute(element, "time");
+                if (!IsSelectedDifficulty(difficulty, position, phraseDifficulties))
+                {
+                    continue;
+                }
 
-            var position = ParseSecondsAttribute(element, "time");
-            var duration = element.Attribute("sustain") is null
-                ? TimeSpan.Zero
-                : ParseSecondsAttribute(element, "sustain");
-            notes.Add(new NoteEvent(position, duration, new StringNumber(sourceString + 1), new FretNumber(fret), ReadTechniques(element)));
+                var sourceString = ParseIntAttribute(element, "string");
+                var fret = ParseIntAttribute(element, "fret");
+                if (sourceString is < 0 or >= 6 || fret < 0)
+                {
+                    throw new InvalidDataException("A note has a string or fret value outside the supported range.");
+                }
+
+                var duration = element.Attribute("sustain") is null
+                    ? TimeSpan.Zero
+                    : ParseSecondsAttribute(element, "sustain");
+                notes.Add(new NoteEvent(position, duration, new StringNumber(sourceString + 1), new FretNumber(fret), ReadTechniques(element)));
+            }
         }
 
-        return notes.AsReadOnly();
+        return Array.AsReadOnly(notes.OrderBy(note => note.Position).ToArray());
     }
 
-    /// <summary>Reads chord events using their referenced chord templates.</summary>
-    /// <param name="level">The selected difficulty level.</param>
+    /// <summary>Reads chord events from the level selected for each phrase iteration.</summary>
+    /// <param name="levels">The available difficulty levels.</param>
     /// <param name="root">The song root element containing chord templates.</param>
     /// <param name="stringCount">The number of strings supported by this importer.</param>
-    /// <returns>Chord events in source order.</returns>
-    private static IReadOnlyList<ChordEvent> ReadChords(XElement level, XElement root, int stringCount)
+    /// <param name="phraseDifficulties">The expert difficulty active in each phrase interval.</param>
+    /// <returns>Chord events in timeline order.</returns>
+    private static IReadOnlyList<ChordEvent> ReadChords(IReadOnlyList<XElement> levels, XElement root, int stringCount,
+        IReadOnlyList<PhraseDifficulty> phraseDifficulties)
     {
         var templates = root.Element("chordTemplates")?.Elements("chordTemplate").ToArray()
             ?? [];
-        var chordsElement = level.Element("chords")
-            ?? throw new InvalidDataException("The selected difficulty level has no chords element.");
         var chords = new List<ChordEvent>();
-        foreach (var element in chordsElement.Elements("chord"))
+        foreach (var level in levels)
         {
-            var templateIndex = ParseIntAttribute(element, "chordId");
-            if ((uint)templateIndex >= (uint)templates.Length)
+            var difficulty = ParseIntAttribute(level, "difficulty");
+            var chordsElement = level.Element("chords")
+                ?? throw new InvalidDataException("A difficulty level has no chords element.");
+            foreach (var element in chordsElement.Elements("chord"))
             {
-                throw new InvalidDataException($"A chord references missing template {templateIndex}.");
-            }
-
-            var template = templates[templateIndex];
-            var frettedNotes = new List<FrettedNote>();
-            for (var stringIndex = 0; stringIndex < stringCount; stringIndex++)
-            {
-                var fret = ParseIntAttribute(template, $"fret{stringIndex}");
-                if (fret < -1)
+                var position = ParseSecondsAttribute(element, "time");
+                if (!IsSelectedDifficulty(difficulty, position, phraseDifficulties))
                 {
-                    throw new InvalidDataException($"Chord template {templateIndex} contains invalid fret {fret}.");
+                    continue;
                 }
 
-                if (fret >= 0)
+                var templateIndex = ParseIntAttribute(element, "chordId");
+                if ((uint)templateIndex >= (uint)templates.Length)
                 {
-                    frettedNotes.Add(new FrettedNote(new StringNumber(stringIndex + 1), new FretNumber(fret)));
+                    throw new InvalidDataException($"A chord references missing template {templateIndex}.");
                 }
-            }
 
-            if (frettedNotes.Count == 0)
-            {
-                throw new InvalidDataException($"Chord template {templateIndex} contains no fretted strings.");
-            }
+                var template = templates[templateIndex];
+                var frettedNotes = new List<FrettedNote>();
+                for (var stringIndex = 0; stringIndex < stringCount; stringIndex++)
+                {
+                    var fret = ParseIntAttribute(template, $"fret{stringIndex}");
+                    if (fret < -1)
+                    {
+                        throw new InvalidDataException($"Chord template {templateIndex} contains invalid fret {fret}.");
+                    }
 
-            var label = (string?)template.Attribute("displayName");
-            chords.Add(new ChordEvent(ParseSecondsAttribute(element, "time"), TimeSpan.Zero, frettedNotes,
-                string.IsNullOrWhiteSpace(label) ? null : label));
+                    if (fret >= 0)
+                    {
+                        frettedNotes.Add(new FrettedNote(new StringNumber(stringIndex + 1), new FretNumber(fret)));
+                    }
+                }
+
+                if (frettedNotes.Count == 0)
+                {
+                    throw new InvalidDataException($"Chord template {templateIndex} contains no fretted strings.");
+                }
+
+                var label = (string?)template.Attribute("displayName");
+                chords.Add(new ChordEvent(position, TimeSpan.Zero, frettedNotes,
+                    string.IsNullOrWhiteSpace(label) ? null : label));
+            }
         }
 
-        return chords.AsReadOnly();
+        return Array.AsReadOnly(chords.OrderBy(chord => chord.Position).ToArray());
     }
+
+    /// <summary>Reads the highest active difficulty for each Rocksmith phrase iteration.</summary>
+    /// <param name="root">The song root element.</param>
+    /// <param name="levels">The arrangement's available levels.</param>
+    /// <returns>Phrase intervals and their selected expert difficulty, or an empty list when metadata is absent.</returns>
+    /// <exception cref="InvalidDataException">Phrase iteration metadata is incomplete or inconsistent.</exception>
+    private static IReadOnlyList<PhraseDifficulty> ReadPhraseDifficulties(XElement root,
+        IReadOnlyList<XElement> levels)
+    {
+        var phrases = root.Element("phrases")?.Elements("phrase").ToArray() ?? [];
+        var iterations = root.Element("phraseIterations")?.Elements("phraseIteration").ToArray() ?? [];
+        if (phrases.Length == 0 && iterations.Length == 0)
+        {
+            return Array.Empty<PhraseDifficulty>();
+        }
+
+        if (phrases.Length == 0 || iterations.Length == 0)
+        {
+            throw new InvalidDataException("Phrase difficulty metadata requires both phrases and phraseIterations.");
+        }
+
+        var availableDifficulties = levels.Select(level => ParseIntAttribute(level, "difficulty")).ToHashSet();
+        var selected = new List<PhraseDifficulty>(iterations.Length);
+        for (var index = 0; index < iterations.Length; index++)
+        {
+            var iteration = iterations[index];
+            var phraseId = ParseIntAttribute(iteration, "phraseId");
+            if ((uint)phraseId >= (uint)phrases.Length)
+            {
+                throw new InvalidDataException($"A phrase iteration references missing phrase {phraseId}.");
+            }
+
+            var start = ParseSecondsAttribute(iteration, "time");
+            var end = index + 1 < iterations.Length
+                ? ParseSecondsAttribute(iterations[index + 1], "time")
+                : TimeSpan.MaxValue;
+            if (end <= start)
+            {
+                throw new InvalidDataException("Phrase iteration times must be strictly increasing.");
+            }
+
+            var difficulty = ParseIntAttribute(phrases[phraseId], "maxDifficulty");
+            var expertLevels = iteration.Element("heroLevels")?.Elements("heroLevel")
+                .Where(heroLevel => ParseIntAttribute(heroLevel, "hero") == 3).ToArray() ?? [];
+            if (expertLevels.Length > 1)
+            {
+                throw new InvalidDataException("A phrase iteration contains duplicate full-difficulty levels.");
+            }
+
+            if (expertLevels.Length == 1)
+            {
+                difficulty = ParseIntAttribute(expertLevels[0], "difficulty");
+            }
+
+            if (difficulty < 0 || !availableDifficulties.Contains(difficulty))
+            {
+                throw new InvalidDataException($"Phrase iteration difficulty {difficulty} is not available in the arrangement.");
+            }
+
+            selected.Add(new PhraseDifficulty(start, end, difficulty));
+        }
+
+        return Array.AsReadOnly(selected.ToArray());
+    }
+
+    /// <summary>Determines whether an event belongs to the selected level at its timestamp.</summary>
+    /// <param name="levelDifficulty">The event's source level.</param>
+    /// <param name="position">The event timestamp.</param>
+    /// <param name="phraseDifficulties">The phrase difficulty map, if provided.</param>
+    /// <returns><see langword="true"/> when this event is part of the exported full-difficulty chart.</returns>
+    private static bool IsSelectedDifficulty(int levelDifficulty, TimeSpan position,
+        IReadOnlyList<PhraseDifficulty> phraseDifficulties)
+    {
+        if (phraseDifficulties.Count == 0)
+        {
+            return true;
+        }
+
+        foreach (var phraseDifficulty in phraseDifficulties)
+        {
+            if (position >= phraseDifficulty.Start && position < phraseDifficulty.End)
+            {
+                return levelDifficulty == phraseDifficulty.Difficulty;
+            }
+        }
+
+        return position < phraseDifficulties[0].Start && levelDifficulty == phraseDifficulties[0].Difficulty;
+    }
+
+    /// <summary>Maps one phrase iteration to its active difficulty interval.</summary>
+    /// <param name="Start">The inclusive interval start.</param>
+    /// <param name="End">The exclusive interval end.</param>
+    /// <param name="Difficulty">The selected level's difficulty value.</param>
+    private readonly record struct PhraseDifficulty(TimeSpan Start, TimeSpan End, int Difficulty);
 
     /// <summary>Maps supported XML note technique fields to domain flags.</summary>
     /// <param name="note">The note element.</param>
