@@ -18,6 +18,7 @@ public sealed class CommandLineParserTests
         Assert.Equal("song.psarc", result.InputPath);
         Assert.Equal("song.tab", result.OutputPath);
         Assert.Equal("tab", result.FormatName);
+        Assert.True(result.AllArrangements);
     }
 
     /// <summary>Parses a named output format for an arrangement.</summary>
@@ -91,6 +92,7 @@ public sealed class CommandLineParserTests
 
         Assert.Equal(CommandKind.Convert, result.Kind);
         Assert.Equal(2, result.ArrangementNumber);
+        Assert.False(result.AllArrangements);
     }
 
     /// <summary>Parses the all-arrangements selection.</summary>

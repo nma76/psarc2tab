@@ -24,7 +24,9 @@ public sealed class CliApplicationTests
         Assert.Contains("--list", output.StandardOutput);
         Assert.Contains("--arr <n|all>", output.StandardOutput);
         Assert.Contains("--arr all", output.StandardOutput);
+        Assert.Contains("default: all", output.StandardOutput);
         Assert.Contains("--format <name>", output.StandardOutput);
+        Assert.DoesNotContain("beta/experimental", output.StandardOutput);
         Assert.DoesNotContain("--arrangement <", output.StandardOutput);
         Assert.DoesNotContain("\n  -in ", output.StandardOutput);
         Assert.DoesNotContain("\n  -out ", output.StandardOutput);
@@ -200,7 +202,7 @@ public sealed class CliApplicationTests
         File.WriteAllText(inputPath, "input");
         File.WriteAllText(outputPath, "keep me");
 
-        var output = Run("--in", inputPath, "--out", outputPath);
+        var output = Run("--in", inputPath, "--out", outputPath, "--arr", "1");
 
         Assert.Equal(CliApplication.OutputErrorExitCode, output.ExitCode);
         Assert.Equal("keep me", File.ReadAllText(outputPath));
@@ -214,7 +216,7 @@ public sealed class CliApplicationTests
         var inputPath = Path.Combine(directory.Path, "song.psarc");
         File.WriteAllText(inputPath, "input");
 
-        var output = Run("--in", inputPath, "--out", directory.Path);
+        var output = Run("--in", inputPath, "--out", directory.Path, "--arr", "1");
 
         Assert.Equal(CliApplication.OutputErrorExitCode, output.ExitCode);
         Assert.Contains("destination path is a directory", output.StandardError);
@@ -225,13 +227,15 @@ public sealed class CliApplicationTests
     public void Run_OutputDirectoryMissing_ReturnsOutputError()
     {
         using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml));
         var outputPath = Path.Combine(directory.Path, "missing", "song.tab");
 
-        var output = Run("--in", Path.Combine(directory.Path, "song.psarc"), "--out", outputPath);
+        var output = Run("--in", inputPath, "--out", outputPath);
 
         Assert.Equal(CliApplication.OutputErrorExitCode, output.ExitCode);
         Assert.Contains("destination directory does not exist", output.StandardError);
-        Assert.Empty(Directory.GetFiles(directory.Path));
+        Assert.Empty(Directory.GetFiles(directory.Path, "*.tab"));
     }
 
     /// <summary>Imports and writes a selected arrangement from a PSARC archive.</summary>
@@ -269,7 +273,7 @@ public sealed class CliApplicationTests
 
     /// <summary>Exports all instrument arrangements and excludes the lyrics listing item.</summary>
     [Fact]
-    public void Run_AllArrangements_WritesOneSuffixedFilePerInstrument()
+    public void Run_DefaultArrangementSelection_WritesOneSuffixedFilePerInstrument()
     {
         using var directory = new TemporaryDirectory();
         var inputPath = Path.Combine(directory.Path, "song.psarc");
@@ -280,7 +284,7 @@ public sealed class CliApplicationTests
             ("songs/arr/sample_rhythm.xml", RhythmArrangementXml),
             ("songs/arr/sample_vocals.xml", "<vocals><vocal time=\"1\" note=\"60\" length=\"1\" lyric=\"Hi\" /></vocals>")));
 
-        var output = Run("--in", inputPath, "--out", outputPath, "--arr", "all");
+        var output = Run("--in", inputPath, "--out", outputPath);
 
         Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
         Assert.Empty(output.StandardError);
@@ -499,7 +503,7 @@ public sealed class CliApplicationTests
         var output = Run("--in", inputPath, "--out", outputPath);
 
         Assert.Equal(CliApplication.InputErrorExitCode, output.ExitCode);
-        Assert.Contains("import arrangement from", output.StandardError);
+        Assert.Contains("import arrangements from", output.StandardError);
         Assert.False(File.Exists(outputPath));
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }

@@ -753,8 +753,8 @@ public sealed class CliApplication
           --out <path>       Output file (must not already exist)
           --list             List numbered arrangements and lyrics in the archive
           --stats            Show archive and arrangement statistics without writing files
-          --arr <n|all>      Select one item, or export every instrument arrangement (default: 1)
-          --format <name>    Output format: tab or midi (beta/experimental; default: tab)
+          --arr <n|all>      Select one item or all instrument arrangements (default: all)
+          --format <name>    Output format: tab or midi (default: tab)
           --help             Show this help
           --version          Show version information
 
