@@ -261,6 +261,12 @@ planned projects at once.
 - When the user explicitly requests a change directly on `develop`, make the
   change and commit it there once it meets the same completion and verification
   criteria.
+- Before creating a new version tag in Git, update `CHANGELOG.md` with the
+  user-facing changes since the previous version tag. Add a section for the new
+  version, include its release date, and make sure the changelog update is
+  committed before creating the tag so the tag contains the release notes. Do
+  not move or recreate an existing tag to add changelog content; if a release
+  tag already exists, record the correction in a follow-up commit.
 
 ## TODO workflow
 
