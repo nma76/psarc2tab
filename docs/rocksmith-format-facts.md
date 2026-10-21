@@ -59,9 +59,11 @@ do not establish support for every Rocksmith release or archive.
   nonnegative template frets into chord notes. XML chord events provide a start
   time but no duration, so imported chord durations are zero rather than
   inferred.
-- The importer selects the highest difficulty level and skips notes marked
-  `ignore`. These are explicit conversion policies, not claims about every
-  Rocksmith consumer's presentation of levels or ignored events.
+- Phrase iterations can select different full-difficulty levels within one
+  arrangement. The importer uses each iteration's hero-3 difficulty, falling
+  back to the phrase's `maxDifficulty`, and skips notes marked `ignore`. These
+  are explicit conversion policies, not claims about every Rocksmith consumer's
+  presentation of levels or ignored events.
 - Vocal arrangement XML uses a `vocals` root; show-light data uses a
   `showlights` root.
 - The bass, lead, rhythm, and show-light XML payloads are byte-identical between
