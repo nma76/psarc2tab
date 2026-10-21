@@ -118,17 +118,50 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
     /// <returns>Beat markers in source order.</returns>
     private static IReadOnlyList<BeatMarker> ReadBeats(XElement root)
     {
-        var container = root.Element("beats");
-        if (container is null)
+        var explicitBeats = root.Element("beats")?.Elements("beat").ToArray();
+        if (explicitBeats is { Length: > 0 })
+        {
+            return explicitBeats.Select(element => new BeatMarker(ParseSecondsAttribute(element, "time"),
+                ParseIntAttribute(element, "measure"), ParseIntAttribute(element, "beat"))).ToArray();
+        }
+
+        var ebeatElements = root.Element("ebeats")?.Elements("ebeat").ToArray();
+        if (ebeatElements is null or { Length: 0 })
         {
             return Array.Empty<BeatMarker>();
         }
 
-        var beats = new List<BeatMarker>();
-        foreach (var element in container.Elements("beat"))
+        return ReadRocksmithEbeats(ebeatElements);
+    }
+
+    /// <summary>Reads Rocksmith XML beat times and reconstructs coordinates from measure markers.</summary>
+    /// <param name="elements">The Rocksmith <c>ebeat</c> elements in source order.</param>
+    /// <returns>Beat markers using source measure values and zero-based beat positions within each measure.</returns>
+    /// <exception cref="InvalidDataException">An ebeat measure value is less than the documented -1 sentinel.</exception>
+    private static IReadOnlyList<BeatMarker> ReadRocksmithEbeats(IReadOnlyList<XElement> elements)
+    {
+        var beats = new List<BeatMarker>(elements.Count);
+        var measure = 0;
+        var beat = 0;
+        foreach (var element in elements)
         {
-            beats.Add(new BeatMarker(ParseSecondsAttribute(element, "time"),
-                ParseIntAttribute(element, "measure"), ParseIntAttribute(element, "beat")));
+            var sourceMeasure = ParseOptionalIntAttribute(element, "measure", -1);
+            if (sourceMeasure < -1)
+            {
+                throw new InvalidDataException("An XML ebeat measure must be -1 or a nonnegative measure number.");
+            }
+
+            if (sourceMeasure >= 0)
+            {
+                measure = sourceMeasure;
+                beat = 0;
+            }
+            else
+            {
+                beat = checked(beat + 1);
+            }
+
+            beats.Add(new BeatMarker(ParseSecondsAttribute(element, "time"), measure, beat));
         }
 
         return beats.AsReadOnly();

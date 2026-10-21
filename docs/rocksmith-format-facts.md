@@ -26,10 +26,30 @@ do not establish support for every Rocksmith release or archive.
   `sustain`; the importer treats an omitted value as zero explicit duration,
   matching the existing implicit-duration handling for notes without a
   positive duration.
-- Arrangement XML beat entries include `time`, `measure`, and `beat`. SNG
-  beat entries are fixed 16-byte records with the same time and measure
-  coordinates plus phrase-iteration and mask fields. The importer retains the
-  timestamps and measure coordinates for MIDI tempo-map generation.
+- Arrangement XML tempo grids are stored in `<ebeats count="…">` as ordered
+  `<ebeat time="…" measure="…" />` elements. Times are seconds; a nonnegative
+  `measure` marks a measure start, while `measure="-1"` or an omitted measure
+  continues the current measure. XML does not store a separate beat number, so
+  the importer reconstructs it from those markers. The importer also accepts
+  the explicit `<beats><beat time="…" measure="…" beat="…" /></beats>` form.
+- SNG beat entries are fixed 16-byte records containing a float time in
+  seconds, measure and beat coordinates, and phrase-iteration/mask fields. The
+  importer retains their timestamps and coordinates. MIDI tempo is derived
+  from the intervals between neighboring beat timestamps; when fewer than two
+  markers are available, the exporter uses its documented 120 BPM fallback.
+  The inspected SNG samples (`americanidiot_p`, `garbithink_p`,
+  `kissheavens_p`, and `monkeywrench_p`) all expose beat records.
+- The inspected XML samples (`Hard-to-Handle`, `REM_Love-Is-All-Around`,
+  `REM_Man-on-the-Moon`, and `REM_Sidewinder-Sleeps-Tonite`) use `<ebeats>`;
+  they show both `measure="-1"` and omitted `measure` attributes for beats
+  inside a measure. They also show that intervals can vary, so tempo must be
+  calculated from each neighboring timestamp rather than from a single
+  song-level BPM value.
+- Some SNG archives have different beat timestamps between arrangements. Each
+  arrangement can be exported separately, but a combined MIDI file has one
+  global tempo track and therefore requires all included arrangements to have
+  the same beat timestamps. Different measure/beat coordinates alone do not
+  prevent a combined export.
 - Instrument note `string` values use zero-based indices in the XML. The
   importer maps them to the Domain model's one-based string numbers.
 - Arrangement tuning contains six `string0` through `string5` semitone offsets.

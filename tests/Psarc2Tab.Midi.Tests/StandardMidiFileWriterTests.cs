@@ -227,6 +227,24 @@ public sealed class StandardMidiFileWriterTests
         Assert.Throws<InvalidDataException>(() => WriteMultiple([first, second]));
     }
 
+    /// <summary>Allows different measure coordinates when arrangements share beat timestamps.</summary>
+    [Fact]
+    public void WriteMultiple_SameBeatTimesWithDifferentCoordinates_WritesCombinedFile()
+    {
+        var first = CreateSong("Lead", 0,
+        [
+            new BeatMarker(TimeSpan.Zero, 1, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 1, 1)
+        ]);
+        var second = CreateSong("Bass", 2,
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 2)
+        ]);
+
+        Assert.Equal((ushort)3, BinaryPrimitives.ReadUInt16BigEndian(WriteMultiple([first, second]).AsSpan(10, 2)));
+    }
+
     /// <summary>Rejects empty and over-capacity combined exports.</summary>
     [Fact]
     public void WriteMultiple_InvalidArrangementCount_ThrowsInvalidDataException()

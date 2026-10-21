@@ -342,7 +342,7 @@ public sealed class CliApplicationTests
         var output = Run("--in", inputPath, "--out", outputPath, "--format", "midi", "--arr", "all");
 
         Assert.Equal(CliApplication.ConversionErrorExitCode, output.ExitCode);
-        Assert.Contains("requires identical beat markers", output.StandardError);
+        Assert.Contains("requires identical beat times", output.StandardError);
         Assert.False(File.Exists(outputPath));
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
