@@ -117,6 +117,34 @@ public sealed class RocksmithArrangementImporterTests
             beat => Assert.Equal(new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1), beat));
     }
 
+    /// <summary>Imports Rocksmith ebeat records with both omitted and negative measure sentinels.</summary>
+    [Fact]
+    public void Import_Ebeats_ReconstructsBeatPositionsFromMeasureMarkers()
+    {
+        var xml = CreateXml("Lead", "").Replace("<levels>",
+            "<ebeats count=\"5\"><ebeat time=\"0\" measure=\"1\" /><ebeat time=\"0.488\" /><ebeat time=\"0.976\" measure=\"-1\" /><ebeat time=\"1.463\" measure=\"-1\" /><ebeat time=\"1.951\" measure=\"2\" /></ebeats><levels>",
+            StringComparison.Ordinal);
+
+        var song = Import(xml);
+
+        Assert.Collection(song.Beats,
+            beat => Assert.Equal(new BeatMarker(TimeSpan.Zero, 1, 0), beat),
+            beat => Assert.Equal(new BeatMarker(TimeSpan.FromSeconds(0.488), 1, 1), beat),
+            beat => Assert.Equal(new BeatMarker(TimeSpan.FromSeconds(0.976), 1, 2), beat),
+            beat => Assert.Equal(new BeatMarker(TimeSpan.FromSeconds(1.463), 1, 3), beat),
+            beat => Assert.Equal(new BeatMarker(TimeSpan.FromSeconds(1.951), 2, 0), beat));
+    }
+
+    /// <summary>Rejects unsupported negative measure values in Rocksmith ebeat records.</summary>
+    [Fact]
+    public void Import_EbeatInvalidMeasure_ThrowsInvalidDataException()
+    {
+        var xml = CreateXml("Lead", "").Replace("<levels>",
+            "<ebeats><ebeat time=\"0\" measure=\"-2\" /></ebeats><levels>", StringComparison.Ordinal);
+
+        Assert.Throws<InvalidDataException>(() => Import(xml));
+    }
+
     /// <summary>Imports positive and negative cent offsets from arrangement XML.</summary>
     /// <param name="centOffset">The XML cent offset.</param>
     [Theory]

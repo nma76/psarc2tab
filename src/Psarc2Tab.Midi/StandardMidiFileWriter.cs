@@ -82,7 +82,7 @@ public sealed class StandardMidiFileWriter : IMultiTrackArrangementFormatWriter
         var referenceBeats = songs[0].Beats;
         if (songs.Skip(1).Any(song => !HaveSameBeatTimeline(referenceBeats, song.Beats)))
         {
-            throw new InvalidDataException("Combined MIDI export requires identical beat markers for every arrangement so all tracks share one timeline.");
+            throw new InvalidDataException("Combined MIDI export requires identical beat times for every arrangement so all tracks share one timeline.");
         }
 
         var trackBytes = new List<byte[]>(songs.Count + 1)
@@ -197,14 +197,12 @@ public sealed class StandardMidiFileWriter : IMultiTrackArrangementFormatWriter
         return Array.AsReadOnly(events.OrderBy(item => item.Tick).ThenBy(item => item.Priority).ToArray());
     }
 
-    /// <summary>Checks that two arrangements preserve the same beat times and source coordinates.</summary>
+    /// <summary>Checks that two arrangements use the same beat timestamps.</summary>
     /// <param name="left">The reference timeline.</param>
     /// <param name="right">The timeline being compared.</param>
-    /// <returns><see langword="true"/> when both timelines match exactly.</returns>
+    /// <returns><see langword="true"/> when both timestamp sequences match exactly.</returns>
     private static bool HaveSameBeatTimeline(IReadOnlyList<BeatMarker> left, IReadOnlyList<BeatMarker> right) =>
-        left.Count == right.Count && left.Zip(right).All(pair =>
-            pair.First.Time == pair.Second.Time && pair.First.Measure == pair.Second.Measure &&
-            pair.First.Beat == pair.Second.Beat);
+        left.Count == right.Count && left.Zip(right).All(pair => pair.First.Time == pair.Second.Time);
 
     /// <summary>Assigns a distinct melodic channel while skipping General MIDI's percussion channel.</summary>
     /// <param name="arrangementIndex">The zero-based arrangement position.</param>

@@ -82,8 +82,9 @@ arrangement output format and defaults to
 `tab`; supported arrangement formats are `tab` and `midi`. MIDI export is
 **beta/experimental**. It writes a Standard MIDI File containing the selected
 arrangement's notes and chord tones. It uses 960 ticks per quarter note and
-derives tempo changes from source beat times; when fewer than two beat markers
-are available, it falls back to 120 BPM and converts absolute seconds to ticks.
+derives tempo changes from Rocksmith XML `ebeats` or decoded SNG beat times;
+when fewer than two beat markers are available, it falls back to 120 BPM and
+converts absolute seconds to ticks.
 A song-level cent offset is sent as channel pitch bend. No time-signature
 metadata is emitted because the current domain model does not contain it. Lead
 and Rhythm use the General MIDI clean electric guitar program; Bass uses
@@ -106,8 +107,9 @@ requested output path. It contains a conductor track with the shared tempo map,
 followed by one named track per arrangement in archive order. Each arrangement
 uses its own melodic MIDI channel so overlapping parts do not share program or
 pitch-bend state; the percussion channel is left unused. Combined export
-requires every arrangement to have identical beat markers, and supports up to
-15 arrangements so each can use an independent melodic channel. Only the
+requires every arrangement to have identical beat timestamps, and supports up
+to 15 arrangements so each can use an independent melodic channel. Arrangements
+with different beat timestamps can be exported separately. Only the
 supported, named Lead, Rhythm, and Bass arrangements shown by `--list` are
 included; Lyrics and other unrecognized archive entries are not exported. All
 destination paths are checked before export, existing files are never
