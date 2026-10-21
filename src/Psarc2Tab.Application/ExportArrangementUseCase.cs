@@ -32,6 +32,12 @@ public sealed class ExportArrangementUseCase
     /// <returns><see langword="true"/> when the format has a writer.</returns>
     public bool SupportsFormat(string formatName) => _formatRegistry.TryGetWriter(formatName, out _);
 
+    /// <summary>Checks whether a format can combine several arrangements in one file.</summary>
+    /// <param name="formatName">The requested format name.</param>
+    /// <returns><see langword="true"/> when a combined writer is registered.</returns>
+    public bool SupportsMultiTrackFormat(string formatName) =>
+        _formatRegistry.TryGetMultiTrackWriter(formatName, out _);
+
     /// <summary>Imports one archive arrangement and writes it in the requested format.</summary>
     /// <param name="archive">The readable, seekable PSARC archive stream.</param>
     /// <param name="arrangementNumber">The one-based number from the archive listing.</param>
@@ -94,5 +100,29 @@ public sealed class ExportArrangementUseCase
         }
 
         writer.Write(song, song.Tracks[0], destination);
+    }
+
+    /// <summary>Writes multiple imported arrangements into one combined format file.</summary>
+    /// <param name="songs">The arrangements in output order.</param>
+    /// <param name="formatName">The registered combined output format.</param>
+    /// <param name="destination">The destination stream.</param>
+    /// <exception cref="ArgumentException">An arrangement has more than one track or the format cannot combine tracks.</exception>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    public void WriteMultiple(IReadOnlyList<Song> songs, string formatName, Stream destination)
+    {
+        ArgumentNullException.ThrowIfNull(songs);
+        ArgumentNullException.ThrowIfNull(formatName);
+        ArgumentNullException.ThrowIfNull(destination);
+        if (songs.Count == 0 || songs.Any(song => song is null || song.Tracks.Count != 1))
+        {
+            throw new ArgumentException("Combined export requires one or more single-track arrangements.", nameof(songs));
+        }
+
+        if (!_formatRegistry.TryGetMultiTrackWriter(formatName, out var writer) || writer is null)
+        {
+            throw new ArgumentException($"The '{formatName}' output format does not support combined arrangements.", nameof(formatName));
+        }
+
+        writer.WriteMultiple(songs, destination);
     }
 }

@@ -172,6 +172,71 @@ public sealed class StandardMidiFileWriterTests
         Assert.DoesNotContain(events, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x80, 40, 0 }));
     }
 
+    /// <summary>Writes a type-one file with a tempo track and isolated arrangement channels in input order.</summary>
+    [Fact]
+    public void WriteMultiple_Arrangements_WritesTempoTrackAndOrderedTracksOnSeparateChannels()
+    {
+        var beats = new[]
+        {
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1),
+            new BeatMarker(TimeSpan.FromSeconds(1.5), 0, 2)
+        };
+        var songs = new[]
+        {
+            CreateSong("Rhythm", 0, beats),
+            CreateSong("Lead", 2, beats),
+            CreateSong("Bass", 4, beats)
+        };
+
+        var bytes = WriteMultiple(songs);
+        var tracks = ReadTracks(bytes);
+
+        Assert.Equal((ushort)1, BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(8, 2)));
+        Assert.Equal((ushort)4, BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(10, 2)));
+        Assert.Equal("psarc2tab tempo map", GetTrackName(tracks[0]));
+        Assert.Equal(["psarc2tab Rhythm", "psarc2tab Lead", "psarc2tab Bass"],
+            tracks.Skip(1).Select(GetTrackName));
+        var tempoEvents = tracks.SelectMany(ReadTrackEvents)
+            .Where(item => item.Data.Length >= 2 && item.Data[0] == 0xFF && item.Data[1] == 0x51)
+            .ToArray();
+        Assert.Equal(2, tempoEvents.Length);
+        Assert.DoesNotContain(tracks.Skip(1).SelectMany(ReadTrackEvents),
+            item => item.Data.Length >= 2 && item.Data[0] == 0xFF && item.Data[1] == 0x51);
+        Assert.Contains(ReadTrackEvents(tracks[1]), item => item.Data.SequenceEqual(new byte[] { 0x90, 40, 100 }));
+        Assert.Contains(ReadTrackEvents(tracks[2]), item => item.Data.SequenceEqual(new byte[] { 0x91, 42, 100 }));
+        Assert.Contains(ReadTrackEvents(tracks[3]), item => item.Data.SequenceEqual(new byte[] { 0x92, 44, 100 }));
+        Assert.Contains(ReadTrackEvents(tracks[3]), item => item.Data.SequenceEqual(new byte[] { 0xC2, 33 }));
+    }
+
+    /// <summary>Rejects combined exports whose beat markers would give tracks different timelines.</summary>
+    [Fact]
+    public void WriteMultiple_DifferentBeatTimelines_ThrowsInvalidDataException()
+    {
+        var first = CreateSong("Lead", 0,
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1)
+        ]);
+        var second = CreateSong("Bass", 2,
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.6), 0, 1)
+        ]);
+
+        Assert.Throws<InvalidDataException>(() => WriteMultiple([first, second]));
+    }
+
+    /// <summary>Rejects empty and over-capacity combined exports.</summary>
+    [Fact]
+    public void WriteMultiple_InvalidArrangementCount_ThrowsInvalidDataException()
+    {
+        Assert.Throws<ArgumentException>(() => WriteMultiple([]));
+        var song = CreateSong("Lead", 0, []);
+
+        Assert.Throws<InvalidDataException>(() => WriteMultiple(Enumerable.Repeat(song, 16).ToArray()));
+    }
+
     /// <summary>Creates a standard guitar-tuned arrangement for focused writer tests.</summary>
     /// <param name="name">The arrangement name.</param>
     /// <param name="notes">Individual notes to include.</param>
@@ -189,6 +254,98 @@ public sealed class StandardMidiFileWriterTests
         using var output = new MemoryStream();
         new StandardMidiFileWriter().Write(song, track, output);
         return output.ToArray();
+    }
+
+    /// <summary>Serializes multiple arrangements into an in-memory MIDI file.</summary>
+    /// <param name="songs">Arrangements in desired track order.</param>
+    /// <returns>The encoded type-one MIDI file.</returns>
+    private static byte[] WriteMultiple(IReadOnlyList<Song> songs)
+    {
+        using var output = new MemoryStream();
+        new StandardMidiFileWriter().WriteMultiple(songs, output);
+        return output.ToArray();
+    }
+
+    /// <summary>Creates one song with a single note and the supplied beat timeline.</summary>
+    /// <param name="name">The arrangement name.</param>
+    /// <param name="fret">The note fret.</param>
+    /// <param name="beats">The shared beat markers.</param>
+    /// <returns>A single-track song fixture.</returns>
+    private static Song CreateSong(string name, int fret, IEnumerable<BeatMarker> beats)
+    {
+        var track = CreateTrack(name,
+            [new NoteEvent(TimeSpan.Zero, TimeSpan.FromSeconds(0.25), new StringNumber(1), new FretNumber(fret))]);
+        return new Song("Song", "Artist", [track], beats: beats);
+    }
+
+    /// <summary>Reads the format-one track chunks from a Standard MIDI File.</summary>
+    /// <param name="file">The encoded MIDI file.</param>
+    /// <returns>Track bodies in file order.</returns>
+    private static IReadOnlyList<byte[]> ReadTracks(byte[] file)
+    {
+        var trackCount = BinaryPrimitives.ReadUInt16BigEndian(file.AsSpan(10, 2));
+        var position = 14;
+        var tracks = new List<byte[]>(trackCount);
+        for (var index = 0; index < trackCount; index++)
+        {
+            Assert.Equal("MTrk", System.Text.Encoding.ASCII.GetString(file, position, 4));
+            var length = checked((int)BinaryPrimitives.ReadUInt32BigEndian(file.AsSpan(position + 4, 4)));
+            position += 8;
+            tracks.Add(file.AsSpan(position, length).ToArray());
+            position += length;
+        }
+
+        Assert.Equal(file.Length, position);
+        return tracks;
+    }
+
+    /// <summary>Reads the initial track-name text meta event.</summary>
+    /// <param name="track">The encoded MIDI track body.</param>
+    /// <returns>The UTF-8 track name.</returns>
+    private static string GetTrackName(byte[] track)
+    {
+        Assert.Equal(0, track[0]);
+        Assert.Equal(0xFF, track[1]);
+        Assert.Equal(0x03, track[2]);
+        var nameLength = track[3] & 0x7F;
+        return System.Text.Encoding.UTF8.GetString(track, 4, nameLength);
+    }
+
+    /// <summary>Reads all event payloads and absolute ticks from a MIDI track body.</summary>
+    /// <param name="track">The encoded MIDI track body.</param>
+    /// <returns>Parsed absolute ticks and event payloads.</returns>
+    private static IReadOnlyList<ParsedEvent> ReadTrackEvents(byte[] track)
+    {
+        var position = 0;
+        long tick = 0;
+        var events = new List<ParsedEvent>();
+        while (position < track.Length)
+        {
+            tick += ReadVariableLengthQuantity(track, ref position);
+            var status = track[position++];
+            if (status == 0xFF)
+            {
+                var type = track[position++];
+                var size = ReadVariableLengthQuantity(track, ref position);
+                var data = new byte[size + 2];
+                data[0] = status;
+                data[1] = type;
+                track.AsSpan(position, size).CopyTo(data.AsSpan(2));
+                position += size;
+                events.Add(new ParsedEvent(tick, data));
+            }
+            else
+            {
+                var size = (status & 0xF0) == 0xC0 || (status & 0xF0) == 0xD0 ? 1 : 2;
+                var data = new byte[size + 1];
+                data[0] = status;
+                track.AsSpan(position, size).CopyTo(data.AsSpan(1));
+                position += size;
+                events.Add(new ParsedEvent(tick, data));
+            }
+        }
+
+        return events;
     }
 
     /// <summary>Reads MIDI track events used by the assertions in this test class.</summary>

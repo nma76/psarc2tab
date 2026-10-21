@@ -382,7 +382,9 @@ public sealed class CliApplication
         string[] outputPaths;
         try
         {
-            outputPaths = CreateArrangementOutputPaths(command.OutputPath!, arrangements);
+            outputPaths = _exportArrangement.SupportsMultiTrackFormat(command.FormatName)
+                ? [Path.GetFullPath(command.OutputPath!)]
+                : CreateArrangementOutputPaths(command.OutputPath!, arrangements);
             ValidateOutputSet(outputPaths);
         }
         catch (InvalidDataException exception)
@@ -404,7 +406,10 @@ public sealed class CliApplication
             {
                 input.Position = 0;
                 var song = _exportArrangement.Import(input, arrangements[index].Number);
-                exports.Add((song, outputPaths[index]));
+                var outputPath = outputPaths.Length == 1
+                    ? outputPaths[0]
+                    : outputPaths[index];
+                exports.Add((song, outputPath));
             }
         }
         catch (ArrangementNotFoundException exception)
@@ -426,14 +431,22 @@ public sealed class CliApplication
         try
         {
             WriteOutputSetSafely(exports, command.FormatName);
-            foreach (var export in exports)
+            var writtenPaths = _exportArrangement.SupportsMultiTrackFormat(command.FormatName)
+                ? [exports[0].OutputPath]
+                : exports.Select(export => export.OutputPath).ToArray();
+            foreach (var outputPath in writtenPaths)
             {
-                standardOutput.WriteLine($"Wrote {command.FormatName} export to '{export.OutputPath}'.");
+                standardOutput.WriteLine($"Wrote {command.FormatName} export to '{outputPath}'.");
             }
 
             return SuccessExitCode;
         }
         catch (InvalidOperationException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export all arrangements: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (InvalidDataException exception)
         {
             standardError.WriteLine($"Error: Cannot export all arrangements: {exception.Message}");
             return ConversionErrorExitCode;
@@ -513,16 +526,31 @@ public sealed class CliApplication
         var committedPaths = new List<string>();
         try
         {
-            foreach (var export in exports)
+            if (_exportArrangement.SupportsMultiTrackFormat(formatName))
             {
+                var export = exports[0];
                 var outputPath = Path.GetFullPath(export.OutputPath);
                 var directory = Path.GetDirectoryName(outputPath)
                     ?? throw new DirectoryNotFoundException("The output directory does not exist.");
                 var temporaryPath = Path.Combine(directory, $".psarc2tab-{Guid.NewGuid():N}.tmp");
                 using var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 stagedFiles.Add((temporaryPath, outputPath));
-                _exportArrangement.Write(export.Song, formatName, stream);
+                _exportArrangement.WriteMultiple(exports.Select(item => item.Song).ToArray(), formatName, stream);
                 stream.Flush(flushToDisk: true);
+            }
+            else
+            {
+                foreach (var export in exports)
+                {
+                    var outputPath = Path.GetFullPath(export.OutputPath);
+                    var directory = Path.GetDirectoryName(outputPath)
+                        ?? throw new DirectoryNotFoundException("The output directory does not exist.");
+                    var temporaryPath = Path.Combine(directory, $".psarc2tab-{Guid.NewGuid():N}.tmp");
+                    using var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                    stagedFiles.Add((temporaryPath, outputPath));
+                    _exportArrangement.Write(export.Song, formatName, stream);
+                    stream.Flush(flushToDisk: true);
+                }
             }
 
             foreach (var stagedFile in stagedFiles)
