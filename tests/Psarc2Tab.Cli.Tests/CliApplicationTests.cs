@@ -119,7 +119,7 @@ public sealed class CliApplicationTests
         using var directory = new TemporaryDirectory();
         var inputPath = Path.Combine(directory.Path, "song.psarc");
         var outputPath = Path.Combine(directory.Path, "song.txt");
-        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml.Replace("fret=\"3\"", "fret=\"49\"",
+        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml.Replace("fret=\"3\"", "fret=\"38\"",
             StringComparison.Ordinal)));
 
         var output = Run("--in", inputPath, "--out", outputPath, "--format", "heatmap", "--arr", "1");
@@ -137,7 +137,7 @@ public sealed class CliApplicationTests
         using var directory = new TemporaryDirectory();
         var inputPath = Path.Combine(directory.Path, "song.psarc");
         var outputPath = Path.Combine(directory.Path, "mysong.txt");
-        var invalidBass = BassArrangementXml.Replace("fret=\"3\"", "fret=\"49\"", StringComparison.Ordinal);
+        var invalidBass = BassArrangementXml.Replace("fret=\"3\"", "fret=\"38\"", StringComparison.Ordinal);
         File.WriteAllBytes(inputPath, CreateArchive(
             ("songs/arr/sample_lead.xml", ArrangementXml),
             ("songs/arr/sample_bass.xml", invalidBass)));

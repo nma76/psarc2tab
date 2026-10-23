@@ -54,6 +54,19 @@ public sealed class FretboardHeatmapTextWriterTests
         Assert.Equal(1, heatmap.GetUseCount(new StringNumber(1), new FretNumber(27)));
     }
 
+    /// <summary>Accepts the highest supported fret used by rare extended-fret instruments.</summary>
+    [Fact]
+    public void Calculate_MaximumSupportedFret_ExpandsRange()
+    {
+        var track = CreateTrack([CreateNote(1, FretboardHeatmapCalculator.MaximumSupportedFret)], []);
+
+        var heatmap = FretboardHeatmapCalculator.Calculate(track);
+
+        Assert.Equal(FretboardHeatmapCalculator.MaximumSupportedFret, heatmap.MaximumFret);
+        Assert.Equal(1, heatmap.GetUseCount(new StringNumber(1),
+            new FretNumber(FretboardHeatmapCalculator.MaximumSupportedFret)));
+    }
+
     /// <summary>Rejects implausibly high fret values before allocating or rendering a large grid.</summary>
     [Fact]
     public void Calculate_FretAboveDisplayLimit_ThrowsInvalidDataException()

@@ -217,7 +217,7 @@ instrument arrangements. Each standalone note and each chord tone adds one use
 to its string/fret position. Strings are shown from highest pitch to lowest,
 with their string number and open pitch; open-string notes appear at fret 0.
 The grid always includes frets 0 through 24 so separate heatmaps share the
-same baseline, and expands up to the highest fret used (maximum 48). Charts
+same baseline, and expands up to the highest fret used (maximum 37). Charts
 using a higher fret are rejected with an explanation instead of producing an
 unbounded output grid.
 

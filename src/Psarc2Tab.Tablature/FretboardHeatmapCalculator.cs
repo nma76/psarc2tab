@@ -6,7 +6,7 @@ namespace Psarc2Tab.Tablature;
 public static class FretboardHeatmapCalculator
 {
     /// <summary>The highest fret supported by the fixed-width ASCII heatmap.</summary>
-    public const int MaximumSupportedFret = 48;
+    public const int MaximumSupportedFret = 37;
 
     /// <summary>The minimum number of fret columns, used to keep heatmaps comparable.</summary>
     public const int StandardNeckFretCount = 24;
