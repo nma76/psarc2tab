@@ -55,7 +55,11 @@ public sealed class CliApplication
         _arrangementCatalog = arrangementCatalog ?? new RocksmithArrangementCatalog();
         _exportArrangement = exportArrangement ?? new ExportArrangementUseCase(
             new RocksmithArchiveArrangementImporter(_arrangementCatalog, new RocksmithArrangementImporter()),
-            new ArrangementFormatRegistry([new TablatureTextWriter(), new StandardMidiFileWriter()]));
+            new ArrangementFormatRegistry([
+                new TablatureTextWriter(),
+                new StandardMidiFileWriter(),
+                new FretboardHeatmapTextWriter()
+            ]));
         _exportLyrics = exportLyrics ?? new ExportLyricsUseCase(
             new RocksmithArchiveLyricsImporter(_arrangementCatalog), new LrcLyricsWriter());
     }
@@ -274,6 +278,12 @@ public sealed class CliApplication
             return InvalidArgumentsExitCode;
         }
 
+        if (string.Equals(command.FormatName, "heatmap", StringComparison.OrdinalIgnoreCase) &&
+            command.OutputPath is null)
+        {
+            return ShowHeatmaps(command, standardOutput, standardError);
+        }
+
         if (command.AllArrangements)
         {
             return ExportAllArrangements(command, standardOutput, standardError);
@@ -304,6 +314,11 @@ public sealed class CliApplication
             input.Position = 0;
             if (items[arrangementNumber - 1].IsLyrics)
             {
+                if (string.Equals(command.FormatName, "heatmap", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("A fretboard heatmap can only be exported for an instrument arrangement.");
+                }
+
                 lyrics = _exportLyrics.Import(input);
             }
             else
@@ -349,10 +364,153 @@ public sealed class CliApplication
             standardError.WriteLine($"Error: Cannot export selected archive item: {exception.Message}");
             return ConversionErrorExitCode;
         }
+        catch (InvalidDataException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export selected archive item: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
         catch (Exception exception) when (IsOutputFailure(exception))
         {
             standardError.WriteLine($"Error: Cannot write output file '{command.OutputPath}': {exception.Message}");
             return OutputErrorExitCode;
+        }
+    }
+
+    /// <summary>Renders one or more heatmaps to stdout without creating output files.</summary>
+    /// <param name="command">A heatmap request without an output path.</param>
+    /// <param name="standardOutput">Writer for the rendered heatmaps.</param>
+    /// <param name="standardError">Writer for input or conversion diagnostics.</param>
+    /// <returns>The success, input, selection, or conversion error code.</returns>
+    private int ShowHeatmaps(ParsedCommand command, TextWriter standardOutput, TextWriter standardError)
+    {
+        Song[] songs;
+        try
+        {
+            using var archive = File.OpenRead(command.InputPath!);
+            var items = _arrangementCatalog.ListItems(archive);
+            var selectedItems = command.ArrangementNumber is { } arrangementNumber
+                ? [items.ElementAtOrDefault(arrangementNumber - 1)
+                    ?? throw new ArrangementNotFoundException(arrangementNumber)]
+                : items.Where(item => !item.IsLyrics).ToArray();
+            if (selectedItems.Any(item => item.IsLyrics))
+            {
+                standardError.WriteLine("Error: A fretboard heatmap is available only for an instrument arrangement.");
+                return ConversionErrorExitCode;
+            }
+
+            if (selectedItems.Length == 0)
+            {
+                throw new InvalidDataException("The archive contains no instrument arrangements to show.");
+            }
+
+            var importedSongs = new List<Song>(selectedItems.Length);
+            foreach (var item in selectedItems)
+            {
+                archive.Position = 0;
+                importedSongs.Add(_exportArrangement.Import(archive, item.Number));
+            }
+
+            songs = importedSongs.ToArray();
+        }
+        catch (ArrangementNotFoundException exception)
+        {
+            standardError.WriteLine(
+                $"Error: {exception.Message} Run 'psarc2tab --in <input.psarc> --list' to see valid numbers.");
+            return InvalidArrangementSelectionExitCode;
+        }
+        catch (InvalidOperationException exception)
+        {
+            standardError.WriteLine($"Error: Cannot import selected arrangement: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (Exception exception) when (IsInputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot read heatmap input from '{command.InputPath}': {exception.Message}");
+            return InputErrorExitCode;
+        }
+
+        string[] heatmaps;
+        try
+        {
+            heatmaps = songs.Select(song =>
+            {
+                using var stream = new MemoryStream();
+                _exportArrangement.Write(song, "heatmap", stream);
+                return Encoding.UTF8.GetString(stream.ToArray());
+            }).ToArray();
+        }
+        catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException)
+        {
+            standardError.WriteLine($"Error: Cannot create fretboard heatmap: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+
+        var useColors = ShouldUseConsoleColors(standardOutput);
+        for (var index = 0; index < heatmaps.Length; index++)
+        {
+            if (index > 0)
+            {
+                standardOutput.WriteLine();
+            }
+
+            WriteHeatmapText(standardOutput, heatmaps[index], useColors);
+        }
+
+        return SuccessExitCode;
+    }
+
+    /// <summary>Checks terminal, redirection, and NO_COLOR settings before enabling color.</summary>
+    /// <param name="standardOutput">The CLI output writer.</param>
+    /// <returns><see langword="true"/> only when stdout is an interactive color-capable console.</returns>
+    private static bool ShouldUseConsoleColors(TextWriter standardOutput)
+    {
+        var noColor = Environment.GetEnvironmentVariable("NO_COLOR");
+        var terminal = Environment.GetEnvironmentVariable("TERM");
+        return standardOutput is not StringWriter && ReferenceEquals(standardOutput, Console.Out) &&
+            !Console.IsOutputRedirected &&
+            string.IsNullOrEmpty(noColor) && !string.Equals(terminal, "dumb", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Writes heatmap text and colors shaded cells when an interactive console is available.</summary>
+    /// <param name="output">The writer receiving the text.</param>
+    /// <param name="text">The plain UTF-8 heatmap decoded as text.</param>
+    /// <param name="useColors">Whether the real console can display foreground colors.</param>
+    private static void WriteHeatmapText(TextWriter output, string text, bool useColors)
+    {
+        if (!useColors)
+        {
+            output.Write(text);
+            return;
+        }
+
+        var originalColor = Console.ForegroundColor;
+        try
+        {
+            foreach (var character in text)
+            {
+                var color = character switch
+                {
+                    '░' => ConsoleColor.DarkCyan,
+                    '▒' => ConsoleColor.Cyan,
+                    '▓' => ConsoleColor.Yellow,
+                    '█' => ConsoleColor.Red,
+                    _ => (ConsoleColor?)null
+                };
+                if (color is { } foreground)
+                {
+                    Console.ForegroundColor = foreground;
+                }
+
+                output.Write(character);
+                if (color is not null)
+                {
+                    Console.ForegroundColor = originalColor;
+                }
+            }
+        }
+        finally
+        {
+            Console.ForegroundColor = originalColor;
         }
     }
 
@@ -734,29 +892,40 @@ public sealed class CliApplication
 
     /// <summary>Displays the CLI usage, options, and exit codes.</summary>
     private const string HelpText = """
-        psarc2tab - convert a Rocksmith PSARC archive to guitar tablature
+        psarc2tab - export Rocksmith arrangements as tablature, MIDI, or fretboard heatmaps
 
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
           psarc2tab --in <input.psarc> --out <output.tab> --format tab
           psarc2tab --in <input.psarc> --out <output.mid> --format midi
+          psarc2tab --in <input.psarc> --format heatmap [--arr <number|all>]
+          psarc2tab --in <input.psarc> --out <output.txt> --format heatmap [--arr <number|all>]
           psarc2tab --in <input.psarc> --out <output.lrc> --arr <lyrics-number>
           psarc2tab --in <input.psarc> --list
           psarc2tab --in <input.psarc> --stats [--arr <number|all>]
-          psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
-          psarc2tab --in <input.psarc> --out <output.tab> --arr all
           psarc2tab --help
           psarc2tab --version
 
+        Examples:
+          psarc2tab --in song.psarc --format heatmap
+          psarc2tab --in song.psarc --arr 2 --format heatmap
+          psarc2tab --in song.psarc --out song.txt --format heatmap --arr 2
+          psarc2tab --in song.psarc --out song.mid --format midi --arr 1
+          psarc2tab --in song.psarc --out song.tab
+          psarc2tab --in song.psarc --out song.tab --arr all
+
         Options:
           --in <path>        Input PSARC archive
-          --out <path>       Output file (must not already exist)
+          --out <path>       Output file (omit only to show a heatmap on screen)
           --list             List numbered arrangements and lyrics in the archive
           --stats            Show archive and arrangement statistics without writing files
           --arr <n|all>      Select one item or all instrument arrangements (default: all)
-          --format <name>    Output format: tab or midi (default: tab)
+          --format <name>    Output format: tab, midi, or heatmap (default: tab)
           --help             Show this help
           --version          Show version information
+
+        Heatmaps without --out are colored only in an interactive terminal. Set NO_COLOR
+        to disable color; redirected output is plain UTF-8 text.
 
         Exit codes:
           0  Help, version, or conversion completed
