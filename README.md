@@ -222,8 +222,10 @@ using a higher fret are rejected with an explanation instead of producing an
 unbounded output grid.
 
 Heatmap symbols use fixed absolute count ranges across files: blank for zero,
-`░` for one use, `▒` for 2–3, `▓` for 4–7, and `█` for 8 or more. The output
-includes a legend and the highest count at any position. The grid is UTF-8 text
-and uses Unicode block-shading characters. This first beta view compares
-position use by count; it does not represent timing, note duration, or a
-recommended fingering.
+`░` for 1–15 uses, `▒` for 16–63, `▓` for 64–127, and `█` for 128 or more. The
+ranges were selected after counting fret-position uses across 20 distinct
+arrangement examples; they keep the four shaded levels useful across both
+short and dense arrangements. The output includes a legend and the highest
+count at any position. The grid is UTF-8 text and uses Unicode block-shading
+characters. This first beta view compares position use by count; it does not
+represent timing, note duration, or a recommended fingering.

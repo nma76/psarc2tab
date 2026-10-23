@@ -82,8 +82,8 @@ public sealed class FretboardHeatmapTextWriterTests
     [Fact]
     public void Write_UsesStableIntensityBandsAndTuningOrder()
     {
-        var notes = Enumerable.Range(1, 5).SelectMany((fret, index) =>
-            Enumerable.Range(0, new[] { 1, 2, 4, 8, 16 }[index]).Select(_ => CreateNote(1, fret))).ToArray();
+        var notes = Enumerable.Range(1, 4).SelectMany((fret, index) =>
+            Enumerable.Range(0, new[] { 15, 16, 64, 128 }[index]).Select(_ => CreateNote(1, fret))).ToArray();
         var track = CreateTrack(notes, []);
         var song = new Song("Test", "Artist", [track]);
         using var output = new MemoryStream();
@@ -93,8 +93,8 @@ public sealed class FretboardHeatmapTextWriterTests
         var lines = text.Split('\n');
 
         Assert.Contains("Fretboard heatmap (beta)", text);
-        Assert.Contains("Uses per position: blank=0, ░=1, ▒=2-3, ▓=4-7, █=8+", text);
-        Assert.Contains("Maximum uses at one position: 16", text);
+        Assert.Contains("Uses per position: blank=0, ░=1-15, ▒=16-63, ▓=64-127, █=128+", text);
+        Assert.Contains("Maximum uses at one position: 128", text);
         Assert.True(Array.FindIndex(lines, line => line.StartsWith("2 A2", StringComparison.Ordinal)) <
             Array.FindIndex(lines, line => line.StartsWith("1 E2", StringComparison.Ordinal)));
         Assert.Contains("  ░", text);

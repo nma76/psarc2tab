@@ -37,7 +37,7 @@ public sealed class FretboardHeatmapTextWriter : IArrangementFormatWriter
         writer.WriteLine();
         WriteGrid(writer, track, heatmap);
         writer.WriteLine();
-        writer.WriteLine("Uses per position: blank=0, ░=1, ▒=2-3, ▓=4-7, █=8+");
+        writer.WriteLine("Uses per position: blank=0, ░=1-15, ▒=16-63, ▓=64-127, █=128+");
         writer.WriteLine($"Maximum uses at one position: {heatmap.MaximumUseCount}");
         writer.Flush();
     }
@@ -78,9 +78,9 @@ public sealed class FretboardHeatmapTextWriter : IArrangementFormatWriter
     private static char FormatUse(int useCount) => useCount switch
     {
         0 => ' ',
-        1 => '░',
-        <= 3 => '▒',
-        <= 7 => '▓',
+        <= 15 => '░',
+        <= 63 => '▒',
+        <= 127 => '▓',
         _ => '█'
     };
 
