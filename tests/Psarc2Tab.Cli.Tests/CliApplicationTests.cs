@@ -26,6 +26,7 @@ public sealed class CliApplicationTests
         Assert.Contains("--arr all", output.StandardOutput);
         Assert.Contains("default: all", output.StandardOutput);
         Assert.Contains("--format <name>", output.StandardOutput);
+        Assert.Contains("heatmap", output.StandardOutput);
         Assert.DoesNotContain("beta/experimental", output.StandardOutput);
         Assert.DoesNotContain("--arrangement <", output.StandardOutput);
         Assert.DoesNotContain("\n  -in ", output.StandardOutput);
@@ -41,7 +42,7 @@ public sealed class CliApplicationTests
 
         Assert.Equal(CliApplication.InvalidArgumentsExitCode, output.ExitCode);
         Assert.Contains("Unsupported output format 'unknown'", output.StandardError);
-        Assert.Contains("Supported formats: midi, tab", output.StandardError);
+        Assert.Contains("Supported formats: heatmap, midi, tab", output.StandardError);
         Assert.Empty(output.StandardOutput);
     }
 
@@ -60,6 +61,111 @@ public sealed class CliApplicationTests
         Assert.Equal("MThd", Encoding.ASCII.GetString(File.ReadAllBytes(outputPath), 0, 4));
         Assert.Contains("Wrote midi export", output.StandardOutput);
         Assert.Empty(output.StandardError);
+    }
+
+    /// <summary>Exports the selected arrangement as a beta ASCII fretboard heatmap.</summary>
+    [Fact]
+    public void Run_HeatmapFormat_WritesTextHeatmap()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "song.txt");
+        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--format", "heatmap", "--arr", "1");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Contains("Wrote heatmap export", output.StandardOutput);
+        Assert.Empty(output.StandardError);
+        var heatmap = File.ReadAllText(outputPath);
+        Assert.Contains("Fretboard heatmap (beta)", heatmap);
+        Assert.Contains("Arrangement: Lead", heatmap);
+        Assert.Contains("Maximum uses at one position: 1", heatmap);
+    }
+
+    /// <summary>Writes one safely named heatmap for each selected instrument arrangement.</summary>
+    [Fact]
+    public void Run_AllArrangements_HeatmapWritesSeparateTextFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "mysong.txt");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml),
+            ("songs/arr/sample_vocals.xml", "<vocals />")));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--format", "heatmap");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.True(File.Exists(Path.Combine(directory.Path, "mysong-lead.txt")));
+        Assert.True(File.Exists(Path.Combine(directory.Path, "mysong-bass.txt")));
+        Assert.False(File.Exists(outputPath));
+        Assert.Equal(2, Directory.GetFiles(directory.Path, "mysong-*.txt").Length);
+        Assert.Contains("Tuning (low to high): E2 A2 D3 G3 B3 E4",
+            File.ReadAllText(Path.Combine(directory.Path, "mysong-lead.txt")));
+        Assert.Contains("Tuning (low to high): E1 A1 D2 G2 B2 E3",
+            File.ReadAllText(Path.Combine(directory.Path, "mysong-bass.txt")));
+        Assert.Contains("mysong-lead.txt", output.StandardOutput);
+        Assert.Contains("mysong-bass.txt", output.StandardOutput);
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+        Assert.Empty(output.StandardError);
+    }
+
+    /// <summary>Reports a chart fret beyond the ASCII display limit as an export error.</summary>
+    [Fact]
+    public void Run_HeatmapWithFretAboveLimit_ReturnsConversionErrorWithoutOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "song.txt");
+        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml.Replace("fret=\"3\"", "fret=\"49\"",
+            StringComparison.Ordinal)));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--format", "heatmap", "--arr", "1");
+
+        Assert.Equal(CliApplication.ConversionErrorExitCode, output.ExitCode);
+        Assert.Contains("exceeds the ASCII heatmap limit", output.StandardError);
+        Assert.False(File.Exists(outputPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Removes staged heatmaps if a later arrangement exceeds the supported fret range.</summary>
+    [Fact]
+    public void Run_AllArrangements_HeatmapFailureRollsBackStagedFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "mysong.txt");
+        var invalidBass = BassArrangementXml.Replace("fret=\"3\"", "fret=\"49\"", StringComparison.Ordinal);
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", invalidBass)));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--format", "heatmap");
+
+        Assert.Equal(CliApplication.ConversionErrorExitCode, output.ExitCode);
+        Assert.Contains("exceeds the ASCII heatmap limit", output.StandardError);
+        Assert.Empty(Directory.GetFiles(directory.Path, "mysong-*.txt"));
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Rejects Lyrics as a heatmap target without creating an output file.</summary>
+    [Fact]
+    public void Run_HeatmapWithLyricsSelection_ReturnsConversionError()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "lyrics.txt");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_vocals.xml", "<vocals />")));
+
+        var output = Run("--in", inputPath, "--out", outputPath, "--format", "heatmap", "--arr", "2");
+
+        Assert.Equal(CliApplication.ConversionErrorExitCode, output.ExitCode);
+        Assert.Contains("only be exported for an instrument arrangement", output.StandardError);
+        Assert.False(File.Exists(outputPath));
     }
 
     /// <summary>Prints archive and imported arrangement statistics without creating an export file.</summary>

@@ -51,6 +51,7 @@ psarc2tab --in <input.psarc> --out <output.tab> --arr all
 psarc2tab --in <input.psarc> --out <song.mid> --format midi --arr all
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
 psarc2tab --in <input.psarc> --out <output.mid> --format midi
+psarc2tab --in <input.psarc> --out <output.txt> --format heatmap --arr <number>
 psarc2tab --in <input.psarc> --out <lyrics.lrc> --arr <lyrics-number>
 psarc2tab --help
 psarc2tab --version
@@ -81,8 +82,9 @@ strings and fret range. Length is the latest imported event end, or onset when
 the source duration is zero. Platform is inferred only when platform-specific
 SNG paths identify PC or Mac. `--format` selects the
 arrangement output format and defaults to
-`tab`; supported arrangement formats are `tab` and `midi`. MIDI export writes
-notes and chord tones from the selected arrangement(s) to a Standard MIDI File.
+`tab`; supported arrangement formats are `tab`, `midi`, and the beta ASCII
+`heatmap`. MIDI export writes notes and chord tones from the selected
+arrangement(s) to a Standard MIDI File.
 It uses 960 ticks per quarter note and derives tempo changes from Rocksmith XML
 `ebeats` or decoded SNG beat times;
 when fewer than two beat markers are available, it falls back to 120 BPM and
@@ -117,7 +119,9 @@ supported, named Lead, Rhythm, and Bass arrangements shown by `--list` are
 included; Lyrics and other unrecognized archive entries are not exported. All
 destination paths are checked before export, existing files are never
 overwritten, and staged files are removed if any import or write fails. A
-successful export prints each destination to stdout.
+successful export prints each destination to stdout. For a heatmap export,
+choose a `.txt` output name; when all arrangements are selected, each heatmap
+receives an instrument suffix like other single-arrangement formats.
 
 ### Exit codes
 
@@ -205,3 +209,20 @@ long gaps capped for readability. The current Domain model does not include
 measure boundaries, so row-ending `|` characters wrap the display and do not
 claim to represent verified musical bars. Song metadata is not embedded in the
 tab text. The provided plain-text tab sample shows the target visual style.
+
+## ASCII fretboard heatmap (beta)
+
+Use `--format heatmap` to write a text heatmap for one arrangement or for all
+instrument arrangements. Each standalone note and each chord tone adds one use
+to its string/fret position. Strings are shown from highest pitch to lowest,
+with their string number and open pitch; open-string notes appear at fret 0.
+The grid always includes frets 0 through 24 so separate heatmaps share the
+same baseline, and expands up to the highest fret used (maximum 48). Charts
+using a higher fret are rejected with an explanation instead of producing an
+unbounded output grid.
+
+Heatmap symbols use fixed absolute count ranges across files: blank for zero,
+`.` for one use, `:` for 2–3, `+` for 4–7, `#` for 8–15, and `@` for 16 or more.
+The output includes a legend and the highest count at any position. This first
+beta view compares position use by count; it does not represent timing, note
+duration, or a recommended fingering.

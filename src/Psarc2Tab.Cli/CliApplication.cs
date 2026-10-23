@@ -55,7 +55,11 @@ public sealed class CliApplication
         _arrangementCatalog = arrangementCatalog ?? new RocksmithArrangementCatalog();
         _exportArrangement = exportArrangement ?? new ExportArrangementUseCase(
             new RocksmithArchiveArrangementImporter(_arrangementCatalog, new RocksmithArrangementImporter()),
-            new ArrangementFormatRegistry([new TablatureTextWriter(), new StandardMidiFileWriter()]));
+            new ArrangementFormatRegistry([
+                new TablatureTextWriter(),
+                new StandardMidiFileWriter(),
+                new FretboardHeatmapTextWriter()
+            ]));
         _exportLyrics = exportLyrics ?? new ExportLyricsUseCase(
             new RocksmithArchiveLyricsImporter(_arrangementCatalog), new LrcLyricsWriter());
     }
@@ -304,6 +308,11 @@ public sealed class CliApplication
             input.Position = 0;
             if (items[arrangementNumber - 1].IsLyrics)
             {
+                if (string.Equals(command.FormatName, "heatmap", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("A fretboard heatmap can only be exported for an instrument arrangement.");
+                }
+
                 lyrics = _exportLyrics.Import(input);
             }
             else
@@ -345,6 +354,11 @@ public sealed class CliApplication
             return SuccessExitCode;
         }
         catch (InvalidOperationException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export selected archive item: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (InvalidDataException exception)
         {
             standardError.WriteLine($"Error: Cannot export selected archive item: {exception.Message}");
             return ConversionErrorExitCode;
@@ -740,6 +754,7 @@ public sealed class CliApplication
           psarc2tab --in <input.psarc> --out <output.tab>
           psarc2tab --in <input.psarc> --out <output.tab> --format tab
           psarc2tab --in <input.psarc> --out <output.mid> --format midi
+          psarc2tab --in <input.psarc> --out <output.txt> --format heatmap --arr <number>
           psarc2tab --in <input.psarc> --out <output.lrc> --arr <lyrics-number>
           psarc2tab --in <input.psarc> --list
           psarc2tab --in <input.psarc> --stats [--arr <number|all>]
@@ -754,7 +769,7 @@ public sealed class CliApplication
           --list             List numbered arrangements and lyrics in the archive
           --stats            Show archive and arrangement statistics without writing files
           --arr <n|all>      Select one item or all instrument arrangements (default: all)
-          --format <name>    Output format: tab or midi (default: tab)
+          --format <name>    Output format: tab, midi, or heatmap (default: tab)
           --help             Show this help
           --version          Show version information
 
