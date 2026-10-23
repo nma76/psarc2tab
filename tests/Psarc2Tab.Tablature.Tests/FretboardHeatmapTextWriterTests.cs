@@ -75,10 +75,10 @@ public sealed class FretboardHeatmapTextWriterTests
 
         var exception = Assert.Throws<InvalidDataException>(() => FretboardHeatmapCalculator.Calculate(track));
 
-        Assert.Contains("exceeds the ASCII heatmap limit", exception.Message);
+        Assert.Contains("exceeds the text heatmap limit", exception.Message);
     }
 
-    /// <summary>Uses fixed count bands and displays strings from highest pitch to lowest.</summary>
+    /// <summary>Uses fixed shaded count bands and displays strings from highest pitch to lowest.</summary>
     [Fact]
     public void Write_UsesStableIntensityBandsAndTuningOrder()
     {
@@ -93,15 +93,14 @@ public sealed class FretboardHeatmapTextWriterTests
         var lines = text.Split('\n');
 
         Assert.Contains("Fretboard heatmap (beta)", text);
-        Assert.Contains("Uses per position: blank=0, .=1, :=2-3, +=4-7, #=8-15, @=16+", text);
+        Assert.Contains("Uses per position: blank=0, ░=1, ▒=2-3, ▓=4-7, █=8+", text);
         Assert.Contains("Maximum uses at one position: 16", text);
         Assert.True(Array.FindIndex(lines, line => line.StartsWith("2 A2", StringComparison.Ordinal)) <
             Array.FindIndex(lines, line => line.StartsWith("1 E2", StringComparison.Ordinal)));
-        Assert.Contains("  .", text);
-        Assert.Contains("  :", text);
-        Assert.Contains("  +", text);
-        Assert.Contains("  #", text);
-        Assert.Contains("  @", text);
+        Assert.Contains("  ░", text);
+        Assert.Contains("  ▒", text);
+        Assert.Contains("  ▓", text);
+        Assert.Contains("  █", text);
     }
 
     /// <summary>Produces identical output for the same song and track.</summary>

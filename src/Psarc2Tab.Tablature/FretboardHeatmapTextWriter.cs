@@ -5,7 +5,7 @@ using Psarc2Tab.Domain;
 
 namespace Psarc2Tab.Tablature;
 
-/// <summary>Writes an ASCII heatmap with fixed count bands for cross-arrangement comparison.</summary>
+/// <summary>Writes a shaded text heatmap with fixed count bands for arrangement comparison.</summary>
 public sealed class FretboardHeatmapTextWriter : IArrangementFormatWriter
 {
     /// <summary>Sharp note names indexed by MIDI pitch class.</summary>
@@ -37,7 +37,7 @@ public sealed class FretboardHeatmapTextWriter : IArrangementFormatWriter
         writer.WriteLine();
         WriteGrid(writer, track, heatmap);
         writer.WriteLine();
-        writer.WriteLine("Uses per position: blank=0, .=1, :=2-3, +=4-7, #=8-15, @=16+");
+        writer.WriteLine("Uses per position: blank=0, ░=1, ▒=2-3, ▓=4-7, █=8+");
         writer.WriteLine($"Maximum uses at one position: {heatmap.MaximumUseCount}");
         writer.Flush();
     }
@@ -72,17 +72,16 @@ public sealed class FretboardHeatmapTextWriter : IArrangementFormatWriter
         }
     }
 
-    /// <summary>Maps an absolute use count to the documented fixed intensity symbol.</summary>
+    /// <summary>Maps an absolute use count to the documented fixed shading symbol.</summary>
     /// <param name="useCount">The nonnegative count at one position.</param>
-    /// <returns>A printable ASCII symbol.</returns>
+    /// <returns>A printable Unicode block-shading symbol.</returns>
     private static char FormatUse(int useCount) => useCount switch
     {
         0 => ' ',
-        1 => '.',
-        <= 3 => ':',
-        <= 7 => '+',
-        <= 15 => '#',
-        _ => '@'
+        1 => '░',
+        <= 3 => '▒',
+        <= 7 => '▓',
+        _ => '█'
     };
 
     /// <summary>Formats an open-string pitch and its one-based string number.</summary>

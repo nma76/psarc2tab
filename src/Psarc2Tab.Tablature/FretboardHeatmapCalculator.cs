@@ -5,7 +5,7 @@ namespace Psarc2Tab.Tablature;
 /// <summary>Counts note events and chord tones at their fretboard positions.</summary>
 public static class FretboardHeatmapCalculator
 {
-    /// <summary>The highest fret supported by the fixed-width ASCII heatmap.</summary>
+    /// <summary>The highest fret supported by the bounded text heatmap.</summary>
     public const int MaximumSupportedFret = 37;
 
     /// <summary>The minimum number of fret columns, used to keep heatmaps comparable.</summary>
@@ -15,7 +15,7 @@ public static class FretboardHeatmapCalculator
     /// <param name="track">The imported arrangement track.</param>
     /// <returns>A heatmap with one count for each note event and each chord tone.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="track"/> is null.</exception>
-    /// <exception cref="InvalidDataException">An event uses a fret above the supported display limit.</exception>
+    /// <exception cref="InvalidDataException">An event uses a fret above the supported heatmap limit.</exception>
     public static FretboardHeatmap Calculate(Track track)
     {
         ArgumentNullException.ThrowIfNull(track);
@@ -26,7 +26,7 @@ public static class FretboardHeatmapCalculator
         if (maximumUsedFret > MaximumSupportedFret)
         {
             throw new InvalidDataException(
-                $"Fret {maximumUsedFret} exceeds the ASCII heatmap limit of {MaximumSupportedFret}.");
+                $"Fret {maximumUsedFret} exceeds the text heatmap limit of {MaximumSupportedFret}.");
         }
 
         var maximumFret = Math.Max(StandardNeckFretCount, maximumUsedFret);

@@ -82,7 +82,7 @@ strings and fret range. Length is the latest imported event end, or onset when
 the source duration is zero. Platform is inferred only when platform-specific
 SNG paths identify PC or Mac. `--format` selects the
 arrangement output format and defaults to
-`tab`; supported arrangement formats are `tab`, `midi`, and the beta ASCII
+`tab`; supported arrangement formats are `tab`, `midi`, and the beta text
 `heatmap`. MIDI export writes notes and chord tones from the selected
 arrangement(s) to a Standard MIDI File.
 It uses 960 ticks per quarter note and derives tempo changes from Rocksmith XML
@@ -210,7 +210,7 @@ measure boundaries, so row-ending `|` characters wrap the display and do not
 claim to represent verified musical bars. Song metadata is not embedded in the
 tab text. The provided plain-text tab sample shows the target visual style.
 
-## ASCII fretboard heatmap (beta)
+## Text fretboard heatmap (beta)
 
 Use `--format heatmap` to write a text heatmap for one arrangement or for all
 instrument arrangements. Each standalone note and each chord tone adds one use
@@ -222,7 +222,8 @@ using a higher fret are rejected with an explanation instead of producing an
 unbounded output grid.
 
 Heatmap symbols use fixed absolute count ranges across files: blank for zero,
-`.` for one use, `:` for 2–3, `+` for 4–7, `#` for 8–15, and `@` for 16 or more.
-The output includes a legend and the highest count at any position. This first
-beta view compares position use by count; it does not represent timing, note
-duration, or a recommended fingering.
+`░` for one use, `▒` for 2–3, `▓` for 4–7, and `█` for 8 or more. The output
+includes a legend and the highest count at any position. The grid is UTF-8 text
+and uses Unicode block-shading characters. This first beta view compares
+position use by count; it does not represent timing, note duration, or a
+recommended fingering.

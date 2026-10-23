@@ -63,7 +63,7 @@ public sealed class CliApplicationTests
         Assert.Empty(output.StandardError);
     }
 
-    /// <summary>Exports the selected arrangement as a beta ASCII fretboard heatmap.</summary>
+    /// <summary>Exports the selected arrangement as a beta shaded-text fretboard heatmap.</summary>
     [Fact]
     public void Run_HeatmapFormat_WritesTextHeatmap()
     {
@@ -125,7 +125,7 @@ public sealed class CliApplicationTests
         var output = Run("--in", inputPath, "--out", outputPath, "--format", "heatmap", "--arr", "1");
 
         Assert.Equal(CliApplication.ConversionErrorExitCode, output.ExitCode);
-        Assert.Contains("exceeds the ASCII heatmap limit", output.StandardError);
+        Assert.Contains("exceeds the text heatmap limit", output.StandardError);
         Assert.False(File.Exists(outputPath));
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
@@ -145,7 +145,7 @@ public sealed class CliApplicationTests
         var output = Run("--in", inputPath, "--out", outputPath, "--format", "heatmap");
 
         Assert.Equal(CliApplication.ConversionErrorExitCode, output.ExitCode);
-        Assert.Contains("exceeds the ASCII heatmap limit", output.StandardError);
+        Assert.Contains("exceeds the text heatmap limit", output.StandardError);
         Assert.Empty(Directory.GetFiles(directory.Path, "mysong-*.txt"));
         Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
     }
