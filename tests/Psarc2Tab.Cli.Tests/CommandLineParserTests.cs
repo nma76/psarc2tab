@@ -31,6 +31,19 @@ public sealed class CommandLineParserTests
         Assert.Equal("midi", result.FormatName);
     }
 
+    /// <summary>Allows heatmap format to use stdout when no output path is supplied.</summary>
+    [Fact]
+    public void Parse_HeatmapWithoutOutputPath_ReturnsScreenConversion()
+    {
+        var result = _parser.Parse(["--in", "song.psarc", "--format", "heatmap", "--arr", "2"]);
+
+        Assert.Equal(CommandKind.Convert, result.Kind);
+        Assert.Equal("song.psarc", result.InputPath);
+        Assert.Null(result.OutputPath);
+        Assert.Equal("heatmap", result.FormatName);
+        Assert.Equal(2, result.ArrangementNumber);
+    }
+
     /// <summary>Accepts input and output options in either order.</summary>
     [Fact]
     public void Parse_ConversionOptionsInReverseOrder_ReturnsPaths()
@@ -157,6 +170,7 @@ public sealed class CommandLineParserTests
         var result = _parser.Parse(["--in", "song.psarc"]);
 
         Assert.Equal(CommandKind.Invalid, result.Kind);
+        Assert.Contains("'--out' is required", result.Error);
     }
 
     /// <summary>Rejects duplicate input options.</summary>

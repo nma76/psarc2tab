@@ -51,6 +51,8 @@ psarc2tab --in <input.psarc> --out <output.tab> --arr all
 psarc2tab --in <input.psarc> --out <song.mid> --format midi --arr all
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
 psarc2tab --in <input.psarc> --out <output.mid> --format midi
+psarc2tab --in <input.psarc> --format heatmap
+psarc2tab --in <input.psarc> --arr <number> --format heatmap
 psarc2tab --in <input.psarc> --out <output.txt> --format heatmap --arr <number>
 psarc2tab --in <input.psarc> --out <lyrics.lrc> --arr <lyrics-number>
 psarc2tab --help
@@ -59,9 +61,9 @@ psarc2tab --version
 
 `--in` and `--out` may be supplied in either order. All options use double-dash
 syntax. The input must exist and be readable. The output directory must exist
-and be writable, and an existing output file is never overwritten. Output is
-written to a temporary file in the destination directory and moved into place
-only after writing completes. `--list` extracts the archive manifest and
+and be writable for file exports, and an existing output file is never
+overwritten. File output is written to a temporary file in the destination
+directory and moved into place only after writing completes. `--list` extracts the archive manifest and
 displays numbered Lead, Bass, and Rhythm arrangements, followed by Lyrics when a
 matching vocal chart is present. It recognizes XML charts under `songs/arr/` and SNG charts
 referenced by arrangement JSON manifests. Use the displayed number with
@@ -119,9 +121,15 @@ supported, named Lead, Rhythm, and Bass arrangements shown by `--list` are
 included; Lyrics and other unrecognized archive entries are not exported. All
 destination paths are checked before export, existing files are never
 overwritten, and staged files are removed if any import or write fails. A
-successful export prints each destination to stdout. For a heatmap export,
-choose a `.txt` output name; when all arrangements are selected, each heatmap
-receives an instrument suffix like other single-arrangement formats.
+successful export prints each destination to stdout. Without `--out`,
+`--format heatmap` renders the selected arrangement(s) on screen; the default
+selection shows every instrument arrangement, with a blank line between
+heatmaps. `--arr <number>` shows one. The CLI uses standard .NET console colors
+for shading only when stdout is an interactive console. Redirected output is
+plain UTF-8 text, and setting `NO_COLOR` disables terminal colors. To save a
+heatmap instead, provide a `.txt` output name; when all arrangements are
+selected, each heatmap receives an instrument suffix like other
+single-arrangement formats.
 
 ### Exit codes
 
@@ -212,9 +220,10 @@ tab text. The provided plain-text tab sample shows the target visual style.
 
 ## Text fretboard heatmap (beta)
 
-Use `--format heatmap` to write a text heatmap for one arrangement or for all
-instrument arrangements. Each standalone note and each chord tone adds one use
-to its string/fret position. Strings are shown from highest pitch to lowest,
+Use `--format heatmap` to show a text heatmap for one arrangement or for all
+instrument arrangements; add `--out <file.txt>` to save the output. Each
+standalone note and each chord tone adds one use to its string/fret position.
+Strings are shown from highest pitch to lowest,
 with their string number and open pitch; open-string notes appear at fret 0.
 The grid always includes frets 0 through 24 so separate heatmaps share the
 same baseline, and expands up to the highest fret used (maximum 37). Charts

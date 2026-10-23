@@ -212,9 +212,20 @@ public sealed class CommandLineParser
                 AllArrangements: allArrangements, ShowStatistics: true);
         }
 
-        if (inputPath is null || outputPath is null)
+        if (inputPath is null)
         {
-            return Invalid("Both '--in' and '--out' are required.");
+            return Invalid("Option '--in' is required.");
+        }
+
+        if (outputPath is null)
+        {
+            if (formatSpecified && string.Equals(formatName, "heatmap", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ParsedCommand(CommandKind.Convert, inputPath, ArrangementNumber: arrangementNumber,
+                    AllArrangements: allArrangements, FormatName: formatName);
+            }
+
+            return Invalid("Option '--out' is required unless '--format heatmap' is used for screen output.");
         }
 
         return new ParsedCommand(CommandKind.Convert, inputPath, outputPath, arrangementNumber, allArrangements,

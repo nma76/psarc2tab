@@ -26,7 +26,9 @@ public sealed class CliApplicationTests
         Assert.Contains("--arr all", output.StandardOutput);
         Assert.Contains("default: all", output.StandardOutput);
         Assert.Contains("--format <name>", output.StandardOutput);
-        Assert.Contains("heatmap", output.StandardOutput);
+        Assert.Contains("--in song.psarc --format heatmap", output.StandardOutput);
+        Assert.Contains("--arr 2 --format heatmap", output.StandardOutput);
+        Assert.Contains("NO_COLOR", output.StandardOutput);
         Assert.DoesNotContain("beta/experimental", output.StandardOutput);
         Assert.DoesNotContain("--arrangement <", output.StandardOutput);
         Assert.DoesNotContain("\n  -in ", output.StandardOutput);
@@ -81,6 +83,45 @@ public sealed class CliApplicationTests
         Assert.Contains("Fretboard heatmap (beta)", heatmap);
         Assert.Contains("Arrangement: Lead", heatmap);
         Assert.Contains("Maximum uses at one position: 1", heatmap);
+    }
+
+    /// <summary>Displays the selected heatmap on stdout without creating a file or adding color escapes.</summary>
+    [Fact]
+    public void Run_HeatmapWithoutOutputPath_DisplaysPlainText()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml));
+
+        var output = Run("--in", inputPath, "--arr", "1", "--format", "heatmap");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Contains("Fretboard heatmap (beta)", output.StandardOutput);
+        Assert.Contains("Arrangement: Lead", output.StandardOutput);
+        Assert.Empty(output.StandardError);
+        Assert.Single(Directory.GetFiles(directory.Path));
+    }
+
+    /// <summary>Displays all selected instrument heatmaps on stdout and omits Lyrics.</summary>
+    [Fact]
+    public void Run_HeatmapWithoutOutputPathAndDefaultSelection_DisplaysEachArrangement()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        File.WriteAllBytes(inputPath, CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml),
+            ("songs/arr/sample_vocals.xml", "<vocals />")));
+
+        var output = Run("--in", inputPath, "--format", "heatmap");
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Contains("Arrangement: Lead", output.StandardOutput);
+        Assert.Contains("Arrangement: Bass", output.StandardOutput);
+        Assert.DoesNotContain("Arrangement: Lyrics", output.StandardOutput);
+        Assert.Equal(2, output.StandardOutput.Split("Fretboard heatmap (beta)", StringSplitOptions.None).Length - 1);
+        Assert.Empty(output.StandardError);
+        Assert.Single(Directory.GetFiles(directory.Path));
     }
 
     /// <summary>Writes one safely named heatmap for each selected instrument arrangement.</summary>
@@ -256,7 +297,7 @@ public sealed class CliApplicationTests
         var output = Run("--in", "song.psarc");
 
         Assert.Equal(CliApplication.InvalidArgumentsExitCode, output.ExitCode);
-        Assert.Contains("Both '--in' and '--out' are required", output.StandardError);
+        Assert.Contains("'--out' is required", output.StandardError);
         Assert.Empty(output.StandardOutput);
     }
 
