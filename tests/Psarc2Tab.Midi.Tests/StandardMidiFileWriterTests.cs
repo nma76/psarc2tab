@@ -94,6 +94,34 @@ public sealed class StandardMidiFileWriterTests
             .Write(song, track, output));
     }
 
+    /// <summary>Allows the final measure to end early when the preceding beat grid verifies 4/4.</summary>
+    [Fact]
+    public void Write_WithDrumsAndTruncatedFinalMeasure_ExportsOnlyObservedBeats()
+    {
+        var track = CreateTrack("Lead", []);
+        var song = new Song("Song", "Artist", [track], beats:
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1),
+            new BeatMarker(TimeSpan.FromSeconds(1), 0, 2),
+            new BeatMarker(TimeSpan.FromSeconds(1.5), 0, 3),
+            new BeatMarker(TimeSpan.FromSeconds(2), 1, 0),
+            new BeatMarker(TimeSpan.FromSeconds(2.5), 1, 1),
+            new BeatMarker(TimeSpan.FromSeconds(3), 1, 2)
+        ]);
+        using var output = new MemoryStream();
+
+        new StandardMidiFileWriter(includeDrums: true).Write(song, track, output);
+
+        var drumEvents = ReadEventsFromTrack(ReadTracks(output.ToArray())[1]);
+        Assert.Contains(drumEvents, item => item.Tick == 3840 &&
+            item.Data.SequenceEqual(new byte[] { 0x99, 36, 100 }));
+        Assert.Contains(drumEvents, item => item.Tick == 5760 &&
+            item.Data.SequenceEqual(new byte[] { 0x99, 38, 100 }));
+        Assert.DoesNotContain(drumEvents, item => item.Tick == 6720 &&
+            item.Data.SequenceEqual(new byte[] { 0x99, 42, 100 }));
+    }
+
     /// <summary>Adds a shared synthetic percussion track to a combined type-one MIDI file.</summary>
     [Fact]
     public void WriteMultiple_WithDrums_AddsPercussionTrackAfterArrangementTracks()

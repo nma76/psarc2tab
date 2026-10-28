@@ -130,13 +130,13 @@ public sealed class StandardMidiFileWriter : IMultiTrackArrangementFormatWriter
     /// <summary>Builds a synthetic 4/4 drum pattern using the source beat grid.</summary>
     /// <param name="song">The song supplying beat timestamps and tempo changes.</param>
     /// <returns>Sorted General MIDI percussion events.</returns>
-    /// <exception cref="InvalidDataException">The beat markers do not define complete four-beat measures.</exception>
+    /// <exception cref="InvalidDataException">The beat markers do not define a continuous four-beat grid.</exception>
     private static IReadOnlyList<MidiTrackEvent> CreateDrumEvents(Song song)
     {
         var beats = song.Beats;
-        if (beats.Count < 4 || beats.Any(beat => beat.Beat is < 0 or > 3))
+        if (beats.Count < 4 || beats.Any(beat => beat.Beat is < 0 or > 3) || !beats.Any(beat => beat.Beat == 3))
         {
-            throw new InvalidDataException("Synthetic drums require beat markers that identify four-beat measures.");
+            throw new InvalidDataException("Synthetic drums require beat markers containing at least one complete four-beat measure.");
         }
 
         for (var index = 1; index < beats.Count; index++)
@@ -151,9 +151,9 @@ public sealed class StandardMidiFileWriter : IMultiTrackArrangementFormatWriter
             }
         }
 
-        if (beats[0].Beat != 0 || beats[^1].Beat != 3)
+        if (beats[0].Beat != 0)
         {
-            throw new InvalidDataException("Synthetic drums require beat markers spanning complete four-beat measures.");
+            throw new InvalidDataException("Synthetic drums require beat markers starting at a four-beat measure boundary.");
         }
 
         var tempoMap = TempoMap.Create(beats);
