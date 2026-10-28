@@ -115,14 +115,14 @@ followed by one named track per arrangement in archive order. Each arrangement
 uses its own melodic MIDI channel so overlapping parts do not share program or
 pitch-bend state; the percussion channel is left unused by default. Add
 `--drums` with `--format midi` to append a synthetic percussion track in both
-single and combined exports. It places hi-hat on every beat, kick on beat 1,
+single and combined exports (beta). It places hi-hat on every beat, kick on beat 1,
 and snare on beat 3, using General MIDI percussion notes on channel 10. This is
 a generic metronomic accompaniment and does not represent the song's actual
 drum performance. Drum export requires a continuous 4/4 beat grid containing
 at least one full measure; it fails with a clear error when that grid is
 missing or inconsistent. A truncated final measure is allowed, and only its
-observed beats receive hits. Tempo changes follow the same beat-derived tempo map as the
-arrangement. Combined export
+observed beats receive hits. Tempo changes follow the same beat-derived tempo
+map as the arrangement. Combined export
 requires every arrangement to have identical beat timestamps, and supports up
 to 15 arrangements so each can use an independent melodic channel. Arrangements
 with different beat timestamps can be exported separately. Only the

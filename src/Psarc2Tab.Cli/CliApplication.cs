@@ -928,7 +928,7 @@ public sealed class CliApplication
           --stats            Show archive and arrangement statistics without writing files
           --arr <n|all>      Select one item or all instrument arrangements (default: all)
           --format <name>    Output format: tab, midi, or heatmap (default: tab)
-          --drums            Add a synthetic beat-based drum track (requires --format midi)
+          --drums            Add a synthetic beat-based drum track (beta; requires --format midi)
           --help             Show this help
           --version          Show version information
 
