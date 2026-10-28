@@ -49,6 +49,7 @@ psarc2tab --in <input.psarc> --stats --arr <number|all>
 psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
 psarc2tab --in <input.psarc> --out <output.tab> --arr all
 psarc2tab --in <input.psarc> --out <song.mid> --format midi --arr all
+psarc2tab --in <input.psarc> --out <song.mid> --format midi --drums
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
 psarc2tab --in <input.psarc> --out <output.mid> --format midi
 psarc2tab --in <input.psarc> --format heatmap
@@ -86,7 +87,9 @@ SNG paths identify PC or Mac. `--format` selects the
 arrangement output format and defaults to
 `tab`; supported arrangement formats are `tab`, `midi`, and the beta text
 `heatmap`. MIDI export writes notes and chord tones from the selected
-arrangement(s) to a Standard MIDI File.
+arrangement(s) to a Standard MIDI File. Add the opt-in beta flag `--drums` with
+`--format midi` to append a generated percussion track; the flag is rejected
+with other output formats.
 It uses 960 ticks per quarter note and derives tempo changes from Rocksmith XML
 `ebeats` or decoded SNG beat times;
 when fewer than two beat markers are available, it falls back to 120 BPM and
@@ -115,8 +118,8 @@ followed by one named track per arrangement in archive order. Each arrangement
 uses its own melodic MIDI channel so overlapping parts do not share program or
 pitch-bend state; the percussion channel is left unused by default. Add
 `--drums` with `--format midi` to append a synthetic percussion track in both
-single and combined exports (beta). It places hi-hat on every beat, kick on beat 1,
-and snare on beat 3, using General MIDI percussion notes on channel 10. This is
+single and combined exports (beta). It places hi-hat on every beat, kick on
+beat 1, and snare on beat 3, using General MIDI percussion notes on channel 10. This is
 a generic metronomic accompaniment and does not represent the song's actual
 drum performance. Drum export requires a continuous 4/4 beat grid containing
 at least one full measure; it fails with a clear error when that grid is
