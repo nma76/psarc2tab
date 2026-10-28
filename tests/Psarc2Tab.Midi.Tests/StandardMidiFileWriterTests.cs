@@ -49,6 +49,101 @@ public sealed class StandardMidiFileWriterTests
         Assert.Contains(events, item => item.Tick == 1200 && item.Data.SequenceEqual(new byte[] { 0x80, 43, 0 }));
     }
 
+    /// <summary>Writes a separate percussion track with kick, snare, and hi-hat hits on a 4/4 beat grid.</summary>
+    [Fact]
+    public void Write_WithDrums_AddsGeneralMidiPercussionTrack()
+    {
+        var track = CreateTrack("Lead", []);
+        var song = new Song("Song", "Artist", [track], beats:
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1),
+            new BeatMarker(TimeSpan.FromSeconds(1.5), 0, 2),
+            new BeatMarker(TimeSpan.FromSeconds(2), 0, 3)
+        ]);
+        using var output = new MemoryStream();
+
+        new StandardMidiFileWriter(includeDrums: true).Write(song, track, output);
+
+        var bytes = output.ToArray();
+        Assert.Equal((ushort)2, BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(10, 2)));
+        var drumEvents = ReadEventsFromTrack(ReadTracks(bytes)[1]);
+        Assert.Contains(drumEvents, item => item.Tick == 0 && item.Data.SequenceEqual(new byte[] { 0x99, 36, 100 }));
+        Assert.Contains(drumEvents, item => item.Tick == 0 && item.Data.SequenceEqual(new byte[] { 0x99, 42, 100 }));
+        Assert.Contains(drumEvents, item => item.Tick == 960 && item.Data.SequenceEqual(new byte[] { 0x99, 42, 100 }));
+        Assert.Contains(drumEvents, item => item.Tick == 1920 && item.Data.SequenceEqual(new byte[] { 0x99, 38, 100 }));
+        Assert.Contains(ReadEvents(bytes), item => item.Tick == 960 &&
+            item.Data.SequenceEqual(new byte[] { 0xFF, 0x51, 0x0F, 0x42, 0x40 }));
+        Assert.All(drumEvents.Where(item => item.Data.Length >= 3 && (item.Data[0] & 0x0F) == 9),
+            item => Assert.Equal(9, item.Data[0] & 0x0F));
+    }
+
+    /// <summary>Rejects synthetic drums when beat markers do not define a complete 4/4 measure.</summary>
+    [Fact]
+    public void Write_WithDrumsAndIncompleteBeatGrid_ThrowsInvalidDataException()
+    {
+        var track = CreateTrack("Lead", []);
+        var song = new Song("Song", "Artist", [track], beats:
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1)
+        ]);
+
+        using var output = new MemoryStream();
+        Assert.Throws<InvalidDataException>(() => new StandardMidiFileWriter(includeDrums: true)
+            .Write(song, track, output));
+    }
+
+    /// <summary>Allows the final measure to end early when the preceding beat grid verifies 4/4.</summary>
+    [Fact]
+    public void Write_WithDrumsAndTruncatedFinalMeasure_ExportsOnlyObservedBeats()
+    {
+        var track = CreateTrack("Lead", []);
+        var song = new Song("Song", "Artist", [track], beats:
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1),
+            new BeatMarker(TimeSpan.FromSeconds(1), 0, 2),
+            new BeatMarker(TimeSpan.FromSeconds(1.5), 0, 3),
+            new BeatMarker(TimeSpan.FromSeconds(2), 1, 0),
+            new BeatMarker(TimeSpan.FromSeconds(2.5), 1, 1),
+            new BeatMarker(TimeSpan.FromSeconds(3), 1, 2)
+        ]);
+        using var output = new MemoryStream();
+
+        new StandardMidiFileWriter(includeDrums: true).Write(song, track, output);
+
+        var drumEvents = ReadEventsFromTrack(ReadTracks(output.ToArray())[1]);
+        Assert.Contains(drumEvents, item => item.Tick == 3840 &&
+            item.Data.SequenceEqual(new byte[] { 0x99, 36, 100 }));
+        Assert.Contains(drumEvents, item => item.Tick == 5760 &&
+            item.Data.SequenceEqual(new byte[] { 0x99, 38, 100 }));
+        Assert.DoesNotContain(drumEvents, item => item.Tick == 6720 &&
+            item.Data.SequenceEqual(new byte[] { 0x99, 42, 100 }));
+    }
+
+    /// <summary>Adds a shared synthetic percussion track to a combined type-one MIDI file.</summary>
+    [Fact]
+    public void WriteMultiple_WithDrums_AddsPercussionTrackAfterArrangementTracks()
+    {
+        var song = CreateSong("Lead", 0,
+        [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1),
+            new BeatMarker(TimeSpan.FromSeconds(1), 0, 2),
+            new BeatMarker(TimeSpan.FromSeconds(1.5), 0, 3)
+        ]);
+        using var output = new MemoryStream();
+
+        new StandardMidiFileWriter(includeDrums: true).WriteMultiple([song], output);
+
+        var bytes = output.ToArray();
+        Assert.Equal((ushort)1, BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(8, 2)));
+        Assert.Equal((ushort)3, BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(10, 2)));
+        Assert.Contains(ReadEventsFromTrack(ReadTracks(bytes)[2]), item =>
+            item.Tick == 1920 && item.Data.SequenceEqual(new byte[] { 0x99, 38, 100 }));
+    }
+
     /// <summary>Expands chord tones as simultaneous MIDI events with the explicit source duration.</summary>
     [Fact]
     public void Write_Chord_WritesEveryToneAtTheSameTick()
@@ -267,10 +362,10 @@ public sealed class StandardMidiFileWriterTests
     /// <param name="song">The song metadata.</param>
     /// <param name="track">The selected arrangement.</param>
     /// <returns>The encoded file bytes.</returns>
-    private static byte[] Write(Song song, Track track)
+    private static byte[] Write(Song song, Track track, bool includeDrums = false)
     {
         using var output = new MemoryStream();
-        new StandardMidiFileWriter().Write(song, track, output);
+        new StandardMidiFileWriter(includeDrums).Write(song, track, output);
         return output.ToArray();
     }
 
@@ -403,6 +498,22 @@ public sealed class StandardMidiFileWriterTests
         }
 
         return events;
+    }
+
+    /// <summary>Reads delta-time events from one MIDI track body.</summary>
+    /// <param name="track">The encoded track body.</param>
+    /// <returns>Events with absolute tick positions.</returns>
+    private static IReadOnlyList<ParsedEvent> ReadEventsFromTrack(byte[] track)
+    {
+        using var file = new MemoryStream();
+        file.Write("MThd"u8);
+        file.Write([0, 0, 0, 6, 0, 0, 0, 1, 3, 192]);
+        file.Write("MTrk"u8);
+        Span<byte> length = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(length, (uint)track.Length);
+        file.Write(length);
+        file.Write(track);
+        return ReadEvents(file.ToArray());
     }
 
     /// <summary>Reads one MIDI variable-length quantity.</summary>

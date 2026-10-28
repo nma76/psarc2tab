@@ -30,6 +30,7 @@ public enum CommandKind
 /// <param name="AllArrangements">Whether every instrument arrangement should be exported.</param>
 /// <param name="FormatName">The requested arrangement output format.</param>
 /// <param name="ShowStatistics">Whether archive statistics were requested.</param>
+/// <param name="IncludeDrums">Whether MIDI export should add a generated drum track.</param>
 /// <param name="Error">The reason parsing failed, when the command is invalid.</param>
 public sealed record ParsedCommand(
     CommandKind Kind,
@@ -39,7 +40,8 @@ public sealed record ParsedCommand(
     bool AllArrangements = false,
     string FormatName = "tab",
     string? Error = null,
-    bool ShowStatistics = false);
+    bool ShowStatistics = false,
+    bool IncludeDrums = false);
 
 /// <summary>Parses supported command-line flags without performing file or conversion work.</summary>
 public sealed class CommandLineParser
@@ -63,6 +65,7 @@ public sealed class CommandLineParser
         var showHelp = false;
         var showVersion = false;
         var showStatistics = false;
+        var includeDrums = false;
 
         for (var index = 0; index < args.Count; index++)
         {
@@ -82,6 +85,14 @@ public sealed class CommandLineParser
                     }
 
                     showStatistics = true;
+                    break;
+                case "--drums":
+                    if (includeDrums)
+                    {
+                        return Invalid("The '--drums' option can only be specified once.");
+                    }
+
+                    includeDrums = true;
                     break;
                 case "--list":
                     if (listArrangements)
@@ -176,6 +187,11 @@ public sealed class CommandLineParser
             return Invalid("Options '--help' and '--version' cannot be used together.");
         }
 
+        if (includeDrums && (!formatSpecified || !string.Equals(formatName, "midi", StringComparison.OrdinalIgnoreCase)))
+        {
+            return Invalid("Option '--drums' requires '--format midi'.");
+        }
+
         if ((showHelp || showVersion) && (listArrangements || arrangementSpecified || showStatistics))
         {
             return Invalid("Help and version options cannot be combined with archive operations.");
@@ -229,7 +245,7 @@ public sealed class CommandLineParser
         }
 
         return new ParsedCommand(CommandKind.Convert, inputPath, outputPath, arrangementNumber, allArrangements,
-            formatName);
+            formatName, IncludeDrums: includeDrums);
     }
 
     /// <summary>Creates an invalid-command result with a concise diagnostic.</summary>

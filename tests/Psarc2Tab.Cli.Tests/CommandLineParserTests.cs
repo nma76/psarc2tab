@@ -31,6 +31,28 @@ public sealed class CommandLineParserTests
         Assert.Equal("midi", result.FormatName);
     }
 
+    /// <summary>Enables the optional drum track only with the explicit MIDI format.</summary>
+    [Fact]
+    public void Parse_DrumsWithMidi_EnablesDrumTrack()
+    {
+        var result = _parser.Parse(["--in", "song.psarc", "--out", "song.mid", "--format", "midi", "--drums"]);
+
+        Assert.Equal(CommandKind.Convert, result.Kind);
+        Assert.True(result.IncludeDrums);
+    }
+
+    /// <summary>Rejects the drum flag when MIDI was not explicitly selected.</summary>
+    [Theory]
+    [InlineData("--in song.psarc --out song.tab --drums")]
+    [InlineData("--in song.psarc --out song.mid --format tab --drums")]
+    public void Parse_DrumsWithoutMidi_IsInvalid(string arguments)
+    {
+        var result = _parser.Parse(arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+        Assert.Equal(CommandKind.Invalid, result.Kind);
+        Assert.Contains("--format midi", result.Error);
+    }
+
     /// <summary>Allows heatmap format to use stdout when no output path is supplied.</summary>
     [Fact]
     public void Parse_HeatmapWithoutOutputPath_ReturnsScreenConversion()
