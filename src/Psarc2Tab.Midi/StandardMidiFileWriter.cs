@@ -8,6 +8,13 @@ namespace Psarc2Tab.Midi;
 /// <summary>Writes one arrangement as a type-zero Standard MIDI File.</summary>
 public sealed class StandardMidiFileWriter : IMultiTrackArrangementFormatWriter
 {
+    /// <summary>Whether exports include a generated General MIDI percussion track.</summary>
+    private readonly bool _includeDrums;
+
+    /// <summary>Creates a MIDI writer with optional synthetic percussion.</summary>
+    /// <param name="includeDrums">Whether to add a generic beat-based drum track.</param>
+    public StandardMidiFileWriter(bool includeDrums = false) => _includeDrums = includeDrums;
+
     /// <summary>The MIDI ticks per quarter note in exported files.</summary>
     private const ushort TicksPerQuarterNote = 960;
 
@@ -54,9 +61,17 @@ public sealed class StandardMidiFileWriter : IMultiTrackArrangementFormatWriter
             throw new InvalidDataException($"The arrangement exceeds the supported {MaximumNoteCount} MIDI note limit.");
         }
 
-        var trackBytes = CreateTrackBytes(CreateEvents(song, track, channel: 0, includeTempo: true,
-            $"psarc2tab {track.Name}"));
-        WriteFile(destination, 0, [trackBytes]);
+        var trackBytes = new List<byte[]>
+        {
+            CreateTrackBytes(CreateEvents(song, track, channel: 0, includeTempo: true,
+                $"psarc2tab {track.Name}"))
+        };
+        if (_includeDrums)
+        {
+            trackBytes.Add(CreateTrackBytes(CreateDrumEvents(song)));
+        }
+
+        WriteFile(destination, 0, trackBytes);
     }
 
     /// <inheritdoc />
@@ -85,7 +100,7 @@ public sealed class StandardMidiFileWriter : IMultiTrackArrangementFormatWriter
             throw new InvalidDataException("Combined MIDI export requires identical beat times for every arrangement so all tracks share one timeline.");
         }
 
-        var trackBytes = new List<byte[]>(songs.Count + 1)
+        var trackBytes = new List<byte[]>(songs.Count + 1 + (_includeDrums ? 1 : 0))
         {
             CreateTrackBytes(CreateConductorEvents(songs[0]))
         };
@@ -104,7 +119,75 @@ public sealed class StandardMidiFileWriter : IMultiTrackArrangementFormatWriter
                 $"psarc2tab {track.Name}")));
         }
 
+        if (_includeDrums)
+        {
+            trackBytes.Add(CreateTrackBytes(CreateDrumEvents(songs[0])));
+        }
+
         WriteFile(destination, 1, trackBytes);
+    }
+
+    /// <summary>Builds a synthetic 4/4 drum pattern using the source beat grid.</summary>
+    /// <param name="song">The song supplying beat timestamps and tempo changes.</param>
+    /// <returns>Sorted General MIDI percussion events.</returns>
+    /// <exception cref="InvalidDataException">The beat markers do not define complete four-beat measures.</exception>
+    private static IReadOnlyList<MidiTrackEvent> CreateDrumEvents(Song song)
+    {
+        var beats = song.Beats;
+        if (beats.Count < 4 || beats.Any(beat => beat.Beat is < 0 or > 3))
+        {
+            throw new InvalidDataException("Synthetic drums require beat markers that identify four-beat measures.");
+        }
+
+        for (var index = 1; index < beats.Count; index++)
+        {
+            var previous = beats[index - 1];
+            var current = beats[index];
+            var validNextBeat = current.Measure == previous.Measure && current.Beat == previous.Beat + 1;
+            var validNextMeasure = current.Measure == previous.Measure + 1 && previous.Beat == 3 && current.Beat == 0;
+            if (current.Time <= previous.Time || (!validNextBeat && !validNextMeasure))
+            {
+                throw new InvalidDataException("Synthetic drums require a continuous, ordered four-beat measure grid.");
+            }
+        }
+
+        if (beats[0].Beat != 0 || beats[^1].Beat != 3)
+        {
+            throw new InvalidDataException("Synthetic drums require beat markers spanning complete four-beat measures.");
+        }
+
+        var tempoMap = TempoMap.Create(beats);
+        var events = new List<MidiTrackEvent>
+        {
+            new(0, 0, CreateTextMetaEvent(0x03, "psarc2tab synthetic drums"))
+        };
+        foreach (var beat in beats)
+        {
+            var tick = tempoMap.ToMidiTick(beat.Time.Ticks);
+            AddDrumHit(events, tick, 42);
+            if (beat.Beat == 0)
+            {
+                AddDrumHit(events, tick, 36);
+            }
+            else if (beat.Beat == 2)
+            {
+                AddDrumHit(events, tick, 38);
+            }
+        }
+
+        var lastTick = events.Max(item => item.Tick);
+        events.Add(new MidiTrackEvent(lastTick, 10, [0xFF, 0x2F, 0x00]));
+        return Array.AsReadOnly(events.OrderBy(item => item.Tick).ThenBy(item => item.Priority).ToArray());
+    }
+
+    /// <summary>Adds a short percussion note on General MIDI channel 10.</summary>
+    /// <param name="events">The receiving events.</param>
+    /// <param name="tick">The hit position.</param>
+    /// <param name="pitch">The General MIDI percussion note.</param>
+    private static void AddDrumHit(List<MidiTrackEvent> events, long tick, byte pitch)
+    {
+        events.Add(new MidiTrackEvent(tick, 5, [0x99, pitch, 100]));
+        events.Add(new MidiTrackEvent(tick + TicksPerQuarterNote / 4, 4, [0x89, pitch, 0]));
     }
 
     /// <summary>Builds sorted metadata, note, and end-of-track events.</summary>

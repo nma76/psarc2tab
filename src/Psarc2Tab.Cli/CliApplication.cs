@@ -38,6 +38,9 @@ public sealed class CliApplication
     /// <summary>Imports selected arrangements and resolves their output formats.</summary>
     private readonly ExportArrangementUseCase _exportArrangement;
 
+    /// <summary>Writes MIDI with the optional synthetic percussion track.</summary>
+    private readonly ExportArrangementUseCase _exportArrangementWithDrums;
+
     /// <summary>Imports and writes the archive's timed lyrics.</summary>
     private readonly ExportLyricsUseCase _exportLyrics;
 
@@ -53,13 +56,13 @@ public sealed class CliApplication
     {
         _parser = parser ?? new CommandLineParser();
         _arrangementCatalog = arrangementCatalog ?? new RocksmithArrangementCatalog();
-        _exportArrangement = exportArrangement ?? new ExportArrangementUseCase(
-            new RocksmithArchiveArrangementImporter(_arrangementCatalog, new RocksmithArrangementImporter()),
+        var importer = new RocksmithArchiveArrangementImporter(_arrangementCatalog, new RocksmithArrangementImporter());
+        _exportArrangement = exportArrangement ?? new ExportArrangementUseCase(importer,
             new ArrangementFormatRegistry([
-                new TablatureTextWriter(),
-                new StandardMidiFileWriter(),
-                new FretboardHeatmapTextWriter()
+                new TablatureTextWriter(), new StandardMidiFileWriter(), new FretboardHeatmapTextWriter()
             ]));
+        _exportArrangementWithDrums = new ExportArrangementUseCase(importer,
+            new ArrangementFormatRegistry([new StandardMidiFileWriter(includeDrums: true)]));
         _exportLyrics = exportLyrics ?? new ExportLyricsUseCase(
             new RocksmithArchiveLyricsImporter(_arrangementCatalog), new LrcLyricsWriter());
     }
@@ -353,7 +356,7 @@ public sealed class CliApplication
             else
             {
                 WriteOutputSafely(song ?? throw new InvalidOperationException("No archive item was imported."),
-                    command.OutputPath!, command.FormatName);
+                    command.OutputPath!, command.FormatName, command.IncludeDrums);
                 standardOutput.WriteLine($"Wrote {command.FormatName} export to '{command.OutputPath}'.");
             }
 
@@ -588,7 +591,7 @@ public sealed class CliApplication
 
         try
         {
-            WriteOutputSetSafely(exports, command.FormatName);
+            WriteOutputSetSafely(exports, command.FormatName, command.IncludeDrums);
             var writtenPaths = _exportArrangement.SupportsMultiTrackFormat(command.FormatName)
                 ? [exports[0].OutputPath]
                 : exports.Select(export => export.OutputPath).ToArray();
@@ -678,13 +681,15 @@ public sealed class CliApplication
     /// <param name="formatName">The registered output format.</param>
     /// <exception cref="IOException">A destination cannot be written or a staged move fails.</exception>
     /// <exception cref="UnauthorizedAccessException">A destination cannot be accessed.</exception>
-    private void WriteOutputSetSafely(IReadOnlyList<(Song Song, string OutputPath)> exports, string formatName)
+    private void WriteOutputSetSafely(IReadOnlyList<(Song Song, string OutputPath)> exports, string formatName,
+        bool includeDrums = false)
     {
+        var exporter = includeDrums ? _exportArrangementWithDrums : _exportArrangement;
         var stagedFiles = new List<(string TemporaryPath, string OutputPath)>();
         var committedPaths = new List<string>();
         try
         {
-            if (_exportArrangement.SupportsMultiTrackFormat(formatName))
+            if (exporter.SupportsMultiTrackFormat(formatName))
             {
                 var export = exports[0];
                 var outputPath = Path.GetFullPath(export.OutputPath);
@@ -693,7 +698,7 @@ public sealed class CliApplication
                 var temporaryPath = Path.Combine(directory, $".psarc2tab-{Guid.NewGuid():N}.tmp");
                 using var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 stagedFiles.Add((temporaryPath, outputPath));
-                _exportArrangement.WriteMultiple(exports.Select(item => item.Song).ToArray(), formatName, stream);
+                exporter.WriteMultiple(exports.Select(item => item.Song).ToArray(), formatName, stream);
                 stream.Flush(flushToDisk: true);
             }
             else
@@ -706,7 +711,7 @@ public sealed class CliApplication
                     var temporaryPath = Path.Combine(directory, $".psarc2tab-{Guid.NewGuid():N}.tmp");
                     using var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                     stagedFiles.Add((temporaryPath, outputPath));
-                    _exportArrangement.Write(export.Song, formatName, stream);
+                    exporter.Write(export.Song, formatName, stream);
                     stream.Flush(flushToDisk: true);
                 }
             }
@@ -814,8 +819,9 @@ public sealed class CliApplication
     /// <param name="formatName">The selected registered output format.</param>
     /// <exception cref="IOException">The destination already exists or writing failed.</exception>
     /// <exception cref="UnauthorizedAccessException">The destination directory is not writable.</exception>
-    private void WriteOutputSafely(Song song, string outputPath, string formatName)
+    private void WriteOutputSafely(Song song, string outputPath, string formatName, bool includeDrums = false)
     {
+        var exporter = includeDrums ? _exportArrangementWithDrums : _exportArrangement;
         var fullPath = Path.GetFullPath(outputPath);
         if (File.Exists(fullPath) || Directory.Exists(fullPath))
         {
@@ -829,7 +835,7 @@ public sealed class CliApplication
         {
             using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
-                _exportArrangement.Write(song, formatName, stream);
+                exporter.Write(song, formatName, stream);
                 stream.Flush(flushToDisk: true);
             }
 
@@ -911,6 +917,7 @@ public sealed class CliApplication
           psarc2tab --in song.psarc --arr 2 --format heatmap
           psarc2tab --in song.psarc --out song.txt --format heatmap --arr 2
           psarc2tab --in song.psarc --out song.mid --format midi --arr 1
+          psarc2tab --in song.psarc --out song.mid --format midi --drums
           psarc2tab --in song.psarc --out song.tab
           psarc2tab --in song.psarc --out song.tab --arr all
 
@@ -921,6 +928,7 @@ public sealed class CliApplication
           --stats            Show archive and arrangement statistics without writing files
           --arr <n|all>      Select one item or all instrument arrangements (default: all)
           --format <name>    Output format: tab, midi, or heatmap (default: tab)
+          --drums            Add a synthetic beat-based drum track (requires --format midi)
           --help             Show this help
           --version          Show version information
 
