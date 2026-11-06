@@ -6,12 +6,13 @@
 
 ## From Rocksmith archive to practice-ready tab
 
-Turn a supported Rocksmith arrangement into tablature you can read, practice
-from, and share. `psarc2tab` extracts Lead, Rhythm, or Bass parts from PSARC
-archives and renders them as classic ASCII tabs, with tuning and song sections
-alongside the notes. List the arrangements before you choose, or export timed
-lyrics as an LRC file. It runs as a cross-platform command-line tool on Windows,
-macOS, and Linux.
+Turn supported Rocksmith PSARC archives into useful practice and analysis
+files. Export Lead, Rhythm, and Bass arrangements as readable ASCII tabs or
+Standard MIDI, inspect fretboard note patterns with text heatmaps, and review
+archive and arrangement statistics before choosing what to export. Tabs include
+tuning and song sections; MIDI uses available beat and tempo data. You can also
+export timed lyrics as LRC files or batch-export tabs from a folder. `psarc2tab`
+runs from the command line on Windows, macOS, and Linux.
 
 ## Requirements
 
