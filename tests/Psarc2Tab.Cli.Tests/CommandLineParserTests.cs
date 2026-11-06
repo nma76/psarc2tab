@@ -21,6 +21,31 @@ public sealed class CommandLineParserTests
         Assert.True(result.AllArrangements);
     }
 
+    /// <summary>Parses a tab batch pattern separately from its input and output directories.</summary>
+    [Fact]
+    public void Parse_BatchOption_ReturnsPattern()
+    {
+        var result = _parser.Parse(["--in", "archives", "--batch", "*_p.psarc", "--out", "tabs"]);
+
+        Assert.Equal(CommandKind.Convert, result.Kind);
+        Assert.Equal("archives", result.InputPath);
+        Assert.Equal("tabs", result.OutputPath);
+        Assert.Equal("*_p.psarc", result.BatchPattern);
+        Assert.Equal("tab", result.FormatName);
+    }
+
+    /// <summary>Rejects non-tab batch formats and single-arrangement selection.</summary>
+    [Theory]
+    [InlineData("--in archives --batch *.psarc --out tabs --format midi")]
+    [InlineData("--in archives --batch *.psarc --out tabs --arr 1")]
+    public void Parse_BatchWithUnsupportedOptions_IsInvalid(string arguments)
+    {
+        var result = _parser.Parse(arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+        Assert.Equal(CommandKind.Invalid, result.Kind);
+        Assert.Contains("tab export", result.Error);
+    }
+
     /// <summary>Parses a named output format for an arrangement.</summary>
     [Fact]
     public void Parse_FormatOption_ReturnsFormatName()

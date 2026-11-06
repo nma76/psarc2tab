@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using Psarc2Tab.Application;
 using Psarc2Tab.Domain;
 using Psarc2Tab.Formats.Rocksmith;
@@ -287,6 +288,11 @@ public sealed class CliApplication
             return ShowHeatmaps(command, standardOutput, standardError);
         }
 
+        if (command.BatchPattern is not null)
+        {
+            return ExportBatch(command, standardOutput, standardError);
+        }
+
         if (command.AllArrangements)
         {
             return ExportAllArrangements(command, standardOutput, standardError);
@@ -377,6 +383,114 @@ public sealed class CliApplication
             standardError.WriteLine($"Error: Cannot write output file '{command.OutputPath}': {exception.Message}");
             return OutputErrorExitCode;
         }
+    }
+
+    /// <summary>Exports every matching archive as a single staged set of tablature files.</summary>
+    /// <param name="command">The tab batch request.</param>
+    /// <param name="standardOutput">Writer for completed output paths.</param>
+    /// <param name="standardError">Writer for diagnostics.</param>
+    /// <returns>The success or relevant input, output, or conversion error code.</returns>
+    private int ExportBatch(ParsedCommand command, TextWriter standardOutput, TextWriter standardError)
+    {
+        List<(Song Song, string OutputPath)> exports = [];
+        if (!Directory.Exists(command.InputPath))
+        {
+            standardError.WriteLine($"Error: Cannot read batch input directory '{command.InputPath}'.");
+            return InputErrorExitCode;
+        }
+
+        if (!Directory.Exists(command.OutputPath))
+        {
+            standardError.WriteLine($"Error: Cannot write batch output directory '{command.OutputPath}'.");
+            return OutputErrorExitCode;
+        }
+
+        try
+        {
+            var matcher = CreateWildcardMatcher(command.BatchPattern!);
+            var matchedFiles = Directory.GetFiles(command.InputPath!)
+                .Where(path => matcher.IsMatch(Path.GetFileName(path)))
+                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(Path.GetFileName, StringComparer.Ordinal)
+                .ToArray();
+            if (matchedFiles.Length == 0)
+            {
+                throw new FileNotFoundException($"No files match '{command.BatchPattern}' in '{command.InputPath}'.");
+            }
+
+            foreach (var inputPath in matchedFiles)
+            {
+                RocksmithArchiveItem[] arrangements;
+                using (var input = File.OpenRead(inputPath))
+                {
+                    arrangements = _arrangementCatalog.ListItems(input).Where(item => !item.IsLyrics).ToArray();
+                    if (arrangements.Length == 0)
+                    {
+                        throw new InvalidDataException($"Archive '{Path.GetFileName(inputPath)}' contains no instrument arrangements.");
+                    }
+
+                    var requestedBase = Path.Combine(command.OutputPath!, Path.GetFileNameWithoutExtension(inputPath) + ".tab");
+                    var outputPaths = CreateArrangementOutputPaths(requestedBase, arrangements);
+                    for (var index = 0; index < arrangements.Length; index++)
+                    {
+                        input.Position = 0;
+                        exports.Add((_exportArrangement.Import(input, arrangements[index].Number), outputPaths[index]));
+                    }
+                }
+            }
+
+        }
+        catch (Exception exception) when (IsInputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot prepare batch export: {exception.Message}");
+            return InputErrorExitCode;
+        }
+
+        try
+        {
+            ValidateOutputSet(exports.Select(export => export.OutputPath));
+        }
+        catch (Exception exception) when (IsOutputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot prepare batch output: {exception.Message}");
+            return OutputErrorExitCode;
+        }
+
+        try
+        {
+            WriteOutputSetSafely(exports, "tab");
+            foreach (var export in exports)
+            {
+                standardOutput.WriteLine($"Wrote tab export to '{export.OutputPath}'.");
+            }
+
+            return SuccessExitCode;
+        }
+        catch (InvalidOperationException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export batch: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (Exception exception) when (IsOutputFailure(exception) || exception is InvalidDataException)
+        {
+            standardError.WriteLine($"Error: Cannot write batch outputs: {exception.Message}");
+            return OutputErrorExitCode;
+        }
+    }
+
+    /// <summary>Creates a platform-independent, case-insensitive wildcard matcher for a filename.</summary>
+    /// <param name="pattern">A filename pattern containing literal characters, '*' or '?'.</param>
+    /// <returns>A compiled regular expression matching the complete filename.</returns>
+    private static Regex CreateWildcardMatcher(string pattern)
+    {
+        if (pattern.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || pattern.Contains(Path.DirectorySeparatorChar) ||
+            pattern.Contains(Path.AltDirectorySeparatorChar))
+        {
+            throw new ArgumentException("The batch pattern must be a filename pattern without directory separators.");
+        }
+
+        var expression = "^" + Regex.Escape(pattern).Replace("\\*", ".*").Replace("\\?", ".") + "$";
+        return new Regex(expression, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
     }
 
     /// <summary>Renders one or more heatmaps to stdout without creating output files.</summary>
@@ -903,6 +1017,7 @@ public sealed class CliApplication
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
           psarc2tab --in <input.psarc> --out <output.tab> --format tab
+          psarc2tab --in <input-directory> --batch <pattern> --out <output-directory>
           psarc2tab --in <input.psarc> --out <output.mid> --format midi
           psarc2tab --in <input.psarc> --format heatmap [--arr <number|all>]
           psarc2tab --in <input.psarc> --out <output.txt> --format heatmap [--arr <number|all>]
@@ -920,6 +1035,7 @@ public sealed class CliApplication
           psarc2tab --in song.psarc --out song.mid --format midi --drums
           psarc2tab --in song.psarc --out song.tab
           psarc2tab --in song.psarc --out song.tab --arr all
+          psarc2tab --in archives --batch "*_p.psarc" --out tabs
 
         Options:
           --in <path>        Input PSARC archive
@@ -929,6 +1045,7 @@ public sealed class CliApplication
           --arr <n|all>      Select one item or all instrument arrangements (default: all)
           --format <name>    Output format: tab, midi, or heatmap (default: tab)
           --drums            Add a synthetic beat-based drum track (beta; requires --format midi)
+          --batch <pattern>  Export all matching archives as separate .tab files
           --help             Show this help
           --version          Show version information
 
