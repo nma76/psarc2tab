@@ -14,6 +14,20 @@ tuning and song sections; MIDI uses available beat and tempo data. You can also
 export timed lyrics as LRC files or batch-export tabs from a folder. `psarc2tab`
 runs from the command line on Windows, macOS, and Linux.
 
+## See it in action
+
+### Fretboard heatmap
+
+![Terminal preview of a generated fretboard heatmap for a Rocksmith Rhythm arrangement](docs/images/heatmap-preview.svg)
+
+### MIDI export
+
+![Terminal command and track overview for exporting Rocksmith arrangements to a Standard MIDI file](docs/images/midi-export.svg)
+
+### Batch tab export
+
+![Batch command showing multiple PSARC archives becoming separate tab files](docs/images/batch-export.svg)
+
 ## Requirements
 
 - .NET 10 SDK

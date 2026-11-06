@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+  <title id="title">Batch export tablature from multiple PSARC archives</title>
+  <desc id="desc">A command-line example turns matching PSARC files in a folder into separate tab files, with lyrics excluded.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#10192a"/><stop offset="1" stop-color="#173239"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#030712" flood-opacity=".35"/></filter>
+  </defs>
+  <rect width="1200" height="700" rx="32" fill="url(#bg)"/>
+  <circle cx="1090" cy="70" r="142" fill="#5dd7b1" opacity=".08"/>
+  <text x="66" y="84" fill="#83b6a9" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="3">BATCH TAB EXPORT</text>
+  <text x="66" y="130" fill="#f1f6fc" font-family="Arial, sans-serif" font-size="31" font-weight="700">A folder of archives, ready-to-practice tabs.</text>
+  <text x="66" y="164" fill="#a8b8cb" font-family="Arial, sans-serif" font-size="17">Match the files you want. psarc2tab handles the arrangements in each archive.</text>
+  <g filter="url(#shadow)">
+    <rect x="66" y="204" width="1068" height="110" rx="16" fill="#0d151c" stroke="#314154" stroke-width="2"/>
+    <circle cx="94" cy="233" r="6" fill="#ff6b6b"/><circle cx="115" cy="233" r="6" fill="#f6bd4f"/><circle cx="136" cy="233" r="6" fill="#45d483"/>
+  </g>
+  <text x="92" y="273" fill="#61e6b2" font-family="Consolas, 'DejaVu Sans Mono', monospace" font-size="16">$</text>
+  <text x="115" y="273" fill="#d8e2ed" font-family="Consolas, 'DejaVu Sans Mono', monospace" font-size="16">psarc2tab --in archives --batch "*_p.psarc" --out tabs</text>
+  <g font-family="Arial, sans-serif">
+    <text x="80" y="369" fill="#9eb0c3" font-size="14" font-weight="700" letter-spacing="1">INPUT FILES</text>
+    <text x="662" y="369" fill="#9eb0c3" font-size="14" font-weight="700" letter-spacing="1">OUTPUT TAB FILES</text>
+    <rect x="78" y="390" width="372" height="174" rx="14" fill="#1b2736" stroke="#34465c"/>
+    <rect x="662" y="390" width="460" height="174" rx="14" fill="#1b2736" stroke="#34465c"/>
+    <g fill="#72d7bd">
+      <path d="M109 421h27l11 11h46v83h-84z" opacity=".9"/>
+      <path d="M109 475h27l11 11h46v83h-84z" opacity=".65"/>
+    </g>
+    <text x="211" y="447" fill="#edf3f8" font-family="Consolas, monospace" font-size="16">song_a_p.psarc</text>
+    <text x="211" y="502" fill="#edf3f8" font-family="Consolas, monospace" font-size="16">song_b_p.psarc</text>
+    <path d="M483 477h126" stroke="#58d9b4" stroke-width="3" stroke-linecap="round"/>
+    <path d="m595 467 14 10-14 10" fill="none" stroke="#58d9b4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="#54d7b0">
+      <path d="M692 414h22l9 9h35v49h-66z"/><path d="M692 460h22l9 9h35v49h-66z"/><path d="M692 506h22l9 9h35v35h-66z"/>
+    </g>
+    <text x="775" y="438" fill="#edf3f8" font-family="Consolas, monospace" font-size="15">song_a_p-lead.tab</text>
+    <text x="775" y="484" fill="#edf3f8" font-family="Consolas, monospace" font-size="15">song_a_p-bass.tab</text>
+    <text x="775" y="530" fill="#edf3f8" font-family="Consolas, monospace" font-size="15">song_b_p-rhythm.tab</text>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="14">
+    <rect x="80" y="600" width="310" height="48" rx="24" fill="#233b3d"/>
+    <circle cx="105" cy="624" r="6" fill="#62ddb6"/><text x="123" y="629" fill="#d8e8e4">Lyrics are skipped</text>
+    <rect x="410" y="600" width="350" height="48" rx="24" fill="#233b3d"/>
+    <circle cx="435" cy="624" r="6" fill="#62ddb6"/><text x="453" y="629" fill="#d8e8e4">Checks outputs before writing</text>
+    <rect x="780" y="600" width="342" height="48" rx="24" fill="#233b3d"/>
+    <circle cx="805" cy="624" r="6" fill="#62ddb6"/><text x="823" y="629" fill="#d8e8e4">Deterministic file order</text>
+  </g>
+</svg>
