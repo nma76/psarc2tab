@@ -48,6 +48,103 @@ public sealed class CliApplicationTests
         Assert.Empty(output.StandardOutput);
     }
 
+    /// <summary>Exports matching archives as safely named tab sets in deterministic input order.</summary>
+    [Fact]
+    public void Run_BatchTab_ExportsMatchesInDeterministicOrder()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "archives")).FullName;
+        var outputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "tabs")).FullName;
+        var archive = CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml),
+            ("songs/arr/sample_vocals.xml", "<vocals />"));
+        File.WriteAllBytes(Path.Combine(inputDirectory, "z_p.psarc"), archive);
+        File.WriteAllBytes(Path.Combine(inputDirectory, "a_P.PSARC"), archive);
+        File.WriteAllBytes(Path.Combine(inputDirectory, "ignored.psarc"), archive);
+
+        var output = Run("--in", inputDirectory, "--batch", "*_p.psarc", "--out", outputDirectory);
+
+        Assert.Equal(CliApplication.SuccessExitCode, output.ExitCode);
+        Assert.Equal(4, Directory.GetFiles(outputDirectory).Length);
+        Assert.True(File.Exists(Path.Combine(outputDirectory, "a_P-lead.tab")));
+        Assert.True(File.Exists(Path.Combine(outputDirectory, "a_P-bass.tab")));
+        Assert.True(File.Exists(Path.Combine(outputDirectory, "z_p-lead.tab")));
+        Assert.True(File.Exists(Path.Combine(outputDirectory, "z_p-bass.tab")));
+        Assert.True(output.StandardOutput.IndexOf("a_P-lead.tab", StringComparison.Ordinal) <
+                    output.StandardOutput.IndexOf("z_p-lead.tab", StringComparison.Ordinal));
+        Assert.Empty(output.StandardError);
+        Assert.Empty(Directory.GetFiles(outputDirectory, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Prevents all writes when any output in a batch already exists.</summary>
+    [Fact]
+    public void Run_BatchTab_CollisionLeavesNoOtherFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "archives")).FullName;
+        var outputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "tabs")).FullName;
+        var archive = CreateArchive(
+            ("songs/arr/sample_lead.xml", ArrangementXml),
+            ("songs/arr/sample_bass.xml", BassArrangementXml));
+        File.WriteAllBytes(Path.Combine(inputDirectory, "song.psarc"), archive);
+        File.WriteAllText(Path.Combine(outputDirectory, "song-bass.tab"), "keep");
+
+        var output = Run("--in", inputDirectory, "--batch", "*.psarc", "--out", outputDirectory);
+
+        Assert.Equal(CliApplication.OutputErrorExitCode, output.ExitCode);
+        Assert.False(File.Exists(Path.Combine(outputDirectory, "song-lead.tab")));
+        Assert.Equal("keep", File.ReadAllText(Path.Combine(outputDirectory, "song-bass.tab")));
+    }
+
+    /// <summary>Detects output-name collisions between archives before writing either result.</summary>
+    [Fact]
+    public void Run_BatchTab_ArchiveNameCollisionLeavesNoFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "archives")).FullName;
+        var outputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "tabs")).FullName;
+        var archive = CreateArchive(ArrangementXml);
+        File.WriteAllBytes(Path.Combine(inputDirectory, "song.psarc"), archive);
+        File.WriteAllBytes(Path.Combine(inputDirectory, "SONG.psarc"), archive);
+
+        var output = Run("--in", inputDirectory, "--batch", "*.psarc", "--out", outputDirectory);
+
+        Assert.Equal(CliApplication.OutputErrorExitCode, output.ExitCode);
+        Assert.Empty(Directory.GetFiles(outputDirectory));
+    }
+
+    /// <summary>Aborts the entire batch when a matched file is not a valid archive.</summary>
+    [Fact]
+    public void Run_BatchTab_InvalidArchiveLeavesNoFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "archives")).FullName;
+        var outputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "tabs")).FullName;
+        File.WriteAllBytes(Path.Combine(inputDirectory, "good.psarc"), CreateArchive(ArrangementXml));
+        File.WriteAllBytes(Path.Combine(inputDirectory, "bad.psarc"), [1, 2, 3]);
+
+        var output = Run("--in", inputDirectory, "--batch", "*.psarc", "--out", outputDirectory);
+
+        Assert.Equal(CliApplication.InputErrorExitCode, output.ExitCode);
+        Assert.Empty(Directory.GetFiles(outputDirectory));
+    }
+
+    /// <summary>Reports an empty wildcard result without creating output files.</summary>
+    [Fact]
+    public void Run_BatchTab_NoMatchesReturnsInputError()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "archives")).FullName;
+        var outputDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "tabs")).FullName;
+
+        var output = Run("--in", inputDirectory, "--batch", "*.psarc", "--out", outputDirectory);
+
+        Assert.Equal(CliApplication.InputErrorExitCode, output.ExitCode);
+        Assert.Contains("No files match", output.StandardError);
+        Assert.Empty(Directory.GetFiles(outputDirectory));
+    }
+
     /// <summary>Exports a selected archive arrangement as a Standard MIDI File.</summary>
     [Fact]
     public void Run_MidiFormat_WritesStandardMidiFile()

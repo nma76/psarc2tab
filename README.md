@@ -51,6 +51,7 @@ psarc2tab --in <input.psarc> --out <output.tab> --arr all
 psarc2tab --in <input.psarc> --out <song.mid> --format midi --arr all
 psarc2tab --in <input.psarc> --out <song.mid> --format midi --drums
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
+psarc2tab --in <archive-directory> --batch "*_p.psarc" --out <tab-directory>
 psarc2tab --in <input.psarc> --out <output.mid> --format midi
 psarc2tab --in <input.psarc> --format heatmap
 psarc2tab --in <input.psarc> --arr <number> --format heatmap
@@ -111,7 +112,16 @@ separate file; Lyrics entries are excluded. The requested output filename is a
 base name, so `mysong.tab` produces files such as `mysong-lead.tab` and
 `mysong-bass.tab`. Repeated arrangements of the same instrument receive
 numbered suffixes such as `mysong-lead-2.tab`. `--arr all` may be supplied
-explicitly for the same behavior. With `--format midi`, the default selection
+explicitly for the same behavior. For tab batch export, pass an input directory
+to `--in`, a filename wildcard to `--batch`, and an existing output directory
+to `--out`. For example, `psarc2tab --in archives --batch "*_p.psarc" --out tabs`
+exports every matching archive in case-insensitive filename order. Patterns
+match filenames in the input directory only; `*` matches any sequence and `?`
+matches one character. Each archive writes all its instrument arrangements,
+excluding Lyrics, using its filename stem and the regular instrument suffixes.
+Only `tab` is supported for batch export. No matching files, an invalid archive,
+or any output collision fails the whole batch before files are committed.
+With `--format midi`, the default selection
 writes one Standard MIDI type-one file to the
 requested output path. It contains a conductor track with the shared tempo map,
 followed by one named track per arrangement in archive order. Each arrangement

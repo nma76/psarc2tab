@@ -31,6 +31,7 @@ public enum CommandKind
 /// <param name="FormatName">The requested arrangement output format.</param>
 /// <param name="ShowStatistics">Whether archive statistics were requested.</param>
 /// <param name="IncludeDrums">Whether MIDI export should add a generated drum track.</param>
+/// <param name="BatchPattern">An optional filename wildcard for tab batch export.</param>
 /// <param name="Error">The reason parsing failed, when the command is invalid.</param>
 public sealed record ParsedCommand(
     CommandKind Kind,
@@ -41,7 +42,8 @@ public sealed record ParsedCommand(
     string FormatName = "tab",
     string? Error = null,
     bool ShowStatistics = false,
-    bool IncludeDrums = false);
+    bool IncludeDrums = false,
+    string? BatchPattern = null);
 
 /// <summary>Parses supported command-line flags without performing file or conversion work.</summary>
 public sealed class CommandLineParser
@@ -66,6 +68,7 @@ public sealed class CommandLineParser
         var showVersion = false;
         var showStatistics = false;
         var includeDrums = false;
+        string? batchPattern = null;
 
         for (var index = 0; index < args.Count; index++)
         {
@@ -106,6 +109,7 @@ public sealed class CommandLineParser
                 case "--out":
                 case "--arr":
                 case "--format":
+                case "--batch":
                     if (index + 1 >= args.Count || args[index + 1].StartsWith("--", StringComparison.Ordinal))
                     {
                         return Invalid(argument switch
@@ -167,6 +171,17 @@ public sealed class CommandLineParser
                     }
                     else
                     {
+                        if (argument == "--batch")
+                        {
+                            if (batchPattern is not null)
+                            {
+                                return Invalid("The '--batch' option can only be specified once.");
+                            }
+
+                            batchPattern = value;
+                            break;
+                        }
+
                         if (formatSpecified)
                         {
                             return Invalid("The format option can only be specified once.");
@@ -233,6 +248,12 @@ public sealed class CommandLineParser
             return Invalid("Option '--in' is required.");
         }
 
+        if (batchPattern is not null && (formatSpecified && !string.Equals(formatName, "tab", StringComparison.OrdinalIgnoreCase)
+            || arrangementSpecified || includeDrums))
+        {
+            return Invalid("'--batch' currently supports tab export of all instrument arrangements only.");
+        }
+
         if (outputPath is null)
         {
             if (formatSpecified && string.Equals(formatName, "heatmap", StringComparison.OrdinalIgnoreCase))
@@ -245,7 +266,7 @@ public sealed class CommandLineParser
         }
 
         return new ParsedCommand(CommandKind.Convert, inputPath, outputPath, arrangementNumber, allArrangements,
-            formatName, IncludeDrums: includeDrums);
+            formatName, IncludeDrums: includeDrums, BatchPattern: batchPattern);
     }
 
     /// <summary>Creates an invalid-command result with a concise diagnostic.</summary>
