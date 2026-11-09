@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Psarc2Tab.Domain\Psarc2Tab.Domain.csproj" />
     <ProjectReference Include="..\..\src\Psarc2Tab.Tablature\Psarc2Tab.Tablature.csproj" />
+    <ProjectReference Include="..\..\src\Psarc2Tab.Formats.Feedpak\Psarc2Tab.Formats.Feedpak.csproj" />
   </ItemGroup>
 
 </Project>

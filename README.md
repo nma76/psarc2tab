@@ -11,7 +11,8 @@ files. Export Lead, Rhythm, and Bass arrangements as readable ASCII tabs or
 Standard MIDI, inspect fretboard note patterns with text heatmaps, and review
 archive and arrangement statistics before choosing what to export. Tabs include
 tuning and song sections; MIDI uses available beat and tempo data. You can also
-export timed lyrics as LRC files or batch-export tabs from a folder. `psarc2tab`
+export timed lyrics as LRC files, batch-export tabs from a folder, or create
+FeedBack-compatible `.feedpak` ZIP packages. `psarc2tab`
 runs from the command line on Windows, macOS, and Linux.
 
 ## See it in action
@@ -65,6 +66,7 @@ psarc2tab --in <input.psarc> --out <output.tab> --arr <number>
 psarc2tab --in <input.psarc> --out <output.tab> --arr all
 psarc2tab --in <input.psarc> --out <song.mid> --format midi --arr all
 psarc2tab --in <input.psarc> --out <song.mid> --format midi --drums
+psarc2tab --in <input.psarc> --out <song.feedpak> --format feedpak
 psarc2tab --in <input.psarc> --out <output.tab> --format tab
 psarc2tab --in <archive-directory> --batch "*_p.psarc" --out <tab-directory>
 psarc2tab --in <input.psarc> --out <output.mid> --format midi
@@ -121,6 +123,40 @@ arrangement; an event with no later onset uses a one-tick minimum. Duration
 inference and playback have not yet been compared with Rocksmith, GarageBand,
 or Windows Media Player. Lyrics remain LRC exports. Unknown formats are
 rejected with a list of available formats.
+
+Feedpak export writes all instrument arrangements, optional lyrics, a song
+timeline, and a complete WAV mix into one `.feedpak` file. It requires
+`vgmstream-cli` on `PATH`, built with Wwise Vorbis support (libvorbis); set
+`PSARC2TAB_VGMSTREAM` to its executable path when it is installed elsewhere.
+The tool is not bundled or redistributed by this project. The CLI invokes it
+to decode Wwise WEM audio into PCM WAV. `vgmstream`
+uses the ISC license; consult its
+[copyright and license notice](https://github.com/vgmstream/vgmstream/blob/master/COPYING)
+and the terms for the particular build you install. This project does not
+charge a separate license fee for that external decoder. No `vgmstream`
+source or binary is included in this repository or its release packages.
+
+The initial feedpak exporter supports single-song archives with one or two WEM
+files and identifies the full mix from their relative uncompressed sizes.
+Archives with multiple songs, ambiguous WEM layouts, missing WEM audio, or
+unsupported WAV variants fail with a diagnostic. Only PCM WAV output is
+accepted. Feedpak does not currently include PSARC cover art. Arrangement
+difficulty levels and some Rocksmith technique detail are not represented;
+capo metadata is not yet imported. These mapping limits are being addressed
+before this format is considered complete. Packages have not yet been opened
+and checked in the FeedBack application. The writer targets the
+[Feedpak v1 specification](https://github.com/got-feedBack/feedpak-spec/blob/main/spec/feedpak-v1.md)
+(currently declared as version `1.19.0`). Lyric syllable durations are retained
+when present. The current domain model cannot preserve capo, exact bend
+magnitude/shape, or slide target fret, and it does not export difficulty ladders;
+those source details are omitted rather than fabricated.
+
+Third-party notices: `vgmstream` is an optional external executable and is not
+distributed with `psarc2tab`; users who obtain it must retain and follow the
+upstream notices applicable to their build. The repository does not currently
+bundle third-party source or binaries for Feedpak export. The GitHub repository
+description must be updated to mention the optional `vgmstream-cli` dependency
+and its licensing; that external page change requires maintainer access.
 
 With the default `tab` format, every instrument arrangement is exported as a
 separate file; Lyrics entries are excluded. The requested output filename is a

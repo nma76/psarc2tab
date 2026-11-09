@@ -26,6 +26,7 @@ public sealed class CliApplicationTests
         Assert.Contains("--arr all", output.StandardOutput);
         Assert.Contains("default: all", output.StandardOutput);
         Assert.Contains("--format <name>", output.StandardOutput);
+        Assert.Contains("feedpak", output.StandardOutput);
         Assert.Contains("--in song.psarc --format heatmap", output.StandardOutput);
         Assert.Contains("--arr 2 --format heatmap", output.StandardOutput);
         Assert.Contains("NO_COLOR", output.StandardOutput);
@@ -34,6 +35,61 @@ public sealed class CliApplicationTests
         Assert.DoesNotContain("\n  -in ", output.StandardOutput);
         Assert.DoesNotContain("\n  -out ", output.StandardOutput);
         Assert.Empty(output.StandardError);
+    }
+
+    /// <summary>Writes a feedpak package using the dedicated export workflow.</summary>
+    [Fact]
+    public void Run_Feedpak_UsesExportWorkflowAndWritesWithoutOverwrite()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "song.feedpak");
+        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml));
+        var useCase = new ExportFeedpakUseCase(new TestFeedpakImporter(), new TestFeedpakWriter());
+        using var standardOutput = new StringWriter();
+        using var standardError = new StringWriter();
+
+        var exitCode = new CliApplication(exportFeedpak: useCase).Run(
+            ["--in", inputPath, "--out", outputPath, "--format", "feedpak"], standardOutput, standardError);
+
+        Assert.Equal(CliApplication.SuccessExitCode, exitCode);
+        Assert.Equal("feedpak", File.ReadAllText(outputPath));
+        Assert.Contains("Wrote feedpak export", standardOutput.ToString());
+        Assert.Empty(standardError.ToString());
+        Assert.Empty(Directory.GetFiles(directory.Path, ".psarc2tab-*.tmp"));
+    }
+
+    /// <summary>Preserves an existing feedpak destination and rejects single-arrangement selection.</summary>
+    [Fact]
+    public void Run_Feedpak_RejectsCollisionAndSingleArrangementSelection()
+    {
+        using var directory = new TemporaryDirectory();
+        var inputPath = Path.Combine(directory.Path, "song.psarc");
+        var outputPath = Path.Combine(directory.Path, "song.feedpak");
+        File.WriteAllBytes(inputPath, CreateArchive(ArrangementXml));
+        File.WriteAllText(outputPath, "keep");
+        var useCase = new ExportFeedpakUseCase(new TestFeedpakImporter(), new TestFeedpakWriter());
+
+        var collision = RunWithFeedpak(useCase, "--in", inputPath, "--out", outputPath, "--format", "feedpak");
+        var selection = RunWithFeedpak(useCase, "--in", inputPath, "--out", Path.Combine(directory.Path, "other.feedpak"),
+            "--format", "feedpak", "--arr", "1");
+
+        Assert.Equal(CliApplication.OutputErrorExitCode, collision.ExitCode);
+        Assert.Equal("keep", File.ReadAllText(outputPath));
+        Assert.Equal(CliApplication.InvalidArgumentsExitCode, selection.ExitCode);
+        Assert.Contains("writes all arrangements", selection.StandardError);
+    }
+
+    /// <summary>Runs one CLI request with a supplied feedpak use case.</summary>
+    /// <param name="useCase">The feedpak use case to inject.</param>
+    /// <param name="args">The command line arguments.</param>
+    /// <returns>Captured CLI result.</returns>
+    private static RunResult RunWithFeedpak(ExportFeedpakUseCase useCase, params string[] args)
+    {
+        using var standardOutput = new StringWriter();
+        using var standardError = new StringWriter();
+        var exitCode = new CliApplication(exportFeedpak: useCase).Run(args, standardOutput, standardError);
+        return new RunResult(exitCode, standardOutput.ToString(), standardError.ToString());
     }
 
     /// <summary>Rejects a format that has no registered writer and reports available formats.</summary>
@@ -898,6 +954,34 @@ public sealed class CliApplicationTests
 
             new TablatureTextWriter().Write(song, track, destination);
         }
+    }
+
+    /// <summary>Supplies a small valid package for CLI filesystem tests.</summary>
+    private sealed class TestFeedpakImporter : IArchiveFeedpakImporter
+    {
+        /// <summary>Returns the synthetic song and minimal RIFF/WAVE payload.</summary>
+        /// <param name="archive">The opened archive stream.</param>
+        /// <returns>The synthetic export package.</returns>
+        public FeedpakExportPackage Import(Stream archive)
+        {
+            var tuning = new GuitarTuning([40, 45, 50, 55, 59, 64]);
+            var track = new Track("Lead", tuning, [], []);
+            var song = new Song("Song", "Artist", [track]);
+            var wave = new byte[12];
+            "RIFF"u8.CopyTo(wave);
+            "WAVE"u8.CopyTo(wave.AsSpan(8));
+            return new FeedpakExportPackage([song], wave);
+        }
+    }
+
+    /// <summary>Writes a recognizable marker instead of a ZIP for CLI routing tests.</summary>
+    private sealed class TestFeedpakWriter : IFeedpakPackageWriter
+    {
+        /// <summary>Writes the package marker to the staged output.</summary>
+        /// <param name="package">The synthetic package.</param>
+        /// <param name="destination">The staged destination.</param>
+        public void Write(FeedpakExportPackage package, Stream destination) =>
+            destination.Write("feedpak"u8);
     }
 
     /// <summary>Stores the result of a CLI invocation.</summary>

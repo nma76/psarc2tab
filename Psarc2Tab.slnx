@@ -4,6 +4,7 @@
     <Project Path="src/Psarc2Tab.Cli/Psarc2Tab.Cli.csproj" />
     <Project Path="src/Psarc2Tab.Domain/Psarc2Tab.Domain.csproj" />
     <Project Path="src/Psarc2Tab.Formats.PSARC/Psarc2Tab.Formats.PSARC.csproj" />
+    <Project Path="src/Psarc2Tab.Formats.Feedpak/Psarc2Tab.Formats.Feedpak.csproj" />
     <Project Path="src/Psarc2Tab.Formats.Rocksmith/Psarc2Tab.Formats.Rocksmith.csproj" />
     <Project Path="src/Psarc2Tab.Midi/Psarc2Tab.Midi.csproj" />
     <Project Path="src/Psarc2Tab.Tablature/Psarc2Tab.Tablature.csproj" />

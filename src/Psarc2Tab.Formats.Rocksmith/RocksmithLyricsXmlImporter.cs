@@ -68,6 +68,6 @@ public sealed class RocksmithLyricsXmlImporter
             throw new InvalidDataException("A Rocksmith vocal entry has missing or invalid time, length, or lyric text.");
         }
 
-        return new TimedLyric(TimeSpan.FromSeconds(time), text);
+        return new TimedLyric(TimeSpan.FromSeconds(time), text, TimeSpan.FromSeconds(length));
     }
 }

@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Psarc2Tab.Application;
 using Psarc2Tab.Domain;
 using Psarc2Tab.Formats.Rocksmith;
+using Psarc2Tab.Formats.Feedpak;
 using Psarc2Tab.Midi;
 using Psarc2Tab.Tablature;
 
@@ -45,15 +46,20 @@ public sealed class CliApplication
     /// <summary>Imports and writes the archive's timed lyrics.</summary>
     private readonly ExportLyricsUseCase _exportLyrics;
 
+    /// <summary>Imports a PSARC and writes a complete feedpak package.</summary>
+    private readonly ExportFeedpakUseCase _exportFeedpak;
+
     /// <summary>Creates a CLI application with supplied components or their defaults.</summary>
     /// <param name="parser">An optional parser for command-line flags.</param>
     /// <param name="arrangementCatalog">An optional archive arrangement catalog.</param>
     /// <param name="exportArrangement">An optional arrangement export use case.</param>
+    /// <param name="exportFeedpak">An optional feedpak export use case.</param>
     public CliApplication(
         CommandLineParser? parser = null,
         RocksmithArrangementCatalog? arrangementCatalog = null,
         ExportArrangementUseCase? exportArrangement = null,
-        ExportLyricsUseCase? exportLyrics = null)
+        ExportLyricsUseCase? exportLyrics = null,
+        ExportFeedpakUseCase? exportFeedpak = null)
     {
         _parser = parser ?? new CommandLineParser();
         _arrangementCatalog = arrangementCatalog ?? new RocksmithArrangementCatalog();
@@ -66,6 +72,11 @@ public sealed class CliApplication
             new ArrangementFormatRegistry([new StandardMidiFileWriter(includeDrums: true)]));
         _exportLyrics = exportLyrics ?? new ExportLyricsUseCase(
             new RocksmithArchiveLyricsImporter(_arrangementCatalog), new LrcLyricsWriter());
+        _exportFeedpak = exportFeedpak ?? new ExportFeedpakUseCase(
+            new RocksmithArchiveFeedpakImporter(_arrangementCatalog, importer,
+                new RocksmithArchiveLyricsImporter(_arrangementCatalog),
+                new RocksmithArchiveAudioImporter(_arrangementCatalog, new VgmstreamWwiseAudioDecoder())),
+            new FeedpakZipWriter());
     }
 
     /// <summary>Parses arguments, writes output or diagnostics, and returns the CLI exit code.</summary>
@@ -274,6 +285,18 @@ public sealed class CliApplication
     /// <returns>The input, output, selection, or conversion error exit code.</returns>
     private int ValidateAndConvert(ParsedCommand command, TextWriter standardOutput, TextWriter standardError)
     {
+        if (string.Equals(command.FormatName, "feedpak", StringComparison.OrdinalIgnoreCase))
+        {
+            if (command.BatchPattern is not null || command.IncludeDrums ||
+                command.ArrangementNumber is not null && !command.AllArrangements)
+            {
+                standardError.WriteLine("Error: Feedpak export writes all arrangements for one song and does not support --batch, --drums, or a single --arr selection.");
+                return InvalidArgumentsExitCode;
+            }
+
+            return ExportFeedpak(command, standardOutput, standardError);
+        }
+
         if (!_exportArrangement.SupportsFormat(command.FormatName))
         {
             var supportedFormats = string.Join(", ", _exportArrangement.SupportedFormatNames);
@@ -381,6 +404,75 @@ public sealed class CliApplication
         catch (Exception exception) when (IsOutputFailure(exception))
         {
             standardError.WriteLine($"Error: Cannot write output file '{command.OutputPath}': {exception.Message}");
+            return OutputErrorExitCode;
+        }
+    }
+
+    /// <summary>Exports one archive as a staged feedpak ZIP package.</summary>
+    /// <param name="command">The parsed feedpak request.</param>
+    /// <param name="standardOutput">Writer for successful output information.</param>
+    /// <param name="standardError">Writer for diagnostics.</param>
+    /// <returns>A CLI exit code describing the result.</returns>
+    private int ExportFeedpak(ParsedCommand command, TextWriter standardOutput, TextWriter standardError)
+    {
+        try
+        {
+            ValidateOutputDestination(command.OutputPath!);
+        }
+        catch (Exception exception) when (IsOutputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot write output file '{command.OutputPath}': {exception.Message}");
+            return OutputErrorExitCode;
+        }
+
+        try
+        {
+            var fullPath = Path.GetFullPath(command.OutputPath!);
+            var directory = Path.GetDirectoryName(fullPath)
+                ?? throw new DirectoryNotFoundException("The output directory does not exist.");
+            var temporaryPath = Path.Combine(directory, $".psarc2tab-{Guid.NewGuid():N}.tmp");
+            try
+            {
+                using (var input = File.OpenRead(command.InputPath!))
+                using (var output = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    _exportFeedpak.Execute(input, output);
+                    output.Flush(flushToDisk: true);
+                }
+
+                File.Move(temporaryPath, fullPath);
+            }
+            catch
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+
+                throw;
+            }
+
+            standardOutput.WriteLine($"Wrote feedpak export to '{command.OutputPath}'.");
+            return SuccessExitCode;
+        }
+        catch (Exception exception) when (IsInputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot read feedpak input '{command.InputPath}': {exception.Message}");
+            return InputErrorExitCode;
+        }
+        catch (InvalidOperationException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export feedpak: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (InvalidDataException exception)
+        {
+            standardError.WriteLine($"Error: Cannot export feedpak: {exception.Message}");
+            return ConversionErrorExitCode;
+        }
+        catch (Exception exception) when (IsOutputFailure(exception))
+        {
+            standardError.WriteLine($"Error: Cannot write feedpak output '{command.OutputPath}': {exception.Message}");
             return OutputErrorExitCode;
         }
     }
@@ -1012,13 +1104,14 @@ public sealed class CliApplication
 
     /// <summary>Displays the CLI usage, options, and exit codes.</summary>
     private const string HelpText = """
-        psarc2tab - export Rocksmith arrangements as tablature, MIDI, or fretboard heatmaps
+        psarc2tab - export Rocksmith arrangements as tablature, MIDI, feedpak, or fretboard heatmaps
 
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
           psarc2tab --in <input.psarc> --out <output.tab> --format tab
           psarc2tab --in <input-directory> --batch <pattern> --out <output-directory>
           psarc2tab --in <input.psarc> --out <output.mid> --format midi
+          psarc2tab --in <input.psarc> --out <output.feedpak> --format feedpak
           psarc2tab --in <input.psarc> --format heatmap [--arr <number|all>]
           psarc2tab --in <input.psarc> --out <output.txt> --format heatmap [--arr <number|all>]
           psarc2tab --in <input.psarc> --out <output.lrc> --arr <lyrics-number>
@@ -1043,7 +1136,7 @@ public sealed class CliApplication
           --list             List numbered arrangements and lyrics in the archive
           --stats            Show archive and arrangement statistics without writing files
           --arr <n|all>      Select one item or all instrument arrangements (default: all)
-          --format <name>    Output format: tab, midi, or heatmap (default: tab)
+          --format <name>    Output format: tab, midi, feedpak, or heatmap (default: tab)
           --drums            Add a synthetic beat-based drum track (beta; requires --format midi)
           --batch <pattern>  Export all matching archives as separate .tab files
           --help             Show this help
