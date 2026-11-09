@@ -4,7 +4,7 @@
 [![Release](https://github.com/nma76/psarc2tab/actions/workflows/release.yml/badge.svg)](https://github.com/nma76/psarc2tab/actions/workflows/release.yml)
 [![Downloads](https://img.shields.io/github/downloads/nma76/psarc2tab/latest/total)](https://github.com/nma76/psarc2tab/releases/latest)
 
-## From Rocksmith archive to practice-ready tab
+## One Rocksmith archive. Tabs, MIDI, Feedpak, and more.
 
 Turn supported Rocksmith PSARC archives into useful practice and analysis
 files. Export Lead, Rhythm, and Bass arrangements as readable ASCII tabs,
