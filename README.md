@@ -153,9 +153,12 @@ Archives with multiple songs, ambiguous WEM layouts, missing WEM audio, or
 unsupported WAV variants fail with a diagnostic. Only PCM WAV output is
 accepted. Feedpak does not currently include PSARC cover art. Arrangement
 difficulty levels and some Rocksmith technique detail are not represented;
-capo metadata is not yet imported. These mapping limits are being addressed
-before this format is considered complete. Packages have not yet been opened
-and checked in the FeedBack application. The writer targets the
+capo metadata is not imported. The package currently writes `capo: 0` in both
+the manifest and arrangement JSON, so a source arrangement that uses a capo is
+represented as having no capo. Full capo support is tracked separately in
+TODO 33. These are known mapping limits of this initial exporter. Exported
+packages have been opened and checked in the FeedBack application. The writer
+targets the
 [Feedpak v1 specification](https://github.com/got-feedBack/feedpak-spec/blob/main/spec/feedpak-v1.md)
 (currently declared as version `1.19.0`). Lyric syllable durations are retained
 when present. The current domain model cannot preserve capo, exact bend
