@@ -18,17 +18,16 @@ command line on Windows, macOS, and Linux.
 
 ## See it in action
 
-### Fretboard heatmap
-
-![Terminal preview of a generated fretboard heatmap for a Rocksmith Rhythm arrangement](docs/images/heatmap-preview.svg)
-
-### MIDI export
-
-![Terminal command and track overview for exporting Rocksmith arrangements to a Standard MIDI file](docs/images/midi-export.svg)
-
-### Batch tab export
-
-![Batch command showing multiple PSARC archives becoming separate tab files](docs/images/batch-export.svg)
+<table>
+  <tr>
+    <td width="50%"><strong>Fretboard heatmap</strong><br><img src="docs/images/heatmap-preview.svg" alt="Terminal preview of a generated fretboard heatmap for a Rocksmith Rhythm arrangement" width="100%"></td>
+    <td width="50%"><strong>MIDI export</strong><br><img src="docs/images/midi-export.svg" alt="Terminal command and track overview for exporting Rocksmith arrangements to a Standard MIDI file" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Batch tab export</strong><br><img src="docs/images/batch-export.svg" alt="Batch command showing multiple PSARC archives becoming separate tab files" width="100%"></td>
+    <td width="50%"><strong>Feedpak export</strong><br><img src="docs/images/feedpak-export.svg" alt="Terminal command exporting a Rocksmith archive into a FeedBack-compatible Feedpak package" width="100%"></td>
+  </tr>
+</table>
 
 ## Requirements
 
