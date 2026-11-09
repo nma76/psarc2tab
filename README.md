@@ -7,13 +7,14 @@
 ## From Rocksmith archive to practice-ready tab
 
 Turn supported Rocksmith PSARC archives into useful practice and analysis
-files. Export Lead, Rhythm, and Bass arrangements as readable ASCII tabs or
-Standard MIDI, inspect fretboard note patterns with text heatmaps, and review
-archive and arrangement statistics before choosing what to export. Tabs include
-tuning and song sections; MIDI uses available beat and tempo data. You can also
-export timed lyrics as LRC files, batch-export tabs from a folder, or create
-FeedBack-compatible `.feedpak` ZIP packages. `psarc2tab`
-runs from the command line on Windows, macOS, and Linux.
+files. Export Lead, Rhythm, and Bass arrangements as readable ASCII tabs,
+Standard MIDI, or FeedBack-compatible `.feedpak` packages; inspect fretboard
+note patterns with text heatmaps and review archive and arrangement statistics
+before choosing what to export. Tabs include tuning and song sections; MIDI
+uses available beat and tempo data. You can also export timed lyrics as LRC
+files or batch-export tabs from a folder. Feedpak export needs the separate
+`vgmstream-cli` decoder with Wwise Vorbis support. `psarc2tab` runs from the
+command line on Windows, macOS, and Linux.
 
 ## See it in action
 
@@ -32,6 +33,7 @@ runs from the command line on Windows, macOS, and Linux.
 ## Requirements
 
 - .NET 10 SDK
+- `vgmstream-cli` with Wwise Vorbis support (libvorbis), only for Feedpak export
 
 ## Build
 
@@ -128,6 +130,16 @@ Feedpak export writes all instrument arrangements, optional lyrics, a song
 timeline, and a complete WAV mix into one `.feedpak` file. It requires
 `vgmstream-cli` on `PATH`, built with Wwise Vorbis support (libvorbis); set
 `PSARC2TAB_VGMSTREAM` to its executable path when it is installed elsewhere.
+Download a platform build from the
+[official vgmstream releases](https://github.com/vgmstream/vgmstream-releases/releases).
+If no suitable build is available for your system, follow the upstream
+[build guide](https://github.com/vgmstream/vgmstream/blob/master/doc/BUILD.md)
+and include libvorbis support; without it, Wwise Vorbis `.wem` files cannot be
+decoded. On Windows the executable is normally named `vgmstream-cli.exe`.
+After installation, either put the executable on `PATH` or set
+`PSARC2TAB_VGMSTREAM` to its full path. Verify the installed build by generating
+a Feedpak; merely launching the CLI does not confirm that Vorbis decoding is
+enabled.
 The tool is not bundled or redistributed by this project. The CLI invokes it
 to decode Wwise WEM audio into PCM WAV. `vgmstream`
 uses the ISC license; consult its

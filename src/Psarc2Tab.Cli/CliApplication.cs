@@ -1145,6 +1145,11 @@ public sealed class CliApplication
         Heatmaps without --out are colored only in an interactive terminal. Set NO_COLOR
         to disable color; redirected output is plain UTF-8 text.
 
+        Feedpak export requires vgmstream-cli with Wwise Vorbis (libvorbis) support.
+        Install it from the official vgmstream releases or build it with libvorbis;
+        see the README for links and setup details. Set PSARC2TAB_VGMSTREAM if it is
+        not available on PATH.
+
         Exit codes:
           0  Help, version, or conversion completed
           2  Invalid arguments
