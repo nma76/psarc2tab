@@ -6,6 +6,45 @@ the preceding version tag.
 
 ## [Unreleased]
 
+### Added
+
+- Export supported single-song PSARC archives as FeedBack-compatible `.feedpak`
+  packages containing arrangement data, a shared timeline, optional lyrics,
+  and a decoded WAV mix.
+
+### Requirements and limitations
+
+- Feedpak export uses an external `vgmstream-cli` build with Wwise Vorbis
+  support; the executable is not bundled. Multi-song archives and source capo
+  metadata are not supported by this initial exporter.
+
+## [1.8.0] - 2026-11-06
+
+### Added
+
+- Batch-export matching PSARC archives from a directory to separate tablature
+  files, with deterministic ordering and output-collision checks.
+
+## [1.7.0] - 2026-10-28
+
+### Added
+
+- Optionally add a synthetic percussion track to MIDI exports, using a simple
+  4/4 beat pattern. The feature is marked beta and does not reproduce the
+  source song's actual drum performance.
+
+## [1.6.0] - 2026-10-23
+
+### Added
+
+- Preview arrangement fretboard activity as a text heatmap, with per-fret
+  occurrence shading and optional terminal color.
+
+### Limitations
+
+- The heatmap is a beta text view. Its standard fret range is 0–24 and expands
+  only when the arrangement contains higher frets.
+
 ## [1.5.1] - 2026-10-21
 
 ### Changed
