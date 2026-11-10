@@ -1104,7 +1104,7 @@ public sealed class CliApplication
 
     /// <summary>Displays the CLI usage, options, and exit codes.</summary>
     private const string HelpText = """
-        psarc2tab - export Rocksmith arrangements as tablature, MIDI, feedpak, or fretboard heatmaps
+        psarc2tab - export Rocksmith arrangements as tablature, MIDI, Feedpak (beta), or fretboard heatmaps
 
         Usage:
           psarc2tab --in <input.psarc> --out <output.tab>
@@ -1136,7 +1136,7 @@ public sealed class CliApplication
           --list             List numbered arrangements and lyrics in the archive
           --stats            Show archive and arrangement statistics without writing files
           --arr <n|all>      Select one item or all instrument arrangements (default: all)
-          --format <name>    Output format: tab, midi, feedpak, or heatmap (default: tab)
+          --format <name>    Output format: tab, midi, feedpak (beta), or heatmap (default: tab)
           --drums            Add a synthetic beat-based drum track (beta; requires --format midi)
           --batch <pattern>  Export all matching archives as separate .tab files
           --help             Show this help
@@ -1145,7 +1145,7 @@ public sealed class CliApplication
         Heatmaps without --out are colored only in an interactive terminal. Set NO_COLOR
         to disable color; redirected output is plain UTF-8 text.
 
-        Feedpak export requires vgmstream-cli with Wwise Vorbis (libvorbis) support.
+        Feedpak export (beta) requires vgmstream-cli with Wwise Vorbis (libvorbis) support.
         Install it from the official vgmstream releases or build it with libvorbis;
         see the README for links and setup details. Set PSARC2TAB_VGMSTREAM if it is
         not available on PATH.

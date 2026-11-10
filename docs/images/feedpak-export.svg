@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
-  <title id="title">Export a Feedpak package from a Rocksmith archive</title>
-  <desc id="desc">A terminal example creates a FeedBack-compatible feedpak ZIP containing arrangements, a song timeline, lyrics when available, and a decoded WAV mix.</desc>
+  <title id="title">Beta Feedpak export from a Rocksmith archive</title>
+  <desc id="desc">A terminal example creates a beta FeedBack-compatible feedpak ZIP containing arrangements, a song timeline, lyrics when available, and a decoded WAV mix.</desc>
   <defs>
     <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#10192a"/><stop offset="1" stop-color="#17353a"/></linearGradient>
     <linearGradient id="screen" x2="0" y2="1"><stop stop-color="#101820"/><stop offset="1" stop-color="#0b1118"/></linearGradient>
@@ -10,7 +10,7 @@
   <rect width="1200" height="760" rx="32" fill="url(#bg)"/>
   <circle cx="1080" cy="94" r="116" fill="#37d6a5" opacity=".08"/>
   <circle cx="110" cy="700" r="165" fill="#65a8ff" opacity=".07"/>
-  <text x="66" y="86" fill="#83b6a9" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="3">EXPORT PREVIEW  /  FEEDBACK FEEDPAK</text>
+  <text x="66" y="86" fill="#83b6a9" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="3">EXPORT PREVIEW  /  FEEDBACK FEEDPAK  /  BETA</text>
   <text x="66" y="132" fill="#f1f6fc" font-family="Arial, sans-serif" font-size="31" font-weight="700">A complete practice package from one archive.</text>
   <text x="66" y="165" fill="#a8b8cb" font-family="Arial, sans-serif" font-size="17">Bundle arrangements, timing, lyrics, and the decoded song mix for FeedBack.</text>
   <g filter="url(#shadow)">

@@ -4,11 +4,11 @@
 [![Release](https://github.com/nma76/psarc2tab/actions/workflows/release.yml/badge.svg)](https://github.com/nma76/psarc2tab/actions/workflows/release.yml)
 [![Downloads](https://img.shields.io/github/downloads/nma76/psarc2tab/latest/total)](https://github.com/nma76/psarc2tab/releases/latest)
 
-## One Rocksmith archive. Tabs, MIDI, Feedpak, and more.
+## One Rocksmith archive. Tabs, MIDI, Feedpak (beta), and more.
 
 Turn supported Rocksmith PSARC archives into useful practice and analysis
 files. Export Lead, Rhythm, and Bass arrangements as readable ASCII tabs,
-Standard MIDI, or FeedBack-compatible `.feedpak` packages; inspect fretboard
+Standard MIDI, or beta FeedBack-compatible `.feedpak` packages; inspect fretboard
 note patterns with text heatmaps and review archive and arrangement statistics
 before choosing what to export. Tabs include tuning and song sections; MIDI
 uses available beat and tempo data. You can also export timed lyrics as LRC
@@ -25,14 +25,14 @@ command line on Windows, macOS, and Linux.
   </tr>
   <tr>
     <td width="50%"><strong>Batch tab export</strong><br><img src="docs/images/batch-export.svg" alt="Batch command showing multiple PSARC archives becoming separate tab files" width="100%"></td>
-    <td width="50%"><strong>Feedpak export</strong><br><img src="docs/images/feedpak-export.svg" alt="Terminal command exporting a Rocksmith archive into a FeedBack-compatible Feedpak package" width="100%"></td>
+    <td width="50%"><strong>Feedpak export (beta)</strong><br><img src="docs/images/feedpak-export.svg" alt="Terminal command exporting a Rocksmith archive into a beta FeedBack-compatible Feedpak package" width="100%"></td>
   </tr>
 </table>
 
 ## Requirements
 
 - .NET 10 SDK
-- `vgmstream-cli` with Wwise Vorbis support (libvorbis), only for Feedpak export
+- `vgmstream-cli` with Wwise Vorbis support (libvorbis), only for beta Feedpak export
 
 ## Build
 
@@ -125,7 +125,7 @@ inference and playback have not yet been compared with Rocksmith, GarageBand,
 or Windows Media Player. Lyrics remain LRC exports. Unknown formats are
 rejected with a list of available formats.
 
-Feedpak export writes all instrument arrangements, optional lyrics, a song
+The beta Feedpak exporter writes all instrument arrangements, optional lyrics, a song
 timeline, and a complete WAV mix into one `.feedpak` file. It requires
 `vgmstream-cli` on `PATH`, built with Wwise Vorbis support (libvorbis); set
 `PSARC2TAB_VGMSTREAM` to its executable path when it is installed elsewhere.

@@ -8,9 +8,9 @@ the preceding version tag.
 
 ### Added
 
-- Export supported single-song PSARC archives as FeedBack-compatible `.feedpak`
-  packages containing arrangement data, a shared timeline, optional lyrics,
-  and a decoded WAV mix.
+- Add beta export of supported single-song PSARC archives as FeedBack-compatible
+  `.feedpak` packages containing arrangement data, a shared timeline, optional
+  lyrics, and a decoded WAV mix.
 
 ### Requirements and limitations
 
