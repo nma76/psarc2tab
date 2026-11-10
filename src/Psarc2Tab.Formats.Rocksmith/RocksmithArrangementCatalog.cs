@@ -14,6 +14,9 @@ public sealed class RocksmithArrangementCatalog
     /// <summary>The largest arrangement chart entry accepted for extraction.</summary>
     private const ulong MaximumArrangementLength = 64 * 1024 * 1024;
 
+    /// <summary>The largest non-chart entry accepted by the generic extraction method.</summary>
+    private const ulong MaximumArchiveEntryLength = 512 * 1024 * 1024;
+
     /// <summary>Reads arrangement paths from a supported PSARC stream.</summary>
     /// <param name="archiveStream">The readable, seekable PSARC archive.</param>
     /// <returns>Instrument arrangements in manifest order, numbered from one.</returns>
@@ -32,7 +35,45 @@ public sealed class RocksmithArrangementCatalog
     public RocksmithArchiveDetails Inspect(Stream archiveStream)
     {
         var archive = ReadArchive(archiveStream);
-        return new RocksmithArchiveDetails(archive.Header, Array.AsReadOnly(archive.Paths));
+        var entries = archive.Paths.Select((path, index) => new RocksmithArchiveEntry(
+            path, archive.Index.Entries[index + 1].UncompressedLength)).ToArray();
+        return new RocksmithArchiveDetails(archive.Header, Array.AsReadOnly(entries));
+    }
+
+    /// <summary>Extracts one validated non-manifest archive path to a writable stream.</summary>
+    /// <param name="archiveStream">The readable, seekable PSARC archive.</param>
+    /// <param name="archivePath">The exact slash-separated path from its manifest.</param>
+    /// <param name="destination">The writable stream receiving the extracted bytes.</param>
+    /// <returns>The extracted entry metadata.</returns>
+    /// <exception cref="ArgumentException">A stream is invalid or the path is not in the archive manifest.</exception>
+    /// <exception cref="InvalidDataException">The entry is malformed or exceeds the configured size limit.</exception>
+    public RocksmithArchiveEntry ExtractEntry(Stream archiveStream, string archivePath, Stream destination)
+    {
+        ArgumentNullException.ThrowIfNull(archiveStream);
+        ArgumentException.ThrowIfNullOrWhiteSpace(archivePath);
+        ArgumentNullException.ThrowIfNull(destination);
+        if (!archiveStream.CanRead || !archiveStream.CanSeek || !destination.CanWrite ||
+            ReferenceEquals(archiveStream, destination))
+        {
+            throw new ArgumentException("Archive extraction requires a readable, seekable source and a separate writable destination.");
+        }
+
+        var archive = ReadArchive(archiveStream);
+        var pathIndex = Array.IndexOf(archive.Paths, archivePath);
+        if (pathIndex < 0)
+        {
+            throw new ArgumentException("The requested path is not present in the PSARC manifest.", nameof(archivePath));
+        }
+
+        var entryIndex = pathIndex + 1;
+        var entry = archive.Index.Entries[entryIndex];
+        if (entry.UncompressedLength > MaximumArchiveEntryLength)
+        {
+            throw new InvalidDataException($"PSARC entry '{archivePath}' exceeds the supported 512 MiB extraction limit.");
+        }
+
+        PsarcEntryExtractor.Extract(archiveStream, archive.Header, archive.Index, entryIndex, destination);
+        return new RocksmithArchiveEntry(archivePath, entry.UncompressedLength);
     }
 
     /// <summary>Lists instrument arrangements and appends a lyric export when vocal data exists.</summary>

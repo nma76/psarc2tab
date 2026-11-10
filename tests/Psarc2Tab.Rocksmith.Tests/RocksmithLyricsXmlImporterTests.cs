@@ -20,8 +20,8 @@ public sealed class RocksmithLyricsXmlImporterTests
         var lyrics = new RocksmithLyricsXmlImporter().Import(source);
 
         Assert.Collection(lyrics.Lyrics,
-            lyric => { Assert.Equal(TimeSpan.FromSeconds(1.25), lyric.Position); Assert.Equal("Hello", lyric.Text); },
-            lyric => { Assert.Equal(TimeSpan.FromSeconds(2.5), lyric.Position); Assert.Equal("world+", lyric.Text); });
+            lyric => { Assert.Equal(TimeSpan.FromSeconds(1.25), lyric.Position); Assert.Equal(TimeSpan.FromSeconds(0.2), lyric.Duration); Assert.Equal("Hello", lyric.Text); },
+            lyric => { Assert.Equal(TimeSpan.FromSeconds(2.5), lyric.Position); Assert.Equal(TimeSpan.FromSeconds(0.3), lyric.Duration); Assert.Equal("world+", lyric.Text); });
     }
 
     /// <summary>Rejects XML documents with an unexpected root.</summary>

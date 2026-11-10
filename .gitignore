@@ -25,3 +25,6 @@ Thumbs.db
 
 # Binary example data
 exampledata/
+
+# Local Feedpak export test checklist
+/TODO-48-testchecklista.md

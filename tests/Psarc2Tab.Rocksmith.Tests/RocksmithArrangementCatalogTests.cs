@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using Psarc2Tab.Application;
+using Psarc2Tab.Domain;
 using Psarc2Tab.Formats.Rocksmith;
 
 namespace Psarc2Tab.Rocksmith.Tests;
@@ -8,6 +10,56 @@ namespace Psarc2Tab.Rocksmith.Tests;
 /// <summary>Verifies arrangement discovery from a PSARC manifest.</summary>
 public sealed class RocksmithArrangementCatalogTests
 {
+    /// <summary>Explains that the selected decoder must have Vorbis support when a Wwise Vorbis stream fails.</summary>
+    [Fact]
+    public void VgmstreamDecoder_WwiseVorbisFailure_ReportsCodecRequirement()
+    {
+        var wem = new byte[22];
+        "RIFF"u8.CopyTo(wem);
+        "WAVE"u8.CopyTo(wem.AsSpan(8));
+        "fmt "u8.CopyTo(wem.AsSpan(12));
+        wem[20] = 0xFF;
+        wem[21] = 0xFF;
+        var decoder = new VgmstreamWwiseAudioDecoder(new RejectingVgmstreamRunner());
+
+        var exception = Assert.Throws<InvalidOperationException>(() => decoder.DecodeToWave(wem));
+
+        Assert.Contains("Vorbis/libvorbis support", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>Accepts arrangement-specific timeline differences and uses the most complete song timeline.</summary>
+    [Fact]
+    public void FeedpakImporter_DifferentArrangementTimelines_CombinesRichestBeatAndSectionData()
+    {
+        var lead = CreateSong("Lead", [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1)
+        ], []);
+        var bass = CreateSong("Bass", [
+            new BeatMarker(TimeSpan.Zero, 0, 0),
+            new BeatMarker(TimeSpan.FromSeconds(0.5), 0, 1),
+            new BeatMarker(TimeSpan.FromSeconds(1), 0, 2)
+        ], [new SongSection("Verse", 1, TimeSpan.Zero)]);
+        var catalog = new RocksmithArrangementCatalog();
+        var importer = new RocksmithArchiveFeedpakImporter(catalog,
+            new TestArrangementImporter([lead, bass]), new TestLyricsImporter(),
+            new RocksmithArchiveAudioImporter(catalog, new TestWwiseAudioDecoder()));
+        var paths = new[]
+        {
+            "songs/arr/sample_lead.xml",
+            "songs/arr/sample_bass.xml",
+            "audio/windows/song.wem"
+        };
+        var payloads = new Dictionary<string, byte[]> { [paths[2]] = [1, 2, 3, 4] };
+        using var archive = new MemoryStream(CreateArchive(paths, payloads: payloads));
+
+        var package = importer.Import(archive);
+
+        Assert.Equal(2, package.Arrangements.Count);
+        Assert.Equal(3, package.Timeline.Beats.Count);
+        Assert.Single(package.Timeline.Sections);
+    }
+
     /// <summary>Lists supported instrument arrangements and skips vocals and show-light data.</summary>
     [Fact]
     public void List_MultipleArrangements_ReturnsNumberedInstrumentsInManifestOrder()
@@ -29,6 +81,74 @@ public sealed class RocksmithArrangementCatalogTests
             arrangement => Assert.Equal(new RocksmithArrangement(1, "Bass", "songs/arr/sample_bass.xml"), arrangement),
             arrangement => Assert.Equal(new RocksmithArrangement(2, "Lead", "songs/arr/sample_lead.xml"), arrangement),
             arrangement => Assert.Equal(new RocksmithArrangement(3, "Rhythm", "songs/arr/sample_rhythm.xml"), arrangement));
+    }
+
+    /// <summary>Inspects entry lengths and extracts a requested path from the PSARC manifest.</summary>
+    [Fact]
+    public void ExtractEntry_ReturnsMatchingPathAndPayload()
+    {
+        const string chartPath = "songs/arr/sample_lead.xml";
+        const string audioPath = "audio/windows/123.wem";
+        byte[] audio = [0x52, 0x49, 0x46, 0x46, 0x01, 0x02];
+        var archiveBytes = CreateArchive([chartPath, audioPath], payloads: new Dictionary<string, byte[]>
+        {
+            [audioPath] = audio
+        });
+        var catalog = new RocksmithArrangementCatalog();
+        using var archive = new MemoryStream(archiveBytes);
+
+        var details = catalog.Inspect(archive);
+
+        Assert.Equal((ulong)audio.Length,
+            Assert.Single(details.Entries, entry => entry.Path == audioPath).UncompressedLength);
+        archive.Position = 0;
+        using var extracted = new MemoryStream();
+        var entry = catalog.ExtractEntry(archive, audioPath, extracted);
+
+        Assert.Equal(audioPath, entry.Path);
+        Assert.Equal(audio, extracted.ToArray());
+    }
+
+    /// <summary>Selects the much larger WEM file as the song mix instead of the preview.</summary>
+    [Fact]
+    public void ArchiveAudioImporter_SelectsLargerMixAndDecodesIt()
+    {
+        const string chartPath = "songs/arr/sample_lead.xml";
+        const string mixPath = "audio/windows/123.wem";
+        const string previewPath = "audio/windows/456.wem";
+        byte[] mix = Enumerable.Repeat((byte)0x31, 12).ToArray();
+        byte[] preview = [0x50, 0x52, 0x45];
+        var archiveBytes = CreateArchive([chartPath, mixPath, previewPath], payloads: new Dictionary<string, byte[]>
+        {
+            [mixPath] = mix,
+            [previewPath] = preview
+        });
+        using var archive = new MemoryStream(archiveBytes);
+        var decoder = new RecordingWwiseAudioDecoder();
+        var importer = new RocksmithArchiveAudioImporter(new RocksmithArrangementCatalog(), decoder);
+
+        var result = importer.Import(archive);
+
+        Assert.Equal(mix, decoder.LastInput);
+        Assert.Equal([0x52, 0x49, 0x46, 0x46], result);
+    }
+
+    /// <summary>Rejects WEM candidates whose relative sizes do not identify a likely preview.</summary>
+    [Fact]
+    public void ArchiveAudioImporter_AmbiguousWemSizes_ThrowsInvalidDataException()
+    {
+        var archiveBytes = CreateArchive(
+            ["songs/arr/sample_lead.xml", "audio/windows/123.wem", "audio/windows/456.wem"],
+            payloads: new Dictionary<string, byte[]>
+            {
+                ["audio/windows/123.wem"] = [1, 2, 3, 4],
+                ["audio/windows/456.wem"] = [5, 6, 7]
+            });
+        using var archive = new MemoryStream(archiveBytes);
+        var importer = new RocksmithArchiveAudioImporter(new RocksmithArrangementCatalog(),
+            new RecordingWwiseAudioDecoder());
+
+        Assert.Throws<InvalidDataException>(() => importer.Import(archive));
     }
 
     /// <summary>Appends a matching vocals XML file as the final selectable item.</summary>
@@ -268,6 +388,59 @@ public sealed class RocksmithArrangementCatalogTests
         return archive;
     }
 
+    /// <summary>Creates a song fixture with the requested arrangement and timeline.</summary>
+    /// <param name="name">The instrument arrangement name.</param>
+    /// <param name="beats">The beat markers.</param>
+    /// <param name="sections">The section markers.</param>
+    /// <returns>A single-track song fixture.</returns>
+    private static Song CreateSong(string name, IReadOnlyList<BeatMarker> beats, IReadOnlyList<SongSection> sections)
+    {
+        var track = new Track(name, new GuitarTuning([40, 45, 50, 55, 59, 64]), [], []);
+        return new Song("Fixture Song", "Fixture Artist", [track], sections, beats: beats);
+    }
+
+    /// <summary>Returns songs from a fixed archive arrangement listing.</summary>
+    private sealed class TestArrangementImporter : IArchiveArrangementImporter
+    {
+        /// <summary>The songs returned for one-based arrangement numbers.</summary>
+        private readonly IReadOnlyList<Song> _songs;
+
+        /// <summary>Creates the fake importer.</summary>
+        /// <param name="songs">The arrangement songs.</param>
+        public TestArrangementImporter(IReadOnlyList<Song> songs) => _songs = songs;
+
+        /// <inheritdoc />
+        public Song Import(Stream archive, int arrangementNumber) => _songs[arrangementNumber - 1];
+    }
+
+    /// <summary>Fails if the archive unexpectedly requests lyrics.</summary>
+    private sealed class TestLyricsImporter : IArchiveLyricsImporter
+    {
+        /// <inheritdoc />
+        public SongLyrics Import(Stream archive) => throw new InvalidOperationException("No lyrics were expected.");
+    }
+
+    /// <summary>Returns a minimal RIFF/WAVE header for package assembly.</summary>
+    private sealed class TestWwiseAudioDecoder : IWwiseAudioDecoder
+    {
+        /// <inheritdoc />
+        public byte[] DecodeToWave(ReadOnlyMemory<byte> wemData)
+        {
+            var wave = new byte[12];
+            "RIFF"u8.CopyTo(wave);
+            "WAVE"u8.CopyTo(wave.AsSpan(8));
+            return wave;
+        }
+    }
+
+    /// <summary>Simulates vgmstream rejecting a Wwise Vorbis input.</summary>
+    private sealed class RejectingVgmstreamRunner : IVgmstreamRunner
+    {
+        /// <inheritdoc />
+        public void Decode(string inputPath, string outputPath) =>
+            throw new InvalidDataException("vgmstream could not decode the WEM audio (exit code 1). failed opening input.");
+    }
+
     /// <summary>Writes an unsigned 40-bit integer in network byte order.</summary>
     /// <param name="destination">The five-byte destination field.</param>
     /// <param name="value">The value to encode.</param>
@@ -277,6 +450,22 @@ public sealed class RocksmithArrangementCatalogTests
         {
             destination[index] = (byte)value;
             value >>= 8;
+        }
+    }
+
+    /// <summary>Records the payload passed to a fake Wwise decoder in tests.</summary>
+    private sealed class RecordingWwiseAudioDecoder : IWwiseAudioDecoder
+    {
+        /// <summary>Gets the most recently decoded WEM bytes.</summary>
+        public byte[] LastInput { get; private set; } = [];
+
+        /// <summary>Returns a small marker in place of decoded WAV data.</summary>
+        /// <param name="wemData">The selected WEM payload.</param>
+        /// <returns>A synthetic WAV marker.</returns>
+        public byte[] DecodeToWave(ReadOnlyMemory<byte> wemData)
+        {
+            LastInput = wemData.ToArray();
+            return [0x52, 0x49, 0x46, 0x46];
         }
     }
 }

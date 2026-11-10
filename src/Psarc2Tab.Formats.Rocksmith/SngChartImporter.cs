@@ -457,7 +457,7 @@ public sealed class SngChartImporter
                 throw new InvalidDataException("The SNG chart contains an empty lyric record.");
             }
 
-            return new TimedLyric(ToTimeSpan(time, "lyric time"), text);
+            return new TimedLyric(ToTimeSpan(time, "lyric time"), text, ToTimeSpan(length, "lyric duration"));
         }
 
         /// <summary>Reads one signed 32-bit integer in chart byte order.</summary>
