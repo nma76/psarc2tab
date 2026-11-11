@@ -6,6 +6,8 @@ the preceding version tag.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-11
+
 ### Added
 
 - Add beta export of supported single-song PSARC archives as FeedBack-compatible
