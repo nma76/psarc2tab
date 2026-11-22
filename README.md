@@ -77,6 +77,18 @@ Only beta Feedpak export needs the external `vgmstream-cli` decoder, built with
 Wwise Vorbis (`libvorbis`) support. Get platform builds from the
 [official vgmstream releases](https://github.com/vgmstream/vgmstream-releases/releases).
 The executable must be on `PATH`, or set `PSARC2TAB_VGMSTREAM` to its full path.
+For example, set the variable in the terminal before running psarc2tab:
+
+```sh
+# macOS / Linux
+export PSARC2TAB_VGMSTREAM="/path/to/vgmstream-cli"
+```
+
+```powershell
+# Windows PowerShell
+$env:PSARC2TAB_VGMSTREAM = "C:\path\to\vgmstream-cli.exe"
+```
+
 If no suitable build is available, see the upstream
 [build guide](https://github.com/vgmstream/vgmstream/blob/master/doc/BUILD.md).
 The decoder is not bundled with psarc2tab. See its
