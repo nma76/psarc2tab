@@ -10,19 +10,25 @@ public sealed class Song
     /// <param name="sections">Optional section markers in source order.</param>
     /// <param name="centOffsetCents">The arrangement's pitch offset from A4=440 Hz, in cents.</param>
     /// <param name="beats">Optional beat markers in chronological order.</param>
-/// <param name="albumName">The optional album name from source metadata.</param>
-/// <param name="albumYear">The optional album year from source metadata.</param>
+    /// <param name="albumName">The optional album name from source metadata.</param>
+    /// <param name="albumYear">The optional album year from source metadata.</param>
+    /// <param name="capoFret">The capo fret, or <see langword="null"/> when no capo is declared.</param>
     /// <exception cref="ArgumentException">The title is blank, no tracks are supplied, or beats are unordered.</exception>
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The capo fret is outside the supported range.</exception>
     public Song(string title, string artist, IEnumerable<Track> tracks, IEnumerable<SongSection>? sections = null,
         decimal centOffsetCents = 0, IEnumerable<BeatMarker>? beats = null,
-        string albumName = "", string albumYear = "")
+        string albumName = "", string albumYear = "", int? capoFret = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(artist);
         ArgumentNullException.ThrowIfNull(tracks);
         ArgumentNullException.ThrowIfNull(albumName);
         ArgumentNullException.ThrowIfNull(albumYear);
+        if (capoFret is < 0 or > 24)
+        {
+            throw new ArgumentOutOfRangeException(nameof(capoFret), "A capo fret must be between 0 and 24.");
+        }
 
         var trackArray = tracks.ToArray();
         if (trackArray.Length == 0)
@@ -39,6 +45,7 @@ public sealed class Song
         Artist = artist;
         AlbumName = albumName;
         AlbumYear = albumYear;
+        CapoFret = capoFret is 0 ? null : capoFret;
         Tracks = Array.AsReadOnly(trackArray);
         var sectionArray = (sections ?? []).ToArray();
         if (sectionArray.Any(section => section is null))
@@ -73,6 +80,9 @@ public sealed class Song
 
     /// <summary>Gets the album year, or an empty string when the source omits it.</summary>
     public string AlbumYear { get; }
+
+    /// <summary>Gets the declared capo fret, or <see langword="null"/> when no capo is used.</summary>
+    public int? CapoFret { get; }
 
     /// <summary>Gets the tracks in presentation order.</summary>
     public IReadOnlyList<Track> Tracks { get; }

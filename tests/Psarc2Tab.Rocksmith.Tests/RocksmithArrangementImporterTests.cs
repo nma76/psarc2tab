@@ -105,6 +105,20 @@ public sealed class RocksmithArrangementImporterTests
         Assert.Equal(1, Assert.Single(Assert.Single(song.Tracks).Notes).StringNumber.Value);
     }
 
+    /// <summary>Imports capo metadata without changing frets, and treats zero or absent values as no capo.</summary>
+    [Theory]
+    [InlineData("<capo>3</capo>", 3)]
+    [InlineData("<capo>0</capo>", null)]
+    [InlineData("", null)]
+    public void Import_Capo_MapsMetadataOnly(string capoXml, int? expectedCapo)
+    {
+        var song = Import(CreateXml("Lead", "<note time=\"1\" string=\"0\" fret=\"4\" />")
+            .Replace("<levels>", $"{capoXml}<levels>", StringComparison.Ordinal));
+
+        Assert.Equal(expectedCapo, song.CapoFret);
+        Assert.Equal(4, Assert.Single(Assert.Single(song.Tracks).Notes).FretNumber.Value);
+    }
+
     /// <summary>Treats an omitted XML sustain as an event without explicit duration.</summary>
     [Fact]
     public void Import_NoteWithoutSustain_UsesZeroDuration()

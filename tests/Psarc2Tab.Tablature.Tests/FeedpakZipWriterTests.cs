@@ -30,6 +30,7 @@ public sealed class FeedpakZipWriterTests
         using var manifestReader = new StreamReader(archive.GetEntry("manifest.yaml")!.Open());
         var manifest = manifestReader.ReadToEnd();
         Assert.Contains("feedpak_version: \"1.19.0\"", manifest, StringComparison.Ordinal);
+        Assert.Contains("capo: 3", manifest, StringComparison.Ordinal);
         Assert.Contains("stems/full.wav", manifest, StringComparison.Ordinal);
         Assert.Contains("lyrics: lyrics.json", manifest, StringComparison.Ordinal);
     }
@@ -49,6 +50,7 @@ public sealed class FeedpakZipWriterTests
         using var arrangement = JsonDocument.Parse(archive.GetEntry("arrangements/lead-1.json")!.Open());
         var root = arrangement.RootElement;
         Assert.Equal(6, root.GetProperty("tuning").GetArrayLength());
+        Assert.Equal(3, root.GetProperty("capo").GetInt32());
         Assert.Equal(0, root.GetProperty("tuning")[0].GetInt32());
         Assert.Equal(1, root.GetProperty("notes")[0].GetProperty("s").GetInt32());
         Assert.True(root.GetProperty("notes")[0].GetProperty("ho").GetBoolean());
@@ -89,7 +91,7 @@ public sealed class FeedpakZipWriterTests
             new StringNumber(3), new FretNumber(5), NoteTechnique.Bend | NoteTechnique.Slide);
         var track = new Track("Lead", tuning, [note, unknownDetail], [chord]);
         return new Song("Song: One", "Artist", [track], [new SongSection("Verse", 1, TimeSpan.FromSeconds(2))],
-            beats: [new BeatMarker(TimeSpan.Zero, 0, 0)]);
+            beats: [new BeatMarker(TimeSpan.Zero, 0, 0)], capoFret: 3);
     }
 
     /// <summary>Creates a short 16-bit stereo PCM WAV fixture with valid RIFF chunk sizes.</summary>

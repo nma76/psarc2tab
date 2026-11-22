@@ -120,8 +120,15 @@ public sealed class RocksmithArrangementImporter : IRocksmithArrangementImporter
         var centOffsetCents = root.Element("centOffset") is { } centOffset
             ? ParseDecimalValue(centOffset.Value)
             : 0;
+        var capoFret = root.Element("capo") is { } capoElement
+            ? int.Parse(capoElement.Value, NumberStyles.Integer, CultureInfo.InvariantCulture)
+            : 0;
+        if (capoFret is < 0 or > 24)
+        {
+            throw new InvalidDataException("The arrangement capo must be between fret 0 and 24.");
+        }
         return new Song(title, artist, [new Track(arrangement, tuning, notes, chords)], sections,
-            centOffsetCents, beats, albumName, albumYear);
+            centOffsetCents, beats, albumName, albumYear, capoFret);
     }
 
     /// <summary>Reads optional beat timestamps and source measure positions.</summary>
