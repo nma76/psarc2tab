@@ -56,6 +56,12 @@ public sealed class TablatureTextWriter : IArrangementFormatWriter
         var stringCount = GetDisplayedStringCount(track);
         writer.Write(FormatTuning(track.Tuning, stringCount));
         writer.Write('\n');
+        if (song.CapoFret is { } capoFret)
+        {
+            writer.Write("Capo: ");
+            writer.Write(capoFret);
+            writer.Write('\n');
+        }
         writer.Write("Tuning reference: ");
         writer.Write(FormatTuningReference(song.CentOffsetCents));
         writer.Write("\n\n");

@@ -52,6 +52,21 @@ public sealed class TablatureTextWriterTests
         ]), output.ToString());
     }
 
+    /// <summary>Displays declared capo metadata while preserving the chart's fret numbers.</summary>
+    [Fact]
+    public void Write_Capo_IncludesHeaderLineWithoutChangingFretPositions()
+    {
+        var track = CreateTrack([new NoteEvent(TimeSpan.Zero, TimeSpan.Zero,
+            new StringNumber(1), new FretNumber(4))], []);
+        var song = new Song("Song", "Artist", [track], capoFret: 3);
+        using var output = new StringWriter();
+
+        new TablatureTextWriter().Write(song, track, output);
+
+        Assert.Contains("Tuning: E2 A2 D3 G3 B3 E4\nCapo: 3\n", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("E|4|", output.ToString(), StringComparison.Ordinal);
+    }
+
     /// <summary>Formats slides and muted notes with common ASCII tab markers.</summary>
     [Fact]
     public void Write_SlideAndMutedNotes_UsesTabNotation()

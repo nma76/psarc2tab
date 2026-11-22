@@ -152,17 +152,17 @@ files and identifies the full mix from their relative uncompressed sizes.
 Archives with multiple songs, ambiguous WEM layouts, missing WEM audio, or
 unsupported WAV variants fail with a diagnostic. Only PCM WAV output is
 accepted. Feedpak does not currently include PSARC cover art. Arrangement
-difficulty levels and some Rocksmith technique detail are not represented;
-capo metadata is not imported. The package currently writes `capo: 0` in both
-the manifest and arrangement JSON, so a source arrangement that uses a capo is
-represented as having no capo. Full capo support is tracked separately in
-TODO 33. These are known mapping limits of this initial exporter. Exported
+difficulty levels and some Rocksmith technique detail are not represented.
+Capo metadata from XML arrangements is retained per arrangement in both the
+manifest and arrangement JSON, and tablature headers show a positive capo
+fret. Missing or zero capo values mean no capo; fret positions remain as stored
+in the source chart. Capo from SNG binary metadata is not imported yet. Exported
 packages have been opened and checked in the FeedBack application. The writer
 targets the
 [Feedpak v1 specification](https://github.com/got-feedBack/feedpak-spec/blob/main/spec/feedpak-v1.md)
 (currently declared as version `1.19.0`). Lyric syllable durations are retained
-when present. The current domain model cannot preserve capo, exact bend
-magnitude/shape, or slide target fret, and it does not export difficulty ladders;
+when present. The current domain model cannot preserve exact bend
+magnitude/shape or slide target fret, and it does not export difficulty ladders;
 those source details are omitted rather than fabricated.
 
 Third-party notices: `vgmstream` is an optional external executable and is not

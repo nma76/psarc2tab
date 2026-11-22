@@ -35,7 +35,7 @@ public sealed class FeedpakZipWriter : IFeedpakPackageWriter
             var id = CreateArrangementId(track.Name, index);
             var file = $"arrangements/{id}.json";
             WriteJson(archive, file, writer => WriteArrangement(writer, song, track));
-            return new ArrangementReference(id, track.Name, file, GetTuningOffsets(track), 0);
+            return new ArrangementReference(id, track.Name, file, GetTuningOffsets(track), song.CapoFret ?? 0);
         }).ToArray();
 
         if (package.Timeline.Beats.Count > 0 || package.Timeline.Sections.Count > 0)
@@ -133,7 +133,7 @@ public sealed class FeedpakZipWriter : IFeedpakPackageWriter
         }
 
         writer.WriteEndArray();
-        writer.WriteNumber("capo", 0);
+        writer.WriteNumber("capo", song.CapoFret ?? 0);
         writer.WriteNumber("centOffset", (double)song.CentOffsetCents);
         writer.WritePropertyName("notes");
         writer.WriteStartArray();
